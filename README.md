@@ -1,6 +1,6 @@
 # Safeway Couriers
 
-Marketing site for a HIPAA-trained medical courier company: STAT and same-day runs, lab specimen transport, pharmacy delivery, and scheduled hospital routes.
+Professional medical courier website for Columbus and Central Ohio.
 
 ## Run locally
 
@@ -11,10 +11,13 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-## Customize
+## Edit company details
 
-Edit `lib/site.ts` to set your phone number, email, hours, and service copy.
+Update `lib/site.ts` for:
 
-Quote and contact forms currently confirm on the page only. Wire them to email or your dispatch system before going live.
+- Address, phone, and email
+- Services, industries, and compliance copy
+- Quote form options
+- `showInsuredBadge` and `showBackgroundScreenedBadge` (keep `false` until those items are implemented)
 
-Tracking includes two demo IDs: `SW-10482` and `SW-22901`.
+Quote submissions currently confirm on the page. Connect `lib/submit-quote.ts` to email or an API before launch.

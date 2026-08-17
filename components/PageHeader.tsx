@@ -1,4 +1,6 @@
-export function PageHero({
+import { Container } from "@/components/Container";
+
+export function PageHeader({
   eyebrow,
   title,
   description,
@@ -9,17 +11,17 @@ export function PageHero({
 }) {
   return (
     <section className="bg-navy text-white">
-      <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
-        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-teal-bright">
+      <Container className="py-14 sm:py-20">
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-300">
           {eyebrow}
         </p>
-        <h1 className="display mt-3 max-w-3xl text-4xl font-medium tracking-tight sm:text-5xl">
+        <h1 className="mt-3 max-w-3xl text-3xl font-semibold tracking-tight sm:text-5xl">
           {title}
         </h1>
         <p className="mt-5 max-w-2xl text-base leading-relaxed text-white/75 sm:text-lg">
           {description}
         </p>
-      </div>
+      </Container>
     </section>
   );
 }

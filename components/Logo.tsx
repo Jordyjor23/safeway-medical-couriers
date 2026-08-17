@@ -1,65 +1,41 @@
 export function Logo({
-  className = "",
   inverted = false,
+  className = "",
 }: {
-  className?: string;
   inverted?: boolean;
+  className?: string;
 }) {
   return (
     <span className={`inline-flex items-center gap-2.5 ${className}`}>
-      <svg
-        viewBox="0 0 40 44"
-        className="h-9 w-8 shrink-0"
-        aria-hidden="true"
-      >
+      <svg viewBox="0 0 40 40" className="h-9 w-9 shrink-0" aria-hidden="true">
+        <rect width="40" height="40" rx="10" fill={inverted ? "#1a6fb5" : "#0b1c33"} />
         <path
-          d="M20 1.5 36 8.2v12.4c0 10.2-6.4 18.8-16 21.9C10.4 39.4 4 30.8 4 20.6V8.2L20 1.5Z"
-          fill={inverted ? "#14b8a6" : "#0a2540"}
-        />
-        <path
-          d="M20 5.2 32.6 10.4v9.8c0 8.2-5.1 15.1-12.6 17.6C13 35.3 7.4 28.4 7.4 20.2v-9.8L20 5.2Z"
-          fill={inverted ? "#0a2540" : "#123456"}
-        />
-        <path
-          d="M14 16.2c2.4-3.2 7.8-3.6 10.2-.4 1.4 1.8 1.3 4.2-.2 5.8L20 26.2l-4-4.6c-1.5-1.6-1.6-4-.2-5.8 1-1.3 2.8-1.8 4.5-1.4"
+          d="M11 26.5c3.2-7.4 7-12.2 9-14.8 2 2.6 5.8 7.4 9 14.8"
           fill="none"
-          stroke="#14b8a6"
-          strokeWidth="2.2"
+          stroke="#ffffff"
+          strokeWidth="2.1"
           strokeLinecap="round"
         />
-        <circle cx="24.8" cy="15.2" r="1.5" fill="#b8923a" />
+        <circle cx="20" cy="10.5" r="2.1" fill="#7ec8f2" />
+        <path
+          d="M16.2 21.2h7.6"
+          stroke="#7ec8f2"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+        />
       </svg>
       <span className="leading-tight">
         <span
-          className={`display block text-[1.05rem] font-semibold tracking-tight ${inverted ? "text-white" : "text-navy"}`}
+          className={`block text-[1.05rem] font-bold tracking-tight ${inverted ? "text-white" : "text-navy"}`}
         >
           Safeway
         </span>
         <span
-          className={`block text-[0.62rem] font-semibold uppercase tracking-[0.22em] ${inverted ? "text-teal-bright" : "text-teal"}`}
+          className={`block text-[0.62rem] font-semibold uppercase tracking-[0.2em] ${inverted ? "text-sky-200" : "text-medical"}`}
         >
           Couriers
         </span>
       </span>
     </span>
-  );
-}
-
-export function LogoMark({ className = "h-10 w-9" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 40 44" className={className} aria-hidden="true">
-      <path
-        d="M20 1.5 36 8.2v12.4c0 10.2-6.4 18.8-16 21.9C10.4 39.4 4 30.8 4 20.6V8.2L20 1.5Z"
-        fill="#0a2540"
-      />
-      <path
-        d="M14 16.2c2.4-3.2 7.8-3.6 10.2-.4 1.4 1.8 1.3 4.2-.2 5.8L20 26.2l-4-4.6c-1.5-1.6-1.6-4-.2-5.8 1-1.3 2.8-1.8 4.5-1.4"
-        fill="none"
-        stroke="#14b8a6"
-        strokeWidth="2.2"
-        strokeLinecap="round"
-      />
-      <circle cx="24.8" cy="15.2" r="1.5" fill="#b8923a" />
-    </svg>
   );
 }

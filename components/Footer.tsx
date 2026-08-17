@@ -1,67 +1,61 @@
 import Link from "next/link";
+import { Container } from "@/components/Container";
 import { Logo } from "@/components/Logo";
-import { nav, site } from "@/lib/site";
+import { addressLines, footerNav, site } from "@/lib/site";
 
 export function Footer() {
   return (
     <footer className="bg-navy-deep text-white">
-      <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-4">
+      <Container className="grid gap-10 py-14 md:grid-cols-4">
         <div className="md:col-span-2">
           <Link href="/" className="inline-block">
             <Logo inverted />
           </Link>
           <p className="mt-4 max-w-md text-sm leading-relaxed text-white/70">
-            HIPAA-trained medical couriers for hospitals, laboratories, pharmacies,
-            and clinics. STAT when it is urgent. Scheduled when it has to be
-            reliable.
+            Professional medical courier and healthcare logistics services serving
+            Columbus and Central Ohio.
+          </p>
+          <p className="mt-4 text-sm text-white/60">
+            {addressLines[0]}
+            <br />
+            {addressLines[1]}
           </p>
         </div>
-
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-teal-bright">
-            Company
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-300">
+            Explore
           </p>
           <ul className="mt-4 space-y-2 text-sm">
-            {nav.map((item) => (
+            {footerNav.slice(0, 7).map((item) => (
               <li key={item.href}>
                 <Link href={item.href} className="text-white/75 hover:text-white">
                   {item.label}
                 </Link>
               </li>
             ))}
-            <li>
-              <Link href="/quote" className="text-white/75 hover:text-white">
-                Request a quote
-              </Link>
-            </li>
           </ul>
         </div>
-
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-teal-bright">
-            Dispatch
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-300">
+            Company
           </p>
-          <ul className="mt-4 space-y-2 text-sm text-white/75">
-            <li>
-              <a href={site.phoneHref} className="hover:text-white">
-                {site.phone}
-              </a>
-            </li>
-            <li>
-              <a href={site.emailHref} className="hover:text-white">
-                {site.email}
-              </a>
-            </li>
-            <li>{site.hours}</li>
+          <ul className="mt-4 space-y-2 text-sm">
+            {footerNav.slice(7).map((item) => (
+              <li key={item.href}>
+                <Link href={item.href} className="text-white/75 hover:text-white">
+                  {item.label}
+                </Link>
+              </li>
+            ))}
+            <li className="text-white/60">Phone: {site.phone}</li>
+            <li className="text-white/60">Email: {site.email}</li>
           </ul>
         </div>
-      </div>
+      </Container>
       <div className="border-t border-white/10">
-        <p className="mx-auto max-w-6xl px-4 py-5 text-xs text-white/45 sm:px-6">
-          © {new Date().getFullYear()} {site.name}. HIPAA-trained medical courier
-          service. Chain-of-custody transport for hospitals, laboratories, and
-          pharmacies.
-        </p>
+        <Container className="py-5 text-xs text-white/45">
+          © {site.year} {site.legalName}. All Rights Reserved.
+        </Container>
       </div>
     </footer>
   );

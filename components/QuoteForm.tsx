@@ -1,27 +1,39 @@
 "use client";
 
-import { useState } from "react";
-import { services, site } from "@/lib/site";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useMemo, useState } from "react";
+import {
+  frequencyOptions,
+  organizationTypes,
+  serviceNeededOptions,
+} from "@/lib/site";
+import { submitQuoteRequest } from "@/lib/submit-quote";
 
 const fieldClass =
-  "mt-1.5 w-full rounded-lg border border-navy/15 bg-white px-3 py-2.5 text-sm text-ink outline-none ring-teal/30 transition focus:border-teal focus:ring-2";
+  "mt-1.5 w-full rounded-lg border border-line bg-white px-3 py-2.5 text-sm text-ink outline-none ring-medical/25 transition focus:border-medical focus:ring-2";
 
-export function QuoteForm() {
-  const [status, setStatus] = useState<"idle" | "sent">("idle");
+type Status = "idle" | "sent";
+
+function QuoteFormFields() {
+  const searchParams = useSearchParams();
+  const [status, setStatus] = useState<Status>("idle");
+  const defaultService = useMemo(() => {
+    return searchParams.get("reason") === "compliance"
+      ? "Compliance Packet / Vendor Onboarding"
+      : "Scheduled Route";
+  }, [searchParams]);
 
   if (status === "sent") {
     return (
-      <div className="rounded-2xl border border-teal/30 bg-white p-8 shadow-sm">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-teal">
+      <div className="rounded-2xl border border-medical/30 bg-paper p-8">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-medical">
           Request received
         </p>
-        <h2 className="display mt-2 text-3xl text-navy">We have your details.</h2>
+        <h2 className="mt-2 text-2xl font-semibold text-navy">Thank you.</h2>
         <p className="mt-3 text-muted leading-relaxed">
-          Dispatch will follow up shortly. For STAT pickup, call{" "}
-          <a href={site.phoneHref} className="font-semibold text-navy underline">
-            {site.phone}
-          </a>{" "}
-          so a courier can be assigned immediately.
+          We have your information and will follow up about service, routing, or
+          a compliance packet. This form is ready to connect to email or your
+          dispatch system when you go live.
         </p>
       </div>
     );
@@ -29,68 +41,104 @@ export function QuoteForm() {
 
   return (
     <form
-      className="rounded-2xl border border-navy/10 bg-white p-6 shadow-sm sm:p-8"
-      onSubmit={(event) => {
+      id="quote-form"
+      className="rounded-2xl border border-line bg-paper p-6 shadow-sm sm:p-8"
+      onSubmit={async (event) => {
         event.preventDefault();
+        const form = new FormData(event.currentTarget);
+        await submitQuoteRequest({
+          firstName: String(form.get("firstName") ?? ""),
+          lastName: String(form.get("lastName") ?? ""),
+          organization: String(form.get("organization") ?? ""),
+          email: String(form.get("email") ?? ""),
+          phone: String(form.get("phone") ?? ""),
+          organizationType: String(form.get("organizationType") ?? ""),
+          serviceNeeded: String(form.get("serviceNeeded") ?? ""),
+          pickupCity: String(form.get("pickupCity") ?? ""),
+          deliveryCity: String(form.get("deliveryCity") ?? ""),
+          frequency: String(form.get("frequency") ?? ""),
+          startDate: String(form.get("startDate") ?? ""),
+          details: String(form.get("details") ?? ""),
+        });
         setStatus("sent");
       }}
     >
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="text-sm font-semibold text-navy">
-          Facility or company
-          <input name="facility" required className={fieldClass} />
+          First Name
+          <input name="firstName" required autoComplete="given-name" className={fieldClass} />
         </label>
         <label className="text-sm font-semibold text-navy">
-          Contact name
-          <input name="name" required className={fieldClass} />
-        </label>
-        <label className="text-sm font-semibold text-navy">
-          Email
-          <input name="email" type="email" required className={fieldClass} />
-        </label>
-        <label className="text-sm font-semibold text-navy">
-          Phone
-          <input name="phone" type="tel" required className={fieldClass} />
+          Last Name
+          <input name="lastName" required autoComplete="family-name" className={fieldClass} />
         </label>
         <label className="text-sm font-semibold text-navy sm:col-span-2">
-          Service needed
-          <select name="service" className={fieldClass} defaultValue={services[0].title}>
-            {services.map((service) => (
-              <option key={service.title}>{service.title}</option>
+          Company / Organization
+          <input name="organization" required autoComplete="organization" className={fieldClass} />
+        </label>
+        <label className="text-sm font-semibold text-navy">
+          Work Email
+          <input name="email" type="email" required autoComplete="email" className={fieldClass} />
+        </label>
+        <label className="text-sm font-semibold text-navy">
+          Phone Number
+          <input name="phone" type="tel" required autoComplete="tel" className={fieldClass} />
+        </label>
+        <label className="text-sm font-semibold text-navy">
+          Type of Organization
+          <select name="organizationType" className={fieldClass} defaultValue={organizationTypes[0]}>
+            {organizationTypes.map((option) => (
+              <option key={option}>{option}</option>
             ))}
           </select>
         </label>
         <label className="text-sm font-semibold text-navy">
-          Pickup location
-          <input name="pickup" required className={fieldClass} />
-        </label>
-        <label className="text-sm font-semibold text-navy">
-          Delivery location
-          <input name="dropoff" required className={fieldClass} />
-        </label>
-        <label className="text-sm font-semibold text-navy sm:col-span-2">
-          Timing
-          <select name="timing" className={fieldClass} defaultValue="STAT — as soon as possible">
-            <option>STAT — as soon as possible</option>
-            <option>Same day</option>
-            <option>Scheduled / recurring route</option>
-            <option>Planning — not urgent</option>
+          Service Needed
+          <select name="serviceNeeded" className={fieldClass} defaultValue={defaultService}>
+            {serviceNeededOptions.map((option) => (
+              <option key={option}>{option}</option>
+            ))}
           </select>
         </label>
+        <label className="text-sm font-semibold text-navy">
+          Pickup City
+          <input name="pickupCity" required className={fieldClass} />
+        </label>
+        <label className="text-sm font-semibold text-navy">
+          Delivery City
+          <input name="deliveryCity" required className={fieldClass} />
+        </label>
+        <label className="text-sm font-semibold text-navy">
+          Delivery Frequency
+          <select name="frequency" className={fieldClass} defaultValue={frequencyOptions[0]}>
+            {frequencyOptions.map((option) => (
+              <option key={option}>{option}</option>
+            ))}
+          </select>
+        </label>
+        <label className="text-sm font-semibold text-navy">
+          Preferred Start Date
+          <input name="startDate" type="date" className={fieldClass} />
+        </label>
         <label className="text-sm font-semibold text-navy sm:col-span-2">
-          Notes (temperature, biohazard, cutoff times)
-          <textarea name="notes" rows={4} className={fieldClass} />
+          Additional Details
+          <textarea name="details" rows={5} className={fieldClass} />
         </label>
       </div>
       <button
         type="submit"
-        className="mt-6 w-full rounded-full bg-navy px-5 py-3 text-sm font-semibold text-white transition hover:bg-teal sm:w-auto"
+        className="mt-6 w-full rounded-full bg-navy px-5 py-3 text-sm font-semibold text-white transition hover:bg-medical sm:w-auto"
       >
-        Submit request
+        Request My Quote
       </button>
-      <p className="mt-3 text-xs text-muted">
-        This demo form does not send email yet. Call dispatch for live STAT runs.
-      </p>
     </form>
+  );
+}
+
+export function QuoteForm() {
+  return (
+    <Suspense fallback={<div className="h-96 animate-pulse rounded-2xl bg-ice" />}>
+      <QuoteFormFields />
+    </Suspense>
   );
 }

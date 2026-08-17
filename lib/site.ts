@@ -1,104 +1,332 @@
 export const site = {
   name: "Safeway Couriers",
-  shortName: "Safeway",
-  tagline: "Medical logistics when every minute matters.",
+  legalName: "Safeway Couriers",
+  tagline: "Medical Deliveries That Can't Afford to Be Late.",
   description:
-    "Safeway Couriers provides HIPAA-trained, chain-of-custody medical courier service for hospitals, laboratories, pharmacies, and clinics — including STAT, scheduled routes, and temperature-controlled specimen transport.",
-  phone: "(800) 723-3929",
-  phoneHref: "tel:+18007233929",
-  email: "dispatch@safewaycouriers.com",
-  emailHref: "mailto:dispatch@safewaycouriers.com",
-  hours: "Dispatch open 24 hours, 365 days",
-  address: "Healthcare logistics desk — regional & nationwide coverage",
+    "Safeway Couriers provides reliable, professional and time-sensitive medical courier services for healthcare organizations throughout Columbus and Central Ohio.",
+  seoTitle: "Safeway Couriers | Medical Courier Services in Columbus, Ohio",
+  street: "1747 Olentangy River Rd, Suite 1023",
+  city: "Columbus",
+  state: "Ohio",
+  zip: "43212",
+  region: "Columbus and Central Ohio",
+  phone: "[Business Phone]",
+  email: "[Business Email]",
+  year: 2026,
+  showInsuredBadge: false,
+  showBackgroundScreenedBadge: false,
 } as const;
 
+export const addressLines = [
+  site.street,
+  `${site.city}, ${site.state} ${site.zip}`,
+] as const;
+
+export const fullAddress = `${site.street}, ${site.city}, ${site.state} ${site.zip}`;
+
 export const nav = [
-  { href: "/services", label: "Services" },
+  { href: "/", label: "Home" },
+  { href: "/#about", label: "About" },
+  { href: "/#services", label: "Services" },
+  { href: "/#industries", label: "Industries We Serve" },
+  { href: "/#service-area", label: "Service Area" },
+  { href: "/#why-choose-us", label: "Why Choose Us" },
+  { href: "/#compliance", label: "Compliance" },
+  { href: "/#contact", label: "Contact" },
+] as const;
+
+export const footerNav = [
+  { href: "/", label: "Home" },
   { href: "/about", label: "About" },
-  { href: "/compliance", label: "Compliance" },
-  { href: "/tracking", label: "Tracking" },
+  { href: "/services", label: "Services" },
+  { href: "/#industries", label: "Industries" },
+  { href: "/#service-area", label: "Service Area" },
+  { href: "/quote", label: "Request a Quote" },
   { href: "/contact", label: "Contact" },
+  { href: "/compliance", label: "Compliance" },
+  { href: "/privacy", label: "Privacy Policy" },
+  { href: "/terms", label: "Terms of Service" },
+] as const;
+
+export const trustItems = [
+  {
+    key: "reliable",
+    title: "Reliable Service",
+    body: "Consistent pickup and delivery that healthcare teams can plan around.",
+  },
+  {
+    key: "secure",
+    title: "Secure Handling",
+    body: "Careful custody of specimens, medications, supplies, and documents.",
+  },
+  {
+    key: "timely",
+    title: "Time-Sensitive Delivery",
+    body: "Priority movement for STAT runs and tight laboratory windows.",
+  },
+  {
+    key: "communication",
+    title: "Professional Communication",
+    body: "Clear updates from request through confirmed drop-off.",
+  },
 ] as const;
 
 export const services = [
   {
-    href: "/services#stat",
-    title: "STAT & same-day",
+    id: "specimens",
+    title: "Medical Specimen Delivery",
     summary:
-      "On-demand pickup for time-critical specimens, blood products, and surgical supplies — with live dispatch and GPS visibility.",
-    details:
-      "When a lab result, transplant support item, or missing OR supply cannot wait, our 24/7 desk assigns the nearest qualified courier. You receive pickup confirmation, in-transit updates, and a signed proof of delivery.",
+      "Careful and time-sensitive transportation of laboratory specimens and testing materials.",
   },
   {
-    href: "/services#specimens",
-    title: "Lab specimen transport",
+    id: "lab-pickups",
+    title: "Laboratory Pickups",
     summary:
-      "Chain-of-custody handling for blood, urine, tissue, and reference-lab send-outs, including temperature-controlled coolers.",
-    details:
-      "Couriers are trained on biohazard labeling, spill response, and hold-time requirements. We document who handled the specimen, when it left the floor, and when it arrived at the receiving bench.",
+      "Scheduled and on-demand pickup services for laboratories, clinics, physician offices, and healthcare facilities.",
   },
   {
-    href: "/services#pharmacy",
-    title: "Pharmacy & specialty meds",
+    id: "pharmacy",
+    title: "Pharmacy & Medication Delivery",
     summary:
-      "Secure delivery of prescriptions, compounded medications, and specialty drugs between pharmacies, clinics, and infusion suites.",
-    details:
-      "Temperature-sensitive products travel in validated coolers. Signature capture and sealed-bag protocols keep the chain of custody intact from pharmacist to receiving clinician.",
+      "Reliable transportation solutions for pharmacies and healthcare organizations requiring medication delivery.",
   },
   {
-    href: "/services#routes",
-    title: "Scheduled routes",
+    id: "supplies",
+    title: "Medical Supplies & Equipment",
     summary:
-      "Daily and multi-stop circuits for hospitals, draw stations, and reference labs that need predictable windows — not one-off trips.",
-    details:
-      "We design routes around your cutoff times, courier check-in procedures, and dock constraints. Missed stops are escalated immediately, not discovered at the end of the day.",
+      "Transportation of medical supplies, equipment, devices, and other healthcare materials.",
   },
   {
-    href: "/services#equipment",
-    title: "Equipment & supplies",
+    id: "routes",
+    title: "Scheduled Routes",
     summary:
-      "Movement of durable medical equipment, instruments, reagents, and clinic restocks with the care of a medical shipment — not a parcel.",
-    details:
-      "From loaner scopes to point-of-care analyzers, we treat medical cargo as regulated healthcare logistics: labeled, tracked, and handed to the right department.",
+      "Recurring courier routes customized around the daily operations of healthcare organizations.",
   },
   {
-    href: "/services#after-hours",
-    title: "After-hours coverage",
+    id: "stat",
+    title: "STAT & Urgent Delivery",
     summary:
-      "Nights, weekends, and holidays staffed by the same dispatch team — so STAT does not mean “leave a voicemail.”",
-    details:
-      "A live coordinator answers the phone, books the run, and stays on the ticket until delivery is confirmed. No call center scripts. No next-business-day callbacks.",
+      "Priority transportation for medical deliveries requiring immediate or expedited service.",
+  },
+  {
+    id: "documents",
+    title: "Medical Documents",
+    summary:
+      "Secure transportation of confidential healthcare documents and business materials.",
   },
 ] as const;
 
-export const steps = [
+export const whyFeatures = [
   {
-    n: "01",
-    title: "Request pickup",
-    body: "Call dispatch or submit a quote. Tell us what is moving, the temperature needs, and the required arrival window.",
+    key: "dependable",
+    title: "Dependable",
+    body: "Healthcare organizations need a courier partner they can count on. We prioritize consistent pickup and delivery service.",
   },
   {
-    n: "02",
-    title: "Assigned courier",
-    body: "A HIPAA-trained, background-checked courier is dispatched with the right cooler, labels, and chain-of-custody paperwork.",
+    key: "responsive",
+    title: "Responsive",
+    body: "Clear communication and responsive service help our clients stay informed throughout the delivery process.",
   },
   {
-    n: "03",
-    title: "Documented handoff",
-    body: "Pickup is timestamped. Seals, temperatures, and receiving names are recorded so the specimen’s story is complete.",
+    key: "healthcare",
+    title: "Healthcare Focused",
+    body: "Our services are designed specifically around the transportation needs of healthcare organizations.",
   },
   {
-    n: "04",
-    title: "Confirmed delivery",
-    body: "GPS tracking, signature capture, and a delivery notice close the loop for your lab, pharmacy, or nursing unit.",
+    key: "flexible",
+    title: "Flexible",
+    body: "From recurring routes to urgent deliveries, our services can be tailored to fit different operational needs.",
   },
 ] as const;
 
-export const credentials = [
-  "HIPAA-trained couriers",
-  "Chain-of-custody documentation",
-  "OSHA bloodborne pathogen training",
-  "Temperature-controlled transport",
-  "GPS tracking & proof of delivery",
-  "Cargo insurance on every run",
+export const industries = [
+  {
+    key: "hospitals",
+    title: "Hospitals",
+    body: "Coordinated pickup and delivery support for hospital departments that depend on timely movement of medical materials.",
+  },
+  {
+    key: "labs",
+    title: "Medical Laboratories",
+    body: "Scheduled and on-demand courier service aligned with laboratory workflows and cutoff times.",
+  },
+  {
+    key: "pharmacies",
+    title: "Pharmacies",
+    body: "Reliable transportation between pharmacies, clinics, and healthcare sites that need medication moved with care.",
+  },
+  {
+    key: "physicians",
+    title: "Physician Offices",
+    body: "Convenient pickup and delivery for practices sending specimens, supplies, and documents throughout the day.",
+  },
+  {
+    key: "urgent-care",
+    title: "Urgent Care Centers",
+    body: "Responsive courier support when urgent care sites need materials moved without waiting on the next business day.",
+  },
+  {
+    key: "dental",
+    title: "Dental Offices",
+    body: "Professional delivery of dental lab work, supplies, and related healthcare materials.",
+  },
+  {
+    key: "nursing",
+    title: "Nursing & Assisted Living Facilities",
+    body: "Dependable transportation connecting long-term care communities with pharmacies, labs, and medical partners.",
+  },
+  {
+    key: "supply",
+    title: "Medical Supply Companies",
+    body: "Local distribution support for suppliers restocking clinics, hospitals, and care facilities across Central Ohio.",
+  },
+  {
+    key: "specialty",
+    title: "Specialty Clinics",
+    body: "Courier service tailored to infusion, imaging, and other specialty settings with precise delivery windows.",
+  },
+  {
+    key: "healthcare-orgs",
+    title: "Healthcare Organizations",
+    body: "A single courier partner for health systems, networks, and groups that need consistent regional coverage.",
+  },
 ] as const;
+
+export const communities = [
+  "Columbus",
+  "Dublin",
+  "Upper Arlington",
+  "Westerville",
+  "Hilliard",
+  "Gahanna",
+  "Grove City",
+  "Reynoldsburg",
+  "Worthington",
+  "Delaware",
+  "Pickerington",
+  "New Albany",
+] as const;
+
+export const complianceItems = [
+  {
+    key: "hipaa",
+    title: "HIPAA-Trained",
+    body: "Our team is trained in the proper handling and protection of confidential patient and healthcare information. Safeway Couriers maintains privacy and security procedures designed to protect protected health information throughout the delivery process.",
+  },
+  {
+    key: "osha",
+    title: "OSHA Bloodborne Pathogens Trained",
+    body: "Applicable Safeway Couriers personnel complete Bloodborne Pathogens training and follow established exposure-control, PPE, handling, and incident-response procedures when transporting materials that may involve occupational exposure.",
+  },
+  {
+    key: "dot",
+    title: "DOT Medical Specimen Transportation Training",
+    body: "Applicable personnel are trained in transportation requirements relevant to regulated medical specimens and biological materials transported by Safeway Couriers.",
+  },
+  {
+    key: "un3373",
+    title: "UN3373 / Biological Substance Category B Training",
+    body: "Applicable couriers handling Biological Substance, Category B shipments are trained in applicable packaging, labeling, handling, and transportation requirements.",
+  },
+  {
+    key: "custody",
+    title: "Chain-of-Custody Procedures",
+    body: "Safeway Couriers maintains documented pickup, transfer, transportation, and delivery procedures designed to maintain accountability from origin to destination.",
+  },
+  {
+    key: "handling",
+    title: "Specimen Handling Procedures",
+    body: "Medical specimens are transported according to applicable handling instructions, delivery timelines, packaging requirements, and client-specific protocols.",
+  },
+  {
+    key: "privacy",
+    title: "Privacy & Confidentiality",
+    body: "All couriers are required to maintain the confidentiality of medical information and follow Safeway Couriers privacy and information-security policies.",
+  },
+  {
+    key: "spill",
+    title: "Spill & Exposure Response",
+    body: "Safeway Couriers maintains procedures for responding to spills, damaged packages, exposure incidents, and other transportation-related events.",
+  },
+  {
+    key: "records",
+    title: "Courier Training & Documentation",
+    body: "Training records and applicable compliance documentation are maintained for personnel performing regulated medical courier services.",
+  },
+] as const;
+
+export const trustBadges = [
+  { key: "hipaa", label: "HIPAA-Trained", optional: false },
+  { key: "bbp", label: "Bloodborne Pathogens Trained", optional: false },
+  { key: "dot", label: "DOT Specimen Transport Training", optional: false },
+  { key: "un3373", label: "UN3373 / Category B Training", optional: false },
+  { key: "custody", label: "Chain-of-Custody Procedures", optional: false },
+  {
+    key: "insured",
+    label: "Insured",
+    optional: true,
+    flag: "showInsuredBadge",
+  },
+  {
+    key: "screened",
+    label: "Background-Screened Couriers",
+    optional: true,
+    flag: "showBackgroundScreenedBadge",
+  },
+] as const;
+
+export const partnerHighlights = [
+  "Documented courier training",
+  "Chain-of-custody procedures",
+  "Proof-of-delivery procedures",
+  "Confidentiality requirements",
+  "Incident and spill-response procedures",
+  "Vehicle and equipment standards",
+  "Client-specific delivery protocols",
+  "Background-screening procedures",
+  "Insurance documentation",
+  "Recurring route and STAT delivery procedures",
+] as const;
+
+export const organizationTypes = [
+  "Hospital",
+  "Laboratory",
+  "Pharmacy",
+  "Clinic",
+  "Physician Office",
+  "Nursing Facility",
+  "Medical Supply Company",
+  "Other",
+] as const;
+
+export const serviceNeededOptions = [
+  "Scheduled Route",
+  "Medical Specimen Delivery",
+  "Pharmacy Delivery",
+  "Medical Supply Delivery",
+  "STAT / Urgent Delivery",
+  "Medical Document Delivery",
+  "Compliance Packet / Vendor Onboarding",
+  "Other",
+] as const;
+
+export const frequencyOptions = [
+  "One-Time",
+  "Daily",
+  "Multiple Times Per Week",
+  "Weekly",
+  "Recurring Route",
+  "On-Demand",
+  "Not Sure Yet",
+] as const;
+
+export function visibleTrustBadges() {
+  return trustBadges.filter((badge) => {
+    if (!badge.optional) return true;
+    if (badge.flag === "showInsuredBadge") return site.showInsuredBadge;
+    if (badge.flag === "showBackgroundScreenedBadge") {
+      return site.showBackgroundScreenedBadge;
+    }
+    return false;
+  });
+}
