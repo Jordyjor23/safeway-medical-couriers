@@ -1,6 +1,6 @@
+import Image from "next/image";
 import Link from "next/link";
 import { Container } from "@/components/Container";
-import { Logo } from "@/components/Logo";
 import { addressLines, footerNav, site } from "@/lib/site";
 
 export function Footer() {
@@ -8,8 +8,14 @@ export function Footer() {
     <footer className="bg-navy-deep text-white">
       <Container className="grid gap-10 py-14 md:grid-cols-4">
         <div className="md:col-span-2">
-          <Link href="/" className="inline-block">
-            <Logo inverted />
+          <Link href="/" className="inline-flex items-center rounded-lg bg-white px-2 py-1.5">
+            <Image
+              src="/safeway-logo.png"
+              alt="Safeway Couriers"
+              width={260}
+              height={87}
+              className="h-auto w-[160px]"
+            />
           </Link>
           <p className="mt-4 max-w-md text-sm leading-relaxed text-white/70">
             Professional medical courier and healthcare logistics services serving

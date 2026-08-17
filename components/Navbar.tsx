@@ -1,10 +1,10 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import { useState } from "react";
-import { Logo } from "@/components/Logo";
-import { nav, site } from "@/lib/site";
+import { nav } from "@/lib/site";
 
 export function Navbar() {
   const [open, setOpen] = useState(false);
@@ -12,8 +12,15 @@ export function Navbar() {
   return (
     <header className="sticky top-0 z-50 border-b border-line/80 bg-paper/95 backdrop-blur-md">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
-        <Link href="/" aria-label={`${site.name} home`} onClick={() => setOpen(false)}>
-          <Logo />
+        <Link href="/" className="flex items-center" onClick={() => setOpen(false)}>
+          <Image
+            src="/safeway-logo.png"
+            alt="Safeway Couriers"
+            width={260}
+            height={87}
+            priority
+            className="h-auto w-[170px] sm:w-[200px] lg:w-[220px]"
+          />
         </Link>
 
         <nav className="hidden items-center gap-5 xl:flex" aria-label="Primary">
