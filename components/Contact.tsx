@@ -4,15 +4,17 @@ import { Container } from "@/components/Container";
 import { SectionHeading } from "@/components/SectionHeading";
 import { addressLines, site } from "@/lib/site";
 
-export function Contact() {
+export function Contact({ showHeading = true }: { showHeading?: boolean }) {
   return (
     <section id="contact" className="section-anchor bg-ice py-20">
       <Container>
-        <SectionHeading
-          eyebrow="Contact"
-          title="Talk with Safeway Couriers"
-          description="Reach our Columbus office for quotes, routing questions, or vendor onboarding."
-        />
+        {showHeading ? (
+          <SectionHeading
+            eyebrow="Contact"
+            title="Talk with Safeway Couriers"
+            description="Reach our Columbus office for quotes, routing questions, or vendor onboarding."
+          />
+        ) : null}
         <div className="mt-10 grid gap-6 lg:grid-cols-3">
           <div className="rounded-2xl border border-line bg-paper p-6">
             <MapPin className="h-5 w-5 text-medical" aria-hidden="true" />

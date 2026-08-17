@@ -16,7 +16,7 @@ export default function ContactPage() {
         title="Contact Safeway Couriers"
         description="Columbus-based medical courier service for healthcare organizations throughout Central Ohio."
       />
-      <Contact />
+      <Contact showHeading={false} />
     </>
   );
 }

@@ -15,9 +15,9 @@ export default function CompliancePage() {
       <PageHeader
         eyebrow="Compliance"
         title="Healthcare Logistics Built Around Safety & Compliance"
-        description="Training, documented procedures, and operational safeguards for regulated medical courier work in Columbus and Central Ohio."
+        description="Safeway Couriers will launch only after the company and applicable couriers have completed the required training, policies, procedures, and operational safeguards for the medical courier services being offered."
       />
-      <Compliance />
+      <Compliance showHeading={false} />
       <HealthcarePartner />
     </>
   );
