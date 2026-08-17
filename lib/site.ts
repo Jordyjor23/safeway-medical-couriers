@@ -1,6 +1,7 @@
 export const site = {
   name: "Safeway Couriers",
   legalName: "Safeway Couriers",
+  url: "https://www.safewaycouriers.com",
   tagline: "Medical Deliveries That Can't Afford to Be Late.",
   description:
     "Safeway Couriers provides reliable, professional and time-sensitive medical courier services for healthcare organizations throughout Columbus and Central Ohio.",

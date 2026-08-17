@@ -1,0 +1,26 @@
+{
+  "redirects": [
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": "safewaycouriers.com"
+        }
+      ],
+      "destination": "https://www.safewaycouriers.com/",
+      "statusCode": 308
+    },
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "safewaycouriers.com"
+        }
+      ],
+      "destination": "https://www.safewaycouriers.com/:path*",
+      "statusCode": 308
+    }
+  ]
+}
