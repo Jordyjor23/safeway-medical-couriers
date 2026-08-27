@@ -8,6 +8,10 @@ const routes = [
   "/quote",
   "/contact",
   "/compliance",
+  "/careers",
+  "/careers/eeo",
+  "/careers/privacy",
+  "/careers/accessibility",
   "/privacy",
   "/terms",
 ] as const;

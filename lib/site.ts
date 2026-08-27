@@ -33,21 +33,31 @@ export const nav = [
   { href: "/#service-area", label: "Service Area" },
   { href: "/#why-choose-us", label: "Why Choose Us" },
   { href: "/#compliance", label: "Compliance" },
+  { href: "/careers", label: "Careers" },
   { href: "/#contact", label: "Contact" },
 ] as const;
 
-export const footerNav = [
+export const footerExplore = [
   { href: "/", label: "Home" },
   { href: "/about", label: "About" },
   { href: "/services", label: "Services" },
   { href: "/#industries", label: "Industries" },
   { href: "/#service-area", label: "Service Area" },
   { href: "/quote", label: "Request a Quote" },
+  { href: "/careers", label: "Careers" },
   { href: "/contact", label: "Contact" },
+] as const;
+
+export const footerCompany = [
   { href: "/compliance", label: "Compliance" },
+  { href: "/careers/eeo", label: "Equal Employment Opportunity" },
+  { href: "/careers/privacy", label: "Applicant Privacy" },
+  { href: "/careers/accessibility", label: "Accessibility / Accommodation" },
   { href: "/privacy", label: "Privacy Policy" },
   { href: "/terms", label: "Terms of Service" },
 ] as const;
+
+export const footerNav = [...footerExplore, ...footerCompany] as const;
 
 export const trustItems = [
   {

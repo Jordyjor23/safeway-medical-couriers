@@ -47,3 +47,15 @@ Update `lib/site.ts` for:
 - `showInsuredBadge` and `showBackgroundScreenedBadge` (keep `false` until those items are implemented)
 
 Quote submissions currently confirm on the page. Connect `lib/submit-quote.ts` to email or an API before launch.
+
+## Internal business portal
+
+This repository also includes the owner/staff portal at `/dashboard`. It is not a separate SaaS product.
+
+1. Create Postgres (`docker compose up -d` or Vercel/Neon).
+2. Copy `.env.example` to `.env.local` and set secrets (`openssl rand -base64 32`).
+3. `npx prisma migrate deploy`
+4. `npx prisma db seed`
+5. Open `/setup` with `OWNER_SETUP_SECRET` to create the first owner. There is no default password.
+
+See `docs/IMPLEMENTATION-REPORT.md` and `docs/MIGRATIONS.md`. Legal notices require attorney/HR review before production hiring use.

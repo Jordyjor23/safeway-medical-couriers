@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Container } from "@/components/Container";
-import { addressLines, footerNav, site } from "@/lib/site";
+import { addressLines, footerCompany, footerExplore, site } from "@/lib/site";
 
 export function Footer() {
   return (
@@ -32,7 +32,7 @@ export function Footer() {
             Explore
           </p>
           <ul className="mt-4 space-y-2 text-sm">
-            {footerNav.slice(0, 7).map((item) => (
+            {footerExplore.map((item) => (
               <li key={item.href}>
                 <Link href={item.href} className="text-white/75 hover:text-white">
                   {item.label}
@@ -46,7 +46,7 @@ export function Footer() {
             Company
           </p>
           <ul className="mt-4 space-y-2 text-sm">
-            {footerNav.slice(7).map((item) => (
+            {footerCompany.map((item) => (
               <li key={item.href}>
                 <Link href={item.href} className="text-white/75 hover:text-white">
                   {item.label}

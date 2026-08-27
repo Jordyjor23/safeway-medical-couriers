@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
-import { Footer } from "@/components/Footer";
-import { Navbar } from "@/components/Navbar";
 import { site } from "@/lib/site";
 import "./globals.css";
 
@@ -35,14 +33,14 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   return (
     <html lang="en" className={`${sans.variable} h-full antialiased`}>
-      <body className="flex min-h-full flex-col bg-ice font-sans text-ink">
-        <Navbar />
-        <main className="flex-1">{children}</main>
-        <Footer />
-      </body>
+      <body className="flex min-h-full flex-col bg-ice font-sans text-ink">{children}</body>
     </html>
   );
 }

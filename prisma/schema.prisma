@@ -1,0 +1,1059 @@
+// Safeway Couriers internal business portal schema.
+// ATTORNEY/HR REVIEW: Legal copy, FCRA workflow, classification language,
+// retention periods, and jurisdiction rules are configurable. The presence of
+// a document or training record is tracking status only — not a legal
+// compliance certification.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Authentication (Better Auth)
+// ---------------------------------------------------------------------------
+
+model User {
+  id               String    @id
+  name             String
+  email            String    @unique
+  emailVerified    Boolean   @default(false)
+  image            String?
+  twoFactorEnabled Boolean?  @default(false)
+  disabled         Boolean   @default(false)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  sessions     Session[]
+  accounts     Account[]
+  twoFactors   TwoFactor[]
+  roles        UserRole[]
+  auditLogs    AuditLog[]
+  notifications Notification[]
+  assignedApplications Application[] @relation("ApplicationReviewer")
+  employee     Employee?
+  customerUser CustomerUser?
+
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  issuer                String
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@unique([issuer, accountId])
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+model TwoFactor {
+  id                      String    @id
+  secret                  String
+  backupCodes             String
+  userId                  String
+  user                    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  verified                Boolean?  @default(true)
+  failedVerificationCount Int?      @default(0)
+  lockedUntil             DateTime?
+
+  @@index([secret])
+  @@index([userId])
+  @@map("twoFactor")
+}
+
+model RateLimit {
+  id          String @id
+  key         String @unique
+  count       Int
+  lastRequest BigInt
+
+  @@map("rateLimit")
+}
+
+// ---------------------------------------------------------------------------
+// RBAC
+// ---------------------------------------------------------------------------
+
+enum RoleKey {
+  OWNER
+  HR_RECRUITER
+  OPERATIONS_ADMIN
+  DISPATCHER
+  COMPLIANCE_ADMIN
+  SALES_ACCOUNT_MANAGER
+  EMPLOYEE
+  CUSTOMER
+}
+
+model Role {
+  id          String   @id @default(uuid())
+  key         RoleKey  @unique
+  name        String
+  description String
+  system      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  permissions RolePermission[]
+  users       UserRole[]
+}
+
+model Permission {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  description String
+  createdAt   DateTime @default(now())
+
+  roles RolePermission[]
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+model UserRole {
+  id        String   @id @default(uuid())
+  userId    String
+  roleId    String
+  createdAt DateTime @default(now())
+  createdBy String?
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      Role     @relation(fields: [roleId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, roleId])
+  @@index([roleId])
+}
+
+// ---------------------------------------------------------------------------
+// Configurable legal / careers content
+// ---------------------------------------------------------------------------
+
+model LegalDocument {
+  id          String   @id @default(uuid())
+  slug        String
+  title       String
+  version     String
+  body        String
+  isCurrent   Boolean  @default(false)
+  /// ATTORNEY/HR REVIEW required before production use of this text.
+  reviewNotes String?
+  createdAt   DateTime @default(now())
+
+  acknowledgements ApplicationAcknowledgement[]
+
+  @@unique([slug, version])
+  @@index([slug, isCurrent])
+}
+
+model SystemSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+}
+
+model CareerCategory {
+  id                    String   @id @default(uuid())
+  slug                  String   @unique
+  name                  String
+  opportunityType       OpportunityType
+  compensationDisplay   String
+  summary               String
+  sortOrder             Int      @default(0)
+  active                Boolean  @default(true)
+  requiresDriving       Boolean  @default(false)
+  isMedicalCourier      Boolean  @default(false)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  jobs JobOpening[]
+}
+
+enum OpportunityType {
+  EMPLOYMENT
+  INDEPENDENT_CONTRACTOR
+}
+
+enum JobStatus {
+  DRAFT
+  PUBLISHED
+  PAUSED
+  CLOSED
+  ARCHIVED
+}
+
+enum EmploymentType {
+  FULL_TIME
+  PART_TIME
+  TEMPORARY
+  SEASONAL
+}
+
+enum WorkerClassification {
+  EMPLOYEE
+  INDEPENDENT_CONTRACTOR
+}
+
+enum WorkArrangement {
+  ONSITE
+  HYBRID
+  REMOTE
+}
+
+enum PayType {
+  HOURLY
+  SALARY
+  ROUTE_BASED
+  COMMISSION
+}
+
+model JobOpening {
+  id                     String               @id @default(uuid())
+  publicId               String               @unique
+  title                  String
+  department             String
+  categoryId             String?
+  category               CareerCategory?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  employmentType         EmploymentType
+  workerClassification   WorkerClassification
+  location               String
+  workArrangement        WorkArrangement      @default(ONSITE)
+  compensationMin        Decimal?             @db.Decimal(12, 2)
+  compensationMax        Decimal?             @db.Decimal(12, 2)
+  payType                PayType
+  compensationNotes      String?
+  description            String
+  essentialDuties        String
+  minimumQualifications  String
+  preferredQualifications String?
+  physicalRequirements   String?
+  schedule               String?
+  requiredCertifications String?
+  requiresDriversLicense Boolean              @default(false)
+  vehicleRequirements    String?
+  backgroundCheckRequired Boolean             @default(true)
+  mvrRequired            Boolean              @default(false)
+  postedAt               DateTime?
+  closesAt               DateTime?
+  status                 JobStatus            @default(DRAFT)
+  createdAt              DateTime             @default(now())
+  updatedAt              DateTime             @updatedAt
+  createdBy              String?
+  updatedBy              String?
+
+  questions    JobQuestion[]
+  applications Application[]
+
+  @@index([status, postedAt])
+  @@index([workerClassification])
+}
+
+model JobQuestion {
+  id           String   @id @default(uuid())
+  jobOpeningId String
+  jobOpening   JobOpening @relation(fields: [jobOpeningId], references: [id], onDelete: Cascade)
+  prompt       String
+  required     Boolean  @default(true)
+  sortOrder    Int      @default(0)
+
+  answers ApplicationAnswer[]
+}
+
+// ---------------------------------------------------------------------------
+// Applicants / ATS
+// ---------------------------------------------------------------------------
+
+enum ApplicationStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  INTERVIEW_REQUESTED
+  INTERVIEW_SCHEDULED
+  CONDITIONAL_OFFER
+  BACKGROUND_SCREENING
+  ONBOARDING
+  HIRED
+  POSITION_FILLED
+  WITHDRAWN
+  NOT_SELECTED
+}
+
+enum InterviewStatus {
+  NOT_REQUESTED
+  REQUESTED
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+model Applicant {
+  id             String   @id @default(uuid())
+  legalFirstName String
+  middleName     String?
+  legalLastName  String
+  preferredName  String?
+  email          String   @unique
+  phone          String
+  city           String
+  state          String
+  zip            String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  applications Application[]
+}
+
+model Application {
+  id                     String            @id @default(uuid())
+  trackingNumber         String            @unique
+  applicantId            String
+  applicant              Applicant         @relation(fields: [applicantId], references: [id], onDelete: Restrict)
+  jobOpeningId           String
+  jobOpening             JobOpening        @relation(fields: [jobOpeningId], references: [id], onDelete: Restrict)
+  status                 ApplicationStatus @default(DRAFT)
+  preferredEmploymentType EmploymentType?
+  availableStartDate     DateTime?
+  daysAvailable          Json?
+  generalAvailability    String?
+  preferredShift         String?
+  fullTimePreference     Boolean?
+  serviceAreas           String?
+  weekdays               Boolean           @default(false)
+  weekends               Boolean           @default(false)
+  holidays               Boolean           @default(false)
+  earlyMornings          Boolean           @default(false)
+  evenings               Boolean           @default(false)
+  overnight              Boolean           @default(false)
+  onCallStat             Boolean           @default(false)
+  authorizedToWorkUs     Boolean?
+  requiresSponsorship    Boolean?
+  highestEducation       String?
+  relevantTraining       String?
+  licenses               String?
+  certifications         String?
+  courierExperience      String?
+  healthcareLogisticsExperience String?
+  customerServiceExperience String?
+  dispatchExperience     String?
+  technologyExperience   String?
+  canPerformEssentialFunctions Boolean?
+  hipaaTraining          Boolean           @default(false)
+  bloodbornePathogensTraining Boolean      @default(false)
+  hazmatAwarenessTraining Boolean          @default(false)
+  un3373Training         Boolean           @default(false)
+  chainOfCustodyTraining Boolean           @default(false)
+  temperatureControlledExperience Boolean  @default(false)
+  pharmaceuticalDeliveryExperience Boolean @default(false)
+  laboratoryCourierExperience Boolean      @default(false)
+  hasValidDriversLicense Boolean?
+  licenseIssuingState    String?
+  licenseClass           String?
+  canMeetDrivingRequirements Boolean?
+  hasPersonalVehicle     Boolean?
+  vehicleType            String?
+  proofOfInsurance       Boolean?
+  canUseGpsApps          Boolean?
+  relevantCourierDrivingExperience String?
+  resumeFileKey          String?
+  assignedReviewerId     String?
+  assignedReviewer       User?             @relation("ApplicationReviewer", fields: [assignedReviewerId], references: [id], onDelete: SetNull)
+  interviewStatus        InterviewStatus   @default(NOT_REQUESTED)
+  submittedAt            DateTime?
+  createdAt              DateTime          @default(now())
+  updatedAt              DateTime          @updatedAt
+  ipAddress              String?
+  userAgent              String?
+
+  employmentHistory ApplicationEmployment[]
+  answers           ApplicationAnswer[]
+  documents         ApplicantDocument[]
+  interviews        Interview[]
+  statusHistory     ApplicantStatusHistory[]
+  acknowledgements  ApplicationAcknowledgement[]
+  notes             ApplicationNote[]
+  communications    ApplicationCommunication[]
+  screening         BackgroundScreening?
+  employee          Employee?
+
+  @@index([jobOpeningId, status])
+  @@index([status, submittedAt])
+  @@index([assignedReviewerId])
+}
+
+model ApplicationEmployment {
+  id                       String      @id @default(uuid())
+  applicationId            String
+  application              Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  employerName             String
+  positionTitle            String
+  startDate                DateTime
+  endDate                  DateTime?
+  responsibilities         String?
+  reasonForLeaving         String?
+  permissionToContact      Boolean     @default(false)
+  sortOrder                Int         @default(0)
+}
+
+model ApplicationAnswer {
+  id            String      @id @default(uuid())
+  applicationId String
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  questionId    String
+  question      JobQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  answer        String
+}
+
+model ApplicantDocument {
+  id            String      @id @default(uuid())
+  applicationId String
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+  documentId    String
+  document      ManagedDocument @relation(fields: [documentId], references: [id], onDelete: Restrict)
+  createdAt     DateTime    @default(now())
+}
+
+model Interview {
+  id            String          @id @default(uuid())
+  applicationId String
+  application   Application     @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  status        InterviewStatus @default(REQUESTED)
+  scheduledAt   DateTime?
+  location      String?
+  interviewer   String?
+  notes         String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+}
+
+model ApplicantStatusHistory {
+  id            String            @id @default(uuid())
+  applicationId String
+  application   Application       @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  fromStatus    ApplicationStatus?
+  toStatus      ApplicationStatus
+  changedBy     String?
+  note          String?
+  createdAt     DateTime          @default(now())
+
+  @@index([applicationId, createdAt])
+}
+
+model ApplicationAcknowledgement {
+  id                String        @id @default(uuid())
+  applicationId     String
+  application       Application   @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  legalDocumentId   String
+  legalDocument     LegalDocument @relation(fields: [legalDocumentId], references: [id], onDelete: Restrict)
+  acceptedAt        DateTime      @default(now())
+  ipAddress         String?
+  userAgent         String?
+}
+
+model ApplicationNote {
+  id            String      @id @default(uuid())
+  applicationId String
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  authorId      String
+  body          String
+  createdAt     DateTime    @default(now())
+
+  @@index([applicationId])
+}
+
+model ApplicationCommunication {
+  id            String      @id @default(uuid())
+  applicationId String
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  channel       String
+  subject       String?
+  body          String
+  direction     String
+  createdAt     DateTime    @default(now())
+  createdBy     String?
+}
+
+enum BackgroundScreeningStatus {
+  NOT_STARTED
+  DISCLOSURE_SENT
+  AUTHORIZED
+  IN_PROGRESS
+  PRE_ADVERSE
+  ADVERSE_NOTICE
+  DISPUTE
+  COMPLETED
+  CANCELLED
+}
+
+model BackgroundScreening {
+  id                       String                     @id @default(uuid())
+  applicationId            String                     @unique
+  application              Application                @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+  status                   BackgroundScreeningStatus  @default(NOT_STARTED)
+  disclosureVersion        String?
+  authorizedAt             DateTime?
+  authorizationIp          String?
+  craName                  String?
+  craAddress               String?
+  reportCopyProvidedAt     DateTime?
+  summaryOfRightsProvidedAt DateTime?
+  preAdverseSentAt         DateTime?
+  adverseSentAt            DateTime?
+  disputeOpenedAt          DateTime?
+  completedAt              DateTime?
+  /// Restricted. Do not expose via public APIs or unauthorized roles.
+  encryptedReportKey       String?
+  createdAt                DateTime                   @default(now())
+  updatedAt                DateTime                   @updatedAt
+
+  events BackgroundScreeningEvent[]
+}
+
+model BackgroundScreeningEvent {
+  id          String              @id @default(uuid())
+  screeningId String
+  screening   BackgroundScreening @relation(fields: [screeningId], references: [id], onDelete: Cascade)
+  type        String
+  detail      String?
+  actorId     String?
+  createdAt   DateTime            @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Employees / onboarding / compliance
+// ---------------------------------------------------------------------------
+
+enum EmployeeStatus {
+  PENDING_ONBOARDING
+  ACTIVE
+  INACTIVE
+  TERMINATED
+}
+
+enum EmploymentClassification {
+  W2_EMPLOYEE
+  INDEPENDENT_CONTRACTOR
+}
+
+model Employee {
+  id                       String                   @id @default(uuid())
+  employeeNumber           String                   @unique
+  userId                   String?                  @unique
+  user                     User?                    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  applicationId            String?                  @unique
+  application              Application?             @relation(fields: [applicationId], references: [id], onDelete: SetNull)
+  legalFirstName           String
+  legalLastName            String
+  preferredName            String?
+  email                    String
+  phone                    String?
+  jobTitle                 String
+  department               String?
+  classification           EmploymentClassification
+  hireDate                 DateTime?
+  status                   EmployeeStatus           @default(PENDING_ONBOARDING)
+  /// Encrypted at rest when collected during restricted onboarding. Never collected on the public application.
+  encryptedSsn             String?
+  createdAt                DateTime                 @default(now())
+  updatedAt                DateTime                 @updatedAt
+
+  documents     EmployeeDocument[]
+  trainings     EmployeeTraining[]
+  certifications EmployeeCertification[]
+  onboarding    OnboardingChecklist?
+  newHireReport NewHireReport?
+  equipment     EmployeeEquipment[]
+  vehicle       EmployeeVehicle?
+  notes         EmployeeNote[]
+  complianceRecords ComplianceRecord[]
+}
+
+model EmployeeDocument {
+  id         String          @id @default(uuid())
+  employeeId String
+  employee   Employee        @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  documentId String
+  document   ManagedDocument @relation(fields: [documentId], references: [id], onDelete: Restrict)
+  createdAt  DateTime        @default(now())
+}
+
+model EmployeeTraining {
+  id           String    @id @default(uuid())
+  employeeId   String
+  employee     Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  requirementKey String
+  title        String
+  completedAt  DateTime?
+  expiresAt    DateTime?
+  notes        String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([employeeId, requirementKey])
+}
+
+model EmployeeCertification {
+  id           String    @id @default(uuid())
+  employeeId   String
+  employee     Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  name         String
+  issuer       String?
+  issuedAt     DateTime?
+  expiresAt    DateTime?
+  createdAt    DateTime  @default(now())
+}
+
+model EmployeeEquipment {
+  id         String   @id @default(uuid())
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  name       String
+  issuedAt   DateTime?
+  returnedAt DateTime?
+  notes      String?
+}
+
+model EmployeeVehicle {
+  id               String    @id @default(uuid())
+  employeeId       String    @unique
+  employee         Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  vehicleType      String?
+  registrationExpiresAt DateTime?
+  insuranceExpiresAt    DateTime?
+  notes            String?
+}
+
+model EmployeeNote {
+  id         String   @id @default(uuid())
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  authorId   String
+  body       String
+  sensitive  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+}
+
+enum OnboardingStepKey {
+  OFFER_ACCEPTED
+  IDENTITY_WORK_AUTH
+  FORM_I9
+  FEDERAL_TAX
+  OHIO_TAX
+  DIRECT_DEPOSIT
+  EMERGENCY_CONTACT
+  HANDBOOK_ACK
+  CONFIDENTIALITY
+  HIPAA_ACK
+  SAFETY_POLICIES
+  TRAINING_ASSIGNMENTS
+  DRIVER_DOCUMENTATION
+  INSURANCE_VERIFICATION
+  VEHICLE_DOCUMENTATION
+  BACKGROUND_SCREENING
+  MVR_STATUS
+  EQUIPMENT_ISSUANCE
+  SYSTEM_ACCESS
+  READY_FOR_ASSIGNMENT
+}
+
+enum OnboardingStepStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+  NOT_APPLICABLE
+  BLOCKED
+}
+
+model OnboardingChecklist {
+  id         String   @id @default(uuid())
+  employeeId String   @unique
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  steps OnboardingStep[]
+}
+
+model OnboardingStep {
+  id          String               @id @default(uuid())
+  checklistId String
+  checklist   OnboardingChecklist  @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+  key         OnboardingStepKey
+  status      OnboardingStepStatus @default(NOT_STARTED)
+  completedAt DateTime?
+  notes       String?
+
+  @@unique([checklistId, key])
+}
+
+enum NewHireReportStatus {
+  NOT_READY
+  READY
+  REPORTED
+  CONFIRMED
+}
+
+model NewHireReport {
+  id                    String               @id @default(uuid())
+  employeeId            String               @unique
+  employee              Employee             @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  dateHired             DateTime?
+  dateServicesFirstPerformed DateTime?
+  status                NewHireReportStatus  @default(NOT_READY)
+  reportedAt            DateTime?
+  confirmationReference String?
+  /// Do not auto-transmit to Ohio unless an authorized integration is enabled.
+  transmitted           Boolean              @default(false)
+}
+
+// ---------------------------------------------------------------------------
+// Customers / CRM
+// ---------------------------------------------------------------------------
+
+enum CustomerStatus {
+  PROSPECT
+  LEAD
+  PROPOSAL_SENT
+  NEGOTIATION
+  ACTIVE
+  INACTIVE
+  FORMER
+}
+
+enum CustomerType {
+  HOSPITAL
+  LABORATORY
+  PHARMACY
+  CLINIC
+  DENTAL
+  HOME_HEALTHCARE
+  MEDICAL_SUPPLIER
+  VETERINARY
+  RESEARCH
+  OTHER_BUSINESS
+}
+
+model Customer {
+  id                String         @id @default(uuid())
+  legalName         String
+  dba               String?
+  customerType      CustomerType
+  healthcareOrgType String?
+  status            CustomerStatus @default(PROSPECT)
+  website           String?
+  phone             String?
+  email             String?
+  addressLine1      String?
+  addressLine2      String?
+  city              String?
+  state             String?
+  zip               String?
+  serviceRequirements String?
+  notes             String?
+  accountOwnerId    String?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  contacts  CustomerContact[]
+  contracts Contract[]
+  documents CustomerDocument[]
+  users     CustomerUser[]
+  notesList CustomerNote[]
+
+  @@index([status])
+  @@index([accountOwnerId])
+}
+
+model CustomerContact {
+  id         String   @id @default(uuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  name       String
+  role       String?
+  isPrimary  Boolean  @default(false)
+  isBilling  Boolean  @default(false)
+  isOperations Boolean @default(false)
+  email      String?
+  phone      String?
+}
+
+model CustomerNote {
+  id         String   @id @default(uuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  authorId   String
+  body       String
+  createdAt  DateTime @default(now())
+}
+
+model CustomerUser {
+  id         String   @id @default(uuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  userId     String   @unique
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([customerId, userId])
+}
+
+model CustomerDocument {
+  id         String          @id @default(uuid())
+  customerId String
+  customer   Customer        @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  documentId String
+  document   ManagedDocument @relation(fields: [documentId], references: [id], onDelete: Restrict)
+}
+
+// ---------------------------------------------------------------------------
+// Contracts
+// ---------------------------------------------------------------------------
+
+enum ContractStatus {
+  DRAFT
+  UNDER_REVIEW
+  SENT
+  NEGOTIATING
+  AWAITING_SIGNATURE
+  ACTIVE
+  EXPIRING
+  RENEWED
+  TERMINATED
+  EXPIRED
+}
+
+enum ContractType {
+  MASTER_SERVICE
+  STATEMENT_OF_WORK
+  AMENDMENT
+  NDA
+  BAA
+  OTHER
+}
+
+model Contract {
+  id                 String         @id @default(uuid())
+  contractNumber     String         @unique
+  customerId         String
+  customer           Customer       @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  contractType       ContractType
+  serviceType        String?
+  effectiveDate      DateTime?
+  expirationDate     DateTime?
+  renewalDate        DateTime?
+  contractValue      Decimal?       @db.Decimal(14, 2)
+  billingTerms       String?
+  paymentTerms       String?
+  status             ContractStatus @default(DRAFT)
+  accountManagerId   String?
+  notes              String?
+  /// Future e-signature provider id (DocuSign / Dropbox Sign). Not a custom e-sign engine.
+  esignProvider      String?
+  esignEnvelopeId    String?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  documents  ContractDocument[]
+  amendments ContractAmendment[]
+
+  @@index([customerId, status])
+  @@index([expirationDate])
+}
+
+model ContractAmendment {
+  id         String   @id @default(uuid())
+  contractId String
+  contract   Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  title      String
+  notes      String?
+  effectiveDate DateTime?
+  createdAt  DateTime @default(now())
+}
+
+model ContractDocument {
+  id         String          @id @default(uuid())
+  contractId String
+  contract   Contract        @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  documentId String
+  document   ManagedDocument @relation(fields: [documentId], references: [id], onDelete: Restrict)
+}
+
+// ---------------------------------------------------------------------------
+// Documents / compliance
+// ---------------------------------------------------------------------------
+
+enum DocumentCategory {
+  CORPORATE
+  INSURANCE
+  CUSTOMER_CONTRACTS
+  EMPLOYEE_DOCUMENTS
+  APPLICANT_DOCUMENTS
+  DRIVER_DOCUMENTS
+  COMPLIANCE
+  TRAINING
+  VEHICLE
+  POLICIES
+  SOPS
+}
+
+enum DocumentStatus {
+  CURRENT
+  EXPIRING_SOON
+  EXPIRED
+  MISSING
+  NOT_REQUIRED
+  ARCHIVED
+}
+
+model ManagedDocument {
+  id            String           @id @default(uuid())
+  name          String
+  category      DocumentCategory
+  ownerEntity   String?
+  ownerId       String?
+  blobKey       String
+  mimeType      String?
+  sizeBytes     Int?
+  effectiveDate DateTime?
+  expirationDate DateTime?
+  version       String           @default("1")
+  status        DocumentStatus   @default(CURRENT)
+  uploadedBy    String?
+  notes         String?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  applicantLinks ApplicantDocument[]
+  employeeLinks  EmployeeDocument[]
+  customerLinks  CustomerDocument[]
+  contractLinks  ContractDocument[]
+
+  @@index([category, status])
+  @@index([expirationDate])
+}
+
+enum ComplianceTrackingStatus {
+  CURRENT
+  EXPIRING_SOON
+  EXPIRED
+  MISSING
+  NOT_REQUIRED
+}
+
+model ComplianceRequirement {
+  id              String             @id @default(uuid())
+  key             String             @unique
+  name            String
+  description     String?
+  defaultRequired Boolean            @default(true)
+  sortOrder       Int                @default(0)
+  records         ComplianceRecord[]
+}
+
+model ComplianceRecord {
+  id            String                   @id @default(uuid())
+  employeeId    String
+  employee      Employee                 @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  requirementId String
+  requirement   ComplianceRequirement    @relation(fields: [requirementId], references: [id], onDelete: Restrict)
+  status        ComplianceTrackingStatus @default(MISSING)
+  completedAt   DateTime?
+  expiresAt     DateTime?
+  notes         String?
+  updatedAt     DateTime                 @updatedAt
+
+  @@unique([employeeId, requirementId])
+}
+
+// ---------------------------------------------------------------------------
+// Notifications & immutable audit log
+// ---------------------------------------------------------------------------
+
+enum NotificationType {
+  CONTRACT_EXPIRING
+  DOCUMENT_EXPIRING
+  TRAINING_EXPIRING
+  COMPLIANCE_ALERT
+  APPLICATION_RECEIVED
+  APPLICATION_STATUS
+  SYSTEM
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String?
+  user      User?            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  title     String
+  body      String
+  href      String?
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  @@index([userId, readAt])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  actorId    String?
+  actor      User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  actorEmail String?
+  action     String
+  targetType String
+  targetId   String?
+  metadata   Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([actorId, createdAt])
+  @@index([targetType, targetId])
+}
