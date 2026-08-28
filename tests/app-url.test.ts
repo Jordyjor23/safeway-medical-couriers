@@ -52,6 +52,7 @@ describe("app origin helpers", () => {
     expect(isMarketingHostname("www.safewaycouriers.com")).toBe(true);
     expect(isMarketingHostname("portal.safewaycouriers.com")).toBe(false);
     expect(isPortalPath("/login")).toBe(true);
+    expect(isPortalPath("/activate-account")).toBe(true);
     expect(isPortalPath("/dashboard/users")).toBe(true);
     expect(isPortalPath("/about")).toBe(false);
     expect(isProtectedPortalPath("/login")).toBe(false);

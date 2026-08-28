@@ -2,12 +2,19 @@
 
 import { hashPassword } from "better-auth/crypto";
 import { revalidatePath } from "next/cache";
-import { issueActivation, recordAuthEvent, revokeUserSessions } from "@/lib/activation";
+import {
+  ACTIVATION_EMAIL_FAILED_MESSAGE,
+  ACTIVATION_RESEND_FAILED_MESSAGE,
+  issueActivation,
+  recordAuthEvent,
+  revokeUserSessions,
+} from "@/lib/activation";
 import { writeAuditLog } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { allocateUsername, createTemporaryPassword, nextScopedId } from "@/lib/ids";
 import { ONBOARDING_STEPS } from "@/lib/onboarding";
 import { canAssignRoleKey, canChangeOwnerAssignment } from "@/lib/permissions";
+import { attachCredentialAccount, credentialIssuer } from "@/lib/portal-account";
 import { requirePermission } from "@/lib/rbac";
 import type { AccountStatus, EmployeeStatus, EmploymentClassification } from "@prisma/client";
 
@@ -20,14 +27,6 @@ async function targetIsOwner(userId: string) {
     where: { userId, role: { key: "OWNER" } },
   });
   return Boolean(assignment);
-}
-
-async function credentialIssuer() {
-  const template = await prisma.account.findFirst({
-    where: { providerId: "credential" },
-    select: { issuer: true },
-  });
-  return template?.issuer ?? null;
 }
 
 export async function createStaffUser(formData: FormData) {
@@ -78,7 +77,6 @@ export async function createStaffUser(formData: FormData) {
     return { error: "That username is already taken." };
   }
 
-  const temporaryPassword = createTemporaryPassword();
   const isDriver = roleKey === "DRIVER";
   const isCustomer = roleKey === "CUSTOMER";
   const displayId = isCustomer
@@ -100,15 +98,7 @@ export async function createStaffUser(formData: FormData) {
     },
   });
 
-  await prisma.account.create({
-    data: {
-      issuer,
-      accountId: user.id,
-      providerId: "credential",
-      userId: user.id,
-      password: await hashPassword(temporaryPassword),
-    },
-  });
+  await attachCredentialAccount(user.id, issuer);
 
   const role = await prisma.role.findUnique({ where: { key: roleKey } });
   if (role) {
@@ -160,15 +150,16 @@ export async function createStaffUser(formData: FormData) {
     action: "user.created",
     targetType: "user",
     targetId: user.id,
-    metadata: { email, roleKey, username, employeeNumber: displayId },
+    metadata: { email, roleKey, username, employeeNumber: displayId, emailSent: activation.emailSent },
   });
   revalidatePath("/dashboard/users");
+  revalidatePath("/dashboard/employees");
   return {
     ok: true as const,
     username,
     employeeNumber: displayId,
-    temporaryPassword,
-    activationUrl: activation.url,
+    emailSent: activation.emailSent,
+    warning: activation.emailSent ? undefined : ACTIVATION_EMAIL_FAILED_MESSAGE,
   };
 }
 
@@ -284,19 +275,21 @@ export async function resendActivation(formData: FormData) {
   const userId = String(formData.get("userId") ?? "");
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user || user.accountStatus === "TERMINATED") return { error: "Account cannot be activated." };
+  if (!user.email.trim()) return { error: "This account does not have an email address." };
   const activation = await issueActivation(user.id, user.email, user.name);
-  await prisma.user.update({
-    where: { id: userId },
-    data: { accountStatus: "PENDING_ACTIVATION", mustChangePassword: true, disabled: false },
-  });
   await recordAuthEvent({
     actorId: ctx.user.id,
     actorEmail: ctx.user.email,
     action: "user.activation.resent",
     targetId: userId,
+    metadata: { emailSent: activation.emailSent },
   });
   revalidatePath(`/dashboard/users/${userId}`);
-  return { ok: true as const, activationUrl: activation.url };
+  return {
+    ok: true as const,
+    emailSent: activation.emailSent,
+    warning: activation.emailSent ? undefined : ACTIVATION_RESEND_FAILED_MESSAGE,
+  };
 }
 
 export async function issueTemporaryPassword(formData: FormData) {

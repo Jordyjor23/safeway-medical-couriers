@@ -10,8 +10,8 @@ const fieldClass =
 type Created = {
   username: string;
   employeeNumber: string | null;
-  temporaryPassword: string;
-  activationUrl: string;
+  emailSent: boolean;
+  warning?: string;
 };
 
 export function CreateStaffForm({
@@ -44,8 +44,8 @@ export function CreateStaffForm({
           setCreated({
             username: result.username,
             employeeNumber: result.employeeNumber,
-            temporaryPassword: result.temporaryPassword,
-            activationUrl: result.activationUrl,
+            emailSent: result.emailSent,
+            warning: result.warning,
           });
           (document.getElementById("create-staff-form") as HTMLFormElement | null)?.reset();
         }
@@ -94,7 +94,8 @@ export function CreateStaffForm({
       </select>
       <p className="text-xs text-muted sm:col-span-2">
         The account starts pending activation. A unique employee or driver ID and username are
-        generated automatically. The temporary password is shown once and cannot be retrieved later.
+        generated automatically. An activation email is sent so they can set their own password.
+        Passwords are never emailed.
       </p>
       {error ? (
         <p className="text-sm text-red-700 sm:col-span-2" role="alert">
@@ -103,11 +104,14 @@ export function CreateStaffForm({
       ) : null}
       {created ? (
         <div className="rounded-xl border border-medical/30 bg-ice p-4 text-sm text-navy sm:col-span-2">
-          <p className="font-semibold">Account created. Copy these details now.</p>
+          <p className="font-semibold">Account created.</p>
           <p className="mt-2">Username: {created.username}</p>
           {created.employeeNumber ? <p>ID: {created.employeeNumber}</p> : null}
-          <p>Temporary password: {created.temporaryPassword}</p>
-          <p className="mt-2 break-all">Activation link: {created.activationUrl}</p>
+          <p className="mt-2">
+            {created.emailSent
+              ? "An activation email was sent. They will set their own password from the link."
+              : created.warning}
+          </p>
         </div>
       ) : null}
       <button

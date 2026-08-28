@@ -57,6 +57,13 @@ export default async function EmployeeProfilePage({
         <p className="text-muted">
           {employee.jobTitle} · {employee.status.replaceAll("_", " ")}
         </p>
+        {employee.userId ? (
+          <p className="mt-2 text-sm">
+            <Link href={`/dashboard/users/${employee.userId}`} className="font-semibold text-medical hover:underline">
+              Portal account
+            </Link>
+          </p>
+        ) : null}
       </div>
 
       <section className="rounded-2xl border border-line bg-paper p-5">

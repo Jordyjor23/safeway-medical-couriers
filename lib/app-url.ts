@@ -75,6 +75,7 @@ const PORTAL_PREFIXES = [
   "/forgot-password",
   "/reset-password",
   "/activate",
+  "/activate-account",
   "/setup",
   "/two-factor",
   "/set-password",

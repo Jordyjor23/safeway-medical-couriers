@@ -26,6 +26,7 @@ describe("authorization scenarios", () => {
   it("blocks drivers, employees, and customers from the staff/owner portal", () => {
     expect(canAccessPortal(["DRIVER"], "staff")).toBe(false);
     expect(canAccessPortal(["EMPLOYEE"], "staff")).toBe(false);
+    expect(canAccessPortal(["EMPLOYEE"], "employee")).toBe(true);
     expect(canAccessPortal(["CUSTOMER"], "staff")).toBe(false);
     expect(canAccessPortal(["DISPATCHER"], "staff")).toBe(false);
     expect(canAccessPortal(["DRIVER"], "admin")).toBe(false);

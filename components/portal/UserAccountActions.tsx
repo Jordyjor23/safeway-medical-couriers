@@ -53,16 +53,20 @@ export function UserAccountActions({
         <form
           action={async (formData) => {
             const result = await resendActivation(formData);
-            if (result && "activationUrl" in result) {
-              setMessage(`Activation link: ${result.activationUrl}`);
-            } else if (result && "error" in result) {
+            if (result && "error" in result && result.error) {
               setMessage(result.error);
+            } else if (result && "emailSent" in result && result.emailSent) {
+              setMessage("Activation email sent.");
+            } else if (result && "warning" in result && result.warning) {
+              setMessage(result.warning);
+            } else {
+              setMessage("Activation email could not be sent. Try again from User Management.");
             }
           }}
         >
           <input type="hidden" name="userId" value={userId} />
           <button className="rounded-full border border-line px-3 py-1.5 text-xs font-semibold text-navy hover:border-medical">
-            Resend activation
+            Resend activation email
           </button>
         </form>
         <form action={setAccountStatus}>

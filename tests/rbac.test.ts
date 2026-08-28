@@ -111,7 +111,7 @@ describe("RBAC matrix", () => {
 describe("account status", () => {
   it("blocks terminated, locked, and disabled accounts from login", () => {
     expect(accountAllowsLogin({ accountStatus: "ACTIVE" })).toBe(true);
-    expect(accountAllowsLogin({ accountStatus: "PENDING_ACTIVATION" })).toBe(true);
+    expect(accountAllowsLogin({ accountStatus: "PENDING_ACTIVATION" })).toBe(false);
     expect(accountAllowsLogin({ accountStatus: "TERMINATED" })).toBe(false);
     expect(accountAllowsLogin({ accountStatus: "SUSPENDED" })).toBe(false);
     expect(accountAllowsLogin({ accountStatus: "INACTIVE" })).toBe(false);

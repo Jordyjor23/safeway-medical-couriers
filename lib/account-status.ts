@@ -14,10 +14,7 @@ export function accountAllowsLogin(user: {
   if (user.disabled) return false;
   if (user.lockedUntil && user.lockedUntil > new Date()) return false;
   const status = user.accountStatus ?? "ACTIVE";
-  if (status === "PENDING_ACTIVATION") {
-    if (user.activationExpiresAt && user.activationExpiresAt < new Date()) return false;
-    return true;
-  }
+  if (status === "PENDING_ACTIVATION") return false;
   if (status === "LOCKED") {
     if (!user.lockedUntil) return false;
     return user.lockedUntil <= new Date();

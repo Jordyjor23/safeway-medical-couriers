@@ -1,10 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { issueActivation } from "@/lib/activation";
 import { writeAuditLog } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { nextScopedId } from "@/lib/ids";
 import { ONBOARDING_STEPS } from "@/lib/onboarding";
+import { provisionEmployeePortalUser } from "@/lib/portal-account";
 import { requirePermission } from "@/lib/rbac";
 import type { ApplicationStatus, InterviewStatus } from "@prisma/client";
 
@@ -69,6 +71,25 @@ export async function updateApplicationStatus(applicationId: string, status: App
     await prisma.newHireReport.create({
       data: { employeeId: employee.id, dateHired: new Date() },
     });
+    const email = current.applicant.email.trim().toLowerCase();
+    if (email) {
+      const provisioned = await provisionEmployeePortalUser({
+        employeeId: employee.id,
+        email,
+        firstName: current.applicant.legalFirstName,
+        lastName: current.applicant.legalLastName,
+        phone: current.applicant.phone,
+        roleKey: "EMPLOYEE",
+        actorId: ctx.user.id,
+      });
+      if (!("error" in provisioned)) {
+        await issueActivation(
+          provisioned.userId,
+          email,
+          `${current.applicant.legalFirstName} ${current.applicant.legalLastName}`,
+        );
+      }
+    }
   }
 
   revalidatePath("/dashboard/applicants");

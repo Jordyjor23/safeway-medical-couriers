@@ -32,7 +32,8 @@ export default async function UsersPage() {
     <div>
       <h1 className="text-3xl font-semibold text-navy">User management</h1>
       <p className="mt-2 max-w-2xl text-sm text-muted">
-        Each person gets their own account. Passwords are hashed and cannot be viewed after creation.
+        Each person gets their own account. An activation email is sent so they set their own
+        password. Passwords are hashed and cannot be viewed after creation.
       </p>
       <CreateStaffForm
         managers={managers}
