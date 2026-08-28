@@ -6,6 +6,20 @@ function fromHost(host: string, protocol = "https") {
   return `${protocol}://${host.replace(/^https?:\/\//, "")}`;
 }
 
+function hostnameFromOrigin(origin: string) {
+  try {
+    return new URL(origin).hostname;
+  } catch {
+    return "";
+  }
+}
+
+function configuredOrigin() {
+  const configured =
+    process.env.BETTER_AUTH_URL || process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL;
+  return configured ? stripSlash(configured) : null;
+}
+
 const LOCAL_DEV_ORIGIN = "http://localhost:3000";
 
 export const PRODUCTION_PORTAL_HOST = "portal.safewaycouriers.com";
@@ -16,11 +30,25 @@ export function isProductionDeploy() {
   return process.env.VERCEL === "1" || process.env.NODE_ENV === "production";
 }
 
+export function isVercelProduction() {
+  return process.env.VERCEL_ENV === "production";
+}
+
 /** Public origin for auth, emails, and redirects. Localhost is a development-only fallback. */
 export function appOrigin() {
-  const configured =
-    process.env.BETTER_AUTH_URL || process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL;
-  if (configured) return stripSlash(configured);
+  if (isVercelProduction()) {
+    const configured = configuredOrigin();
+    if (configured) {
+      const hostname = hostnameFromOrigin(configured);
+      if (hostname && !isLocalHostname(hostname) && !isMarketingHostname(hostname)) {
+        return configured;
+      }
+    }
+    return PRODUCTION_PORTAL_ORIGIN;
+  }
+
+  const configured = configuredOrigin();
+  if (configured) return configured;
   if (process.env.VERCEL_URL) return fromHost(process.env.VERCEL_URL);
   if (process.env.VERCEL === "1") return PRODUCTION_PORTAL_ORIGIN;
   return LOCAL_DEV_ORIGIN;

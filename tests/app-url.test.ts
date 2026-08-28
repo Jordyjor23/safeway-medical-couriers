@@ -15,6 +15,7 @@ const KEYS = [
   "NEXT_PUBLIC_SITE_URL",
   "VERCEL_URL",
   "VERCEL",
+  "VERCEL_ENV",
 ] as const;
 
 describe("app origin helpers", () => {
@@ -43,8 +44,17 @@ describe("app origin helpers", () => {
     delete process.env.BETTER_AUTH_URL;
     delete process.env.NEXT_PUBLIC_APP_URL;
     delete process.env.NEXT_PUBLIC_SITE_URL;
+    delete process.env.VERCEL_ENV;
     process.env.VERCEL_URL = "safeway-couriers-git-main.vercel.app";
     expect(appOrigin()).toBe("https://safeway-couriers-git-main.vercel.app");
+  });
+
+  it("keeps Vercel production on the portal even if localhost is configured", () => {
+    snapshotEnv();
+    process.env.VERCEL_ENV = "production";
+    process.env.VERCEL = "1";
+    process.env.BETTER_AUTH_URL = "http://localhost:3000";
+    expect(appOrigin()).toBe(PRODUCTION_PORTAL_ORIGIN);
   });
 
   it("classifies portal and marketing hosts", () => {
