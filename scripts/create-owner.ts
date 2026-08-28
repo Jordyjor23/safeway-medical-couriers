@@ -41,12 +41,8 @@ async function main() {
 
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
-    const { hashPassword } = await import("better-auth/crypto");
-    const passwordHash = await hashPassword(password);
-    await prisma.account.updateMany({
-      where: { userId: existing.id, providerId: "credential" },
-      data: { password: passwordHash },
-    });
+    const { setCredentialPassword } = await import("../lib/portal-account");
+    await setCredentialPassword(existing.id, password);
     const ownerRole = await prisma.role.findUnique({ where: { key: "OWNER" } });
     if (ownerRole) {
       await prisma.userRole.upsert({

@@ -1,54 +1,79 @@
 import { hashPassword } from "better-auth/crypto";
-import { appOrigin } from "@/lib/app-url";
 import { prisma } from "@/lib/db";
 import { allocateUsername, createTemporaryPassword } from "@/lib/ids";
 
+/** Better Auth 1.7 credential accounts are keyed as issuer `local:credential` + accountId = user.id. */
+export const CREDENTIAL_PROVIDER_ID = "credential";
+export const CREDENTIAL_ISSUER = "local:credential";
+
 export async function credentialIssuer() {
   const template = await prisma.account.findFirst({
-    where: { providerId: "credential" },
-    select: { issuer: true },
+    where: { providerId: CREDENTIAL_PROVIDER_ID },
+    select: { id: true },
   });
-  return template?.issuer ?? null;
+  return template ? CREDENTIAL_ISSUER : null;
 }
 
-export async function setCredentialPassword(userId: string, password: string) {
+export async function setCredentialPassword(
+  userId: string,
+  password: string,
+  options?: { mustChangePassword?: boolean; revokeSessions?: boolean },
+) {
   const passwordHash = await hashPassword(password);
-  const updated = await prisma.account.updateMany({
-    where: { userId, providerId: "credential" },
-    data: { password: passwordHash },
+  const accounts = await prisma.account.findMany({
+    where: { userId, providerId: CREDENTIAL_PROVIDER_ID },
   });
-  if (updated.count === 0) {
-    const issuer = (await credentialIssuer()) || appOrigin();
+  const canonical =
+    accounts.find((account) => account.issuer === CREDENTIAL_ISSUER && account.accountId === userId) ??
+    accounts[0];
+
+  if (canonical) {
+    const extras = accounts.filter((account) => account.id !== canonical.id);
+    if (extras.length) {
+      await prisma.account.deleteMany({ where: { id: { in: extras.map((account) => account.id) } } });
+    }
+    await prisma.account.update({
+      where: { id: canonical.id },
+      data: {
+        issuer: CREDENTIAL_ISSUER,
+        accountId: userId,
+        password: passwordHash,
+      },
+    });
+  } else {
     await prisma.account.create({
       data: {
-        issuer,
+        issuer: CREDENTIAL_ISSUER,
         accountId: userId,
-        providerId: "credential",
+        providerId: CREDENTIAL_PROVIDER_ID,
         userId,
         password: passwordHash,
       },
     });
   }
+
   await prisma.user.update({
     where: { id: userId },
     data: {
       accountStatus: "ACTIVE",
       disabled: false,
-      mustChangePassword: false,
+      mustChangePassword: options?.mustChangePassword ?? false,
       lockedUntil: null,
       failedLoginCount: 0,
       passwordChangedAt: new Date(),
     },
   });
-  await prisma.session.deleteMany({ where: { userId } });
+  if (options?.revokeSessions !== false) {
+    await prisma.session.deleteMany({ where: { userId } });
+  }
 }
 
-export async function attachCredentialAccount(userId: string, issuer: string) {
+export async function attachCredentialAccount(userId: string, _issuer?: string) {
   await prisma.account.create({
     data: {
-      issuer,
+      issuer: CREDENTIAL_ISSUER,
       accountId: userId,
-      providerId: "credential",
+      providerId: CREDENTIAL_PROVIDER_ID,
       userId,
       password: await hashPassword(createTemporaryPassword()),
     },

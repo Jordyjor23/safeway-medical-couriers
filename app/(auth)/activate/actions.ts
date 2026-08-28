@@ -1,10 +1,10 @@
 "use server";
 
-import { hashPassword } from "better-auth/crypto";
 import { redirect } from "next/navigation";
-import { consumeActivationToken, recordAuthEvent } from "@/lib/activation";
+import { consumeActivationToken, recordAuthEvent, resolveActivationToken } from "@/lib/activation";
 import { prisma } from "@/lib/db";
 import { isStrongPassword, passwordIssues } from "@/lib/password";
+import { setCredentialPassword } from "@/lib/portal-account";
 
 export async function activateAccount(formData: FormData) {
   const token = String(formData.get("token") ?? "");
@@ -14,32 +14,21 @@ export async function activateAccount(formData: FormData) {
   if (newPassword !== confirmPassword) return { error: "Passwords do not match." };
   if (!isStrongPassword(newPassword)) return { error: passwordIssues(newPassword).join(" ") };
 
-  const userId = await consumeActivationToken(token);
-  if (!userId) return { error: "This activation link is invalid or has expired." };
+  const pending = await resolveActivationToken(token);
+  if (!pending) return { error: "This activation link is invalid or has expired." };
 
-  const user = await prisma.user.findUnique({ where: { id: userId } });
+  const user = await prisma.user.findUnique({ where: { id: pending.userId } });
   if (!user || user.accountStatus === "TERMINATED") {
     return { error: "This account cannot be activated." };
   }
 
-  await prisma.account.updateMany({
-    where: { userId, providerId: "credential" },
-    data: { password: await hashPassword(newPassword) },
-  });
-  await prisma.user.update({
-    where: { id: userId },
-    data: {
-      accountStatus: "ACTIVE",
-      mustChangePassword: false,
-      passwordChangedAt: new Date(),
-      disabled: false,
-    },
-  });
+  await setCredentialPassword(user.id, newPassword);
+  await consumeActivationToken(token);
   await recordAuthEvent({
-    actorId: userId,
+    actorId: user.id,
     actorEmail: user.email,
     action: "user.activated",
-    targetId: userId,
+    targetId: user.id,
   });
   redirect("/login?activated=1");
 }

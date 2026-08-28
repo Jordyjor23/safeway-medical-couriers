@@ -23,6 +23,7 @@ import {
   hashActivationToken,
   invalidateActivationTokens,
   issueActivation,
+  resolveActivationToken,
 } from "@/lib/activation";
 import { createActivationToken } from "@/lib/ids";
 
@@ -95,6 +96,17 @@ describe("activation tokens", () => {
     const result = await issueActivation("user_1", "new.employee@example.com", "Alex");
     expect(result).toEqual({ emailSent: false });
     expect(prisma.verification.create).toHaveBeenCalled();
+  });
+
+  it("resolves a valid token without consuming it", async () => {
+    const token = "peek-token";
+    prisma.verification.findFirst.mockResolvedValue({
+      id: "ver_peek",
+      value: "user_1",
+      expiresAt: new Date(Date.now() + 60_000),
+    });
+    await expect(resolveActivationToken(token)).resolves.toEqual({ id: "ver_peek", userId: "user_1" });
+    expect(prisma.verification.delete).not.toHaveBeenCalled();
   });
 
   it("consumes a valid hashed token once", async () => {

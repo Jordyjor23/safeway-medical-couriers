@@ -53,6 +53,22 @@ export const auth = betterAuth({
 <p>If you did not request this, you can ignore this email.</p>`,
       });
     },
+    revokeSessionsOnPasswordReset: true,
+    onPasswordReset: async ({ user }) => {
+      const record = await prisma.user.findUnique({ where: { id: user.id } });
+      if (!record || record.accountStatus === "TERMINATED") return;
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          accountStatus: "ACTIVE",
+          disabled: false,
+          mustChangePassword: false,
+          lockedUntil: null,
+          failedLoginCount: 0,
+          passwordChangedAt: new Date(),
+        },
+      });
+    },
   },
   session: {
     expiresIn: 60 * 60 * 8,

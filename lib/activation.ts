@@ -102,7 +102,7 @@ export async function issueActivation(userId: string, email: string, name: strin
   }
 }
 
-export async function consumeActivationToken(token: string) {
+export async function resolveActivationToken(token: string) {
   const value = token.trim();
   if (!value) return null;
   const row = await prisma.verification.findFirst({
@@ -111,8 +111,14 @@ export async function consumeActivationToken(token: string) {
     },
   });
   if (!row || row.expiresAt < new Date()) return null;
+  return { id: row.id, userId: row.value };
+}
+
+export async function consumeActivationToken(token: string) {
+  const row = await resolveActivationToken(token);
+  if (!row) return null;
   await prisma.verification.delete({ where: { id: row.id } });
-  return row.value;
+  return row.userId;
 }
 
 export async function revokeUserSessions(userId: string) {

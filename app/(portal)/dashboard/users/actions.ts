@@ -1,6 +1,5 @@
 "use server";
 
-import { hashPassword } from "better-auth/crypto";
 import { revalidatePath } from "next/cache";
 import {
   ACTIVATION_EMAIL_FAILED_MESSAGE,
@@ -14,7 +13,7 @@ import { prisma } from "@/lib/db";
 import { allocateUsername, createTemporaryPassword, nextScopedId } from "@/lib/ids";
 import { ONBOARDING_STEPS } from "@/lib/onboarding";
 import { canAssignRoleKey, canChangeOwnerAssignment } from "@/lib/permissions";
-import { attachCredentialAccount, credentialIssuer } from "@/lib/portal-account";
+import { attachCredentialAccount, credentialIssuer, setCredentialPassword } from "@/lib/portal-account";
 import { requirePermission } from "@/lib/rbac";
 import type { AccountStatus, EmployeeStatus, EmploymentClassification } from "@prisma/client";
 
@@ -300,18 +299,13 @@ export async function issueTemporaryPassword(formData: FormData) {
     return { error: "A temporary password cannot be issued for this account." };
   }
   const temporaryPassword = createTemporaryPassword();
-  await prisma.account.updateMany({
-    where: { userId, providerId: "credential" },
-    data: { password: await hashPassword(temporaryPassword) },
-  });
-  await prisma.user.update({
-    where: { id: userId },
-    data: {
-      mustChangePassword: true,
-      accountStatus: user.accountStatus === "ACTIVE" ? "ACTIVE" : "PENDING_ACTIVATION",
-    },
-  });
-  await revokeUserSessions(userId);
+  await setCredentialPassword(userId, temporaryPassword, { mustChangePassword: true });
+  if (user.accountStatus !== "ACTIVE") {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { accountStatus: "PENDING_ACTIVATION" },
+    });
+  }
   await recordAuthEvent({
     actorId: ctx.user.id,
     actorEmail: ctx.user.email,

@@ -15,6 +15,7 @@ function LoginFormFields() {
   const next = safeInternalPath(searchParams.get("next"), "/portal");
   const activated = searchParams.get("activated") === "1";
   const recovered = searchParams.get("recovered") === "1";
+  const reset = searchParams.get("reset") === "1";
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -56,6 +57,11 @@ function LoginFormFields() {
       {recovered ? (
         <p className="rounded-lg border border-medical/30 bg-ice px-3 py-2 text-sm text-navy">
           Owner password saved. Sign in with the password you just set.
+        </p>
+      ) : null}
+      {reset ? (
+        <p className="rounded-lg border border-medical/30 bg-ice px-3 py-2 text-sm text-navy">
+          Password updated. Sign in with your new password.
         </p>
       ) : null}
       <label className="block text-sm font-semibold text-navy">

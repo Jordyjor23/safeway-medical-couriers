@@ -1,9 +1,10 @@
 "use server";
 
-import { hashPassword, verifyPassword } from "better-auth/crypto";
+import { verifyPassword } from "better-auth/crypto";
 import { writeAuditLog } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { isStrongPassword, passwordIssues } from "@/lib/password";
+import { CREDENTIAL_PROVIDER_ID, setCredentialPassword } from "@/lib/portal-account";
 import { requireAuth } from "@/lib/rbac";
 
 export async function changeOwnPassword(formData: FormData) {
@@ -20,7 +21,7 @@ export async function changeOwnPassword(formData: FormData) {
   }
 
   const account = await prisma.account.findFirst({
-    where: { userId: ctx.user.id, providerId: "credential" },
+    where: { userId: ctx.user.id, providerId: CREDENTIAL_PROVIDER_ID },
   });
   if (!account?.password) {
     return { error: "This account cannot change a password here." };
@@ -31,18 +32,7 @@ export async function changeOwnPassword(formData: FormData) {
     return { error: "Current password is incorrect." };
   }
 
-  await prisma.account.update({
-    where: { id: account.id },
-    data: { password: await hashPassword(newPassword) },
-  });
-  await prisma.user.update({
-    where: { id: ctx.user.id },
-    data: {
-      mustChangePassword: false,
-      passwordChangedAt: new Date(),
-      accountStatus: ctx.user.accountStatus === "PENDING_ACTIVATION" ? "ACTIVE" : undefined,
-    },
-  });
+  await setCredentialPassword(ctx.user.id, newPassword, { revokeSessions: false });
 
   await writeAuditLog({
     actorId: ctx.user.id,
