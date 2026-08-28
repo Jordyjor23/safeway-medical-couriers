@@ -8,6 +8,7 @@ import { allowedOrigins, appOrigin } from "@/lib/app-url";
 import { writeAuditLog } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { sendTransactionalEmail } from "@/lib/email";
+import { buildPasswordResetUrl } from "@/lib/password-reset";
 
 export const authConfigured = Boolean(
   process.env.BETTER_AUTH_SECRET && process.env.DATABASE_URL,
@@ -42,9 +43,11 @@ export const auth = betterAuth({
     minPasswordLength: 12,
     maxPasswordLength: 128,
     requireEmailVerification: false,
-    sendResetPassword: async ({ user, url }) => {
+    resetPasswordTokenExpiresIn: 60 * 60 * 24,
+    sendResetPassword: async ({ user, token }) => {
       const record = await prisma.user.findUnique({ where: { id: user.id } });
       if (!record || !accountAllowsPasswordReset(record)) return;
+      const url = buildPasswordResetUrl(token, baseURL);
       await sendTransactionalEmail({
         to: user.email,
         subject: "Reset your Safeway Couriers portal password",
