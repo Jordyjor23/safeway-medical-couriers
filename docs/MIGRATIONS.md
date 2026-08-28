@@ -14,11 +14,13 @@ npx prisma migrate deploy
 npx prisma db seed
 ```
 
-Apply on Vercel after attaching Postgres:
+Apply on Vercel after attaching hosted Postgres (never localhost):
 
-- Set `DATABASE_URL` and auth secrets
-- Build command may remain `prisma generate && next build`
-- Run `prisma migrate deploy` and `prisma db seed` once (Vercel CLI or a release command)
+- Set `DATABASE_URL` (and optional `DIRECT_URL` for pooled hosts), `BETTER_AUTH_URL=https://portal.safewaycouriers.com`, and the other secrets listed in `.env.example`
+- Build command: `node scripts/vercel-build.mjs` (via `npm run build`)
+- That script runs `npx prisma generate` then **`npx prisma migrate deploy`** then `next build`
+- `migrate deploy` applies pending migrations only. It does **not** run `migrate dev`, `migrate reset`, or seed.
+- See `docs/PRODUCTION-DEPLOYMENT.md` for DNS and domain steps.
 
 ## 0002_account_rbac_upgrade
 

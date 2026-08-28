@@ -7,12 +7,7 @@ import { writeAuditLog } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { allocateUsername, createTemporaryPassword, nextScopedId } from "@/lib/ids";
 import { ONBOARDING_STEPS } from "@/lib/onboarding";
-import {
-  canAssignRoleKey,
-  canChangeOwnerAssignment,
-  isSystemRole,
-  type RoleKey,
-} from "@/lib/permissions";
+import { canAssignRoleKey, canChangeOwnerAssignment } from "@/lib/permissions";
 import { requirePermission } from "@/lib/rbac";
 import type { AccountStatus, EmployeeStatus, EmploymentClassification } from "@prisma/client";
 
@@ -386,8 +381,4 @@ export async function updateUserProfile(userId: string, formData: FormData) {
   });
   revalidatePath("/dashboard/users");
   revalidatePath(`/dashboard/users/${userId}`);
-}
-
-export function isKnownRole(value: string): value is RoleKey {
-  return isSystemRole(value);
 }

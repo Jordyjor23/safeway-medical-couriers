@@ -26,7 +26,7 @@ export function ForgotPasswordForm() {
         event.preventDefault();
         setPending(true);
         const form = new FormData(event.currentTarget);
-        const { error: _error } = await authClient.requestPasswordReset({
+        await authClient.requestPasswordReset({
           email: String(form.get("email") ?? ""),
           redirectTo: "/reset-password",
         });

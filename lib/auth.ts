@@ -4,6 +4,7 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
 import { bearer, twoFactor, username } from "better-auth/plugins";
 import { accountAllowsLogin, accountAllowsPasswordReset, nextFailedLoginState } from "@/lib/account-status";
+import { allowedOrigins, appOrigin } from "@/lib/app-url";
 import { writeAuditLog } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { sendTransactionalEmail } from "@/lib/email";
@@ -12,21 +13,13 @@ export const authConfigured = Boolean(
   process.env.BETTER_AUTH_SECRET && process.env.DATABASE_URL,
 );
 
-const secret = process.env.BETTER_AUTH_SECRET;
-const baseURL =
-  process.env.BETTER_AUTH_URL ?? process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+if (process.env.VERCEL === "1" && !process.env.BETTER_AUTH_SECRET) {
+  throw new Error("BETTER_AUTH_SECRET is required on Vercel.");
+}
 
-const trustedOrigins = Array.from(
-  new Set(
-    [
-      baseURL,
-      process.env.NEXT_PUBLIC_SITE_URL,
-      "https://www.safewaycouriers.com",
-      "https://safewaycouriers.com",
-      "https://portal.safewaycouriers.com",
-    ].filter(Boolean) as string[],
-  ),
-);
+const secret = process.env.BETTER_AUTH_SECRET;
+const baseURL = appOrigin();
+const trustedOrigins = allowedOrigins();
 
 async function findUserForAuth(identifier: string) {
   const value = identifier.trim().toLowerCase();
@@ -104,7 +97,7 @@ export const auth = betterAuth({
     },
   },
   advanced: {
-    useSecureCookies: process.env.NODE_ENV === "production",
+    useSecureCookies: baseURL.startsWith("https://"),
     database: {
       generateId: false,
     },

@@ -1,15 +1,8 @@
+import { appOrigin } from "@/lib/app-url";
 import { writeAuditLog } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { sendTransactionalEmail } from "@/lib/email";
 import { createActivationToken } from "@/lib/ids";
-
-function siteOrigin() {
-  return (
-    process.env.BETTER_AUTH_URL ??
-    process.env.NEXT_PUBLIC_SITE_URL ??
-    "http://localhost:3000"
-  );
-}
 
 export async function issueActivation(userId: string, email: string, name: string) {
   const token = createActivationToken();
@@ -25,7 +18,7 @@ export async function issueActivation(userId: string, email: string, name: strin
     where: { id: userId },
     data: { activationExpiresAt: expiresAt },
   });
-  const url = `${siteOrigin()}/activate?token=${token}`;
+  const url = `${appOrigin()}/activate?token=${token}`;
   await sendTransactionalEmail({
     to: email,
     subject: "Activate your Safeway Couriers portal account",
