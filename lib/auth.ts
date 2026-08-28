@@ -14,7 +14,9 @@ export const authConfigured = Boolean(
   process.env.BETTER_AUTH_SECRET && process.env.DATABASE_URL,
 );
 
-if (process.env.VERCEL === "1" && !process.env.BETTER_AUTH_SECRET) {
+const isNextProductionBuild = process.env.NEXT_PHASE === "phase-production-build";
+
+if (process.env.VERCEL === "1" && !process.env.BETTER_AUTH_SECRET && !isNextProductionBuild) {
   throw new Error("BETTER_AUTH_SECRET is required on Vercel.");
 }
 
