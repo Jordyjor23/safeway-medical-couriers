@@ -87,6 +87,10 @@ export async function issueActivation(userId: string, email: string, name: strin
 <p><a href="${url}">Activate your account and set a password</a></p>
 <p>This link expires in 7 days. If you did not expect this message, ignore it.</p>`,
     });
+    if (!result?.id || result.id === "dev-email") {
+      console.error("[email] activation email failed", { to: recipient, reason: "not_queued" });
+      return { emailSent: false as const };
+    }
     console.info("[email] activation email successfully queued", {
       to: recipient,
       id: result?.id ?? null,

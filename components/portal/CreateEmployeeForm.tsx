@@ -74,7 +74,10 @@ export function CreateEmployeeForm() {
         </p>
       ) : null}
       {notice ? (
-        <p className="text-sm text-navy sm:col-span-2" role="status">
+        <p
+          className={`text-sm sm:col-span-2 ${notice.includes("could not be sent") ? "text-red-700" : "text-navy"}`}
+          role="status"
+        >
           {notice}
         </p>
       ) : null}

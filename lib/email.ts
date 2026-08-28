@@ -1,5 +1,3 @@
-import { Resend } from "resend";
-
 export class EmailDeliveryError extends Error {
   constructor() {
     super("Email delivery failed.");
@@ -11,13 +9,19 @@ export function emailFromAddress() {
   return (process.env.EMAIL_FROM ?? "").trim();
 }
 
+function providerErrorName(payload: unknown) {
+  if (!payload || typeof payload !== "object") return "provider_error";
+  const name = "name" in payload ? payload.name : null;
+  return typeof name === "string" && name ? name : "provider_error";
+}
+
 export async function sendTransactionalEmail(args: {
   to: string;
   subject: string;
   html: string;
 }) {
   const to = args.to.trim();
-  const apiKey = process.env.RESEND_API_KEY;
+  const apiKey = (process.env.RESEND_API_KEY ?? "").trim();
   const from = emailFromAddress();
 
   console.info("[email] send attempted", { to, subject: args.subject });
@@ -28,12 +32,8 @@ export async function sendTransactionalEmail(args: {
   }
 
   if (!apiKey) {
-    if (process.env.NODE_ENV === "production") {
-      console.error("[email] send failed", { to, reason: "missing_api_key" });
-      throw new EmailDeliveryError();
-    }
-    console.info("[email] send skipped", { to, subject: args.subject, reason: "dev_no_api_key" });
-    return { id: "dev-email", skipped: true as const };
+    console.error("[email] send failed", { to, reason: "missing_api_key" });
+    throw new EmailDeliveryError();
   }
 
   if (!from) {
@@ -41,22 +41,36 @@ export async function sendTransactionalEmail(args: {
     throw new EmailDeliveryError();
   }
 
-  const resend = new Resend(apiKey);
   try {
-    const result = await resend.emails.send({
-      from,
-      to,
-      subject: args.subject,
-      html: args.html,
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from,
+        to: [to],
+        subject: args.subject,
+        html: args.html,
+      }),
     });
 
-    if (result.error) {
-      console.error("[email] send failed", { to, reason: "provider_error" });
+    const payload = (await response.json().catch(() => null)) as
+      | { id?: string; name?: string; statusCode?: number }
+      | null;
+
+    if (!response.ok || !payload?.id) {
+      console.error("[email] send failed", {
+        to,
+        reason: providerErrorName(payload),
+        status: response.status,
+      });
       throw new EmailDeliveryError();
     }
 
-    console.info("[email] send successfully queued", { to, id: result.data?.id ?? null });
-    return result.data;
+    console.info("[email] send successfully queued", { to, id: payload.id });
+    return { id: payload.id };
   } catch (error) {
     if (error instanceof EmailDeliveryError) throw error;
     console.error("[email] send failed", { to, reason: "provider_exception" });
