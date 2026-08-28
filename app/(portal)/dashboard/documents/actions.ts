@@ -41,3 +41,32 @@ export async function uploadBusinessDocument(formData: FormData) {
   });
   revalidatePath("/dashboard/documents");
 }
+
+export async function deleteBusinessDocument(formData: FormData) {
+  const ctx = await requirePermission("documents.delete");
+  const documentId = String(formData.get("documentId") ?? "");
+  if (!documentId) return;
+
+  const document = await prisma.managedDocument.findUnique({ where: { id: documentId } });
+  if (!document) return;
+
+  try {
+    const { del } = await import("@vercel/blob");
+    const token = process.env.BLOB_READ_WRITE_TOKEN;
+    if (token && document.blobKey) {
+      await del(document.blobKey, { token });
+    }
+  } catch {
+    // Keep deleting the tracking record even if blob storage is not configured.
+  }
+
+  await prisma.managedDocument.delete({ where: { id: documentId } });
+  await writeAuditLog({
+    actorId: ctx.user.id,
+    actorEmail: ctx.user.email,
+    action: "document.deleted",
+    targetType: "document",
+    targetId: documentId,
+  });
+  revalidatePath("/dashboard/documents");
+}

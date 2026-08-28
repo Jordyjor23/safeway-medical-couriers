@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { authClient } from "@/lib/auth-client";
+import { safeInternalPath } from "@/lib/paths";
 
 const fieldClass =
   "mt-1.5 w-full rounded-lg border border-line bg-white px-3 py-2.5 text-sm text-ink outline-none ring-medical/25 transition focus:border-medical focus:ring-2";
@@ -11,7 +12,8 @@ const fieldClass =
 function LoginFormFields() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const next = searchParams.get("next") || "/dashboard";
+  const next = safeInternalPath(searchParams.get("next"), "/portal");
+  const activated = searchParams.get("activated") === "1";
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -23,31 +25,38 @@ function LoginFormFields() {
         setError(null);
         setPending(true);
         const form = new FormData(event.currentTarget);
-        const { error: signInError, data } = await authClient.signIn.email({
-          email: String(form.get("email") ?? ""),
-          password: String(form.get("password") ?? ""),
-        });
+        const identifier = String(form.get("identifier") ?? "").trim();
+        const password = String(form.get("password") ?? "");
+        const isEmail = identifier.includes("@");
+        const result = isEmail
+          ? await authClient.signIn.email({ email: identifier.toLowerCase(), password })
+          : await authClient.signIn.username({ username: identifier.toLowerCase(), password });
         setPending(false);
 
-        if (signInError) {
-          setError("Sign-in failed. Check your email and password, then try again.");
+        if (result.error) {
+          setError("Sign-in failed. Check your email or username and password, then try again.");
           return;
         }
 
-        if (data && "twoFactorRedirect" in data && data.twoFactorRedirect) {
+        if (result.data && "twoFactorRedirect" in result.data && result.data.twoFactorRedirect) {
           router.push("/two-factor");
           return;
         }
 
-        router.push(next.startsWith("/") ? next : "/dashboard");
+        router.push(next);
         router.refresh();
       }}
     >
+      {activated ? (
+        <p className="rounded-lg border border-medical/30 bg-ice px-3 py-2 text-sm text-navy">
+          Account activated. Sign in with your new password.
+        </p>
+      ) : null}
       <label className="block text-sm font-semibold text-navy">
-        Email
+        Email or username
         <input
-          name="email"
-          type="email"
+          name="identifier"
+          type="text"
           autoComplete="username"
           required
           className={fieldClass}

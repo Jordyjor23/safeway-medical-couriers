@@ -26,12 +26,12 @@ export function ForgotPasswordForm() {
         event.preventDefault();
         setPending(true);
         const form = new FormData(event.currentTarget);
-        const { error } = await authClient.requestPasswordReset({
+        const { error: _error } = await authClient.requestPasswordReset({
           email: String(form.get("email") ?? ""),
           redirectTo: "/reset-password",
         });
         setPending(false);
-        setStatus(error ? "error" : "sent");
+        setStatus("sent");
       }}
     >
       <label className="block text-sm font-semibold text-navy">

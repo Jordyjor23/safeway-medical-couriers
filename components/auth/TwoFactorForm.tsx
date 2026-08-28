@@ -31,7 +31,7 @@ export function TwoFactorForm() {
           }
         }
         setPending(false);
-        router.push("/dashboard");
+        router.push("/portal");
         router.refresh();
       }}
     >

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { createContract } from "@/app/(portal)/dashboard/contracts/actions";
 import { prisma } from "@/lib/db";
 import { hasPermission, requirePermission } from "@/lib/rbac";
@@ -22,18 +23,32 @@ export default async function ContractsPage() {
         <form action={createContract} className="mt-6 grid gap-3 rounded-2xl border border-line bg-paper p-5 sm:grid-cols-2">
           <select name="customerId" required className="rounded-lg border border-line px-3 py-2 text-sm">
             <option value="">Customer</option>
-            {customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.legalName}</option>)}
+            {customers.map((customer) => (
+              <option key={customer.id} value={customer.id}>
+                {customer.legalName}
+              </option>
+            ))}
           </select>
           <select name="contractType" className="rounded-lg border border-line px-3 py-2 text-sm">
-            {["MASTER_SERVICE", "STATEMENT_OF_WORK", "AMENDMENT", "NDA", "BAA", "OTHER"].map((type) => <option key={type}>{type}</option>)}
+            {["MASTER_SERVICE", "STATEMENT_OF_WORK", "AMENDMENT", "NDA", "BAA", "OTHER"].map((type) => (
+              <option key={type}>{type}</option>
+            ))}
           </select>
           <input name="serviceType" placeholder="Service type" className="rounded-lg border border-line px-3 py-2 text-sm" />
           <select name="status" className="rounded-lg border border-line px-3 py-2 text-sm">
-            {["DRAFT", "UNDER_REVIEW", "SENT", "NEGOTIATING", "AWAITING_SIGNATURE", "ACTIVE"].map((status) => <option key={status}>{status}</option>)}
+            {["DRAFT", "UNDER_REVIEW", "SENT", "NEGOTIATING", "AWAITING_SIGNATURE", "ACTIVE"].map((status) => (
+              <option key={status}>{status}</option>
+            ))}
           </select>
-          <label className="text-sm">Effective <input name="effectiveDate" type="date" className="mt-1 w-full rounded-lg border border-line px-3 py-2" /></label>
-          <label className="text-sm">Expiration <input name="expirationDate" type="date" className="mt-1 w-full rounded-lg border border-line px-3 py-2" /></label>
-          <button className="rounded-full bg-navy px-4 py-2 text-sm font-semibold text-white sm:col-span-2 sm:w-fit">Add contract</button>
+          <label className="text-sm">
+            Effective <input name="effectiveDate" type="date" className="mt-1 w-full rounded-lg border border-line px-3 py-2" />
+          </label>
+          <label className="text-sm">
+            Expiration <input name="expirationDate" type="date" className="mt-1 w-full rounded-lg border border-line px-3 py-2" />
+          </label>
+          <button className="rounded-full bg-navy px-4 py-2 text-sm font-semibold text-white sm:col-span-2 sm:w-fit">
+            Add contract
+          </button>
         </form>
       ) : null}
       <div className="mt-6 overflow-x-auto rounded-2xl border border-line bg-paper">
@@ -48,15 +63,29 @@ export default async function ContractsPage() {
           </thead>
           <tbody>
             {contracts.length === 0 ? (
-              <tr><td className="px-4 py-8 text-muted" colSpan={4}>No contracts yet.</td></tr>
-            ) : contracts.map((contract) => (
-              <tr key={contract.id} className="border-b border-line last:border-0">
-                <td className="px-4 py-3 font-mono text-xs">{contract.contractNumber}</td>
-                <td className="px-4 py-3">{contract.customer.legalName}</td>
-                <td className="px-4 py-3">{contract.status.replaceAll("_", " ")}</td>
-                <td className="px-4 py-3">{contract.expirationDate?.toLocaleDateString() ?? "—"}</td>
+              <tr>
+                <td className="px-4 py-8 text-muted" colSpan={4}>
+                  No contracts yet.
+                </td>
               </tr>
-            ))}
+            ) : (
+              contracts.map((contract) => (
+                <tr key={contract.id} className="border-b border-line last:border-0">
+                  <td className="px-4 py-3 font-mono text-xs">
+                    <Link href={`/dashboard/contracts/${contract.id}`} className="font-medium text-navy hover:text-medical">
+                      {contract.contractNumber}
+                    </Link>
+                  </td>
+                  <td className="px-4 py-3">
+                    <Link href={`/dashboard/customers/${contract.customerId}`} className="hover:text-medical">
+                      {contract.customer.legalName}
+                    </Link>
+                  </td>
+                  <td className="px-4 py-3">{contract.status.replaceAll("_", " ")}</td>
+                  <td className="px-4 py-3">{contract.expirationDate?.toLocaleDateString() ?? "—"}</td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>

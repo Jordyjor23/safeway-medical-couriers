@@ -165,17 +165,27 @@ async function main() {
       },
     });
 
-    await prisma.rolePermission.deleteMany({ where: { roleId: role.id } });
-    const permissionKeys = ROLE_PERMISSIONS[key];
-    if (permissionKeys.length === 0) continue;
-    const permissions = await prisma.permission.findMany({
-      where: { key: { in: [...permissionKeys] } },
-    });
-    await prisma.rolePermission.createMany({
-      data: permissions.map((permission) => ({
-        roleId: role.id,
-        permissionId: permission.id,
-      })),
+    const existingLinks = await prisma.rolePermission.count({ where: { roleId: role.id } });
+    if (existingLinks === 0) {
+      const permissionKeys = ROLE_PERMISSIONS[key];
+      if (permissionKeys.length === 0) continue;
+      const permissions = await prisma.permission.findMany({
+        where: { key: { in: [...permissionKeys] } },
+      });
+      await prisma.rolePermission.createMany({
+        data: permissions.map((permission) => ({
+          roleId: role.id,
+          permissionId: permission.id,
+        })),
+      });
+    }
+  }
+
+  for (const key of ["EMP", "DRV", "CLI", "DLV"]) {
+    await prisma.idSequence.upsert({
+      where: { key },
+      update: {},
+      create: { key, value: 0 },
     });
   }
 

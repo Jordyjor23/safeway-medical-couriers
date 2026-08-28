@@ -3,32 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { writeAuditLog } from "@/lib/audit";
 import { prisma } from "@/lib/db";
-import { createEmployeeNumber } from "@/lib/ids";
+import { nextScopedId } from "@/lib/ids";
+import { ONBOARDING_STEPS } from "@/lib/onboarding";
 import { requirePermission } from "@/lib/rbac";
 import type { ApplicationStatus, InterviewStatus } from "@prisma/client";
-
-const ONBOARDING_STEPS = [
-  "OFFER_ACCEPTED",
-  "IDENTITY_WORK_AUTH",
-  "FORM_I9",
-  "FEDERAL_TAX",
-  "OHIO_TAX",
-  "DIRECT_DEPOSIT",
-  "EMERGENCY_CONTACT",
-  "HANDBOOK_ACK",
-  "CONFIDENTIALITY",
-  "HIPAA_ACK",
-  "SAFETY_POLICIES",
-  "TRAINING_ASSIGNMENTS",
-  "DRIVER_DOCUMENTATION",
-  "INSURANCE_VERIFICATION",
-  "VEHICLE_DOCUMENTATION",
-  "BACKGROUND_SCREENING",
-  "MVR_STATUS",
-  "EQUIPMENT_ISSUANCE",
-  "SYSTEM_ACCESS",
-  "READY_FOR_ASSIGNMENT",
-] as const;
 
 export async function updateApplicationStatus(applicationId: string, status: ApplicationStatus) {
   const ctx = await requirePermission("applicants.edit");
@@ -62,7 +40,7 @@ export async function updateApplicationStatus(applicationId: string, status: App
   if (status === "HIRED" && !current.employee) {
     const employee = await prisma.employee.create({
       data: {
-        employeeNumber: createEmployeeNumber(),
+        employeeNumber: await nextScopedId("EMP"),
         applicationId: current.id,
         legalFirstName: current.applicant.legalFirstName,
         legalLastName: current.applicant.legalLastName,

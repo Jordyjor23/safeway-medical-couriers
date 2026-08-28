@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   addApplicationNote,
@@ -55,7 +56,10 @@ export default async function ApplicantProfilePage({
   return (
     <div className="space-y-8">
       <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-medical">
+        <Link href="/dashboard/applicants" className="text-sm font-semibold text-medical hover:underline">
+          ← Applicants
+        </Link>
+        <p className="mt-3 text-xs font-semibold uppercase tracking-[0.18em] text-medical">
           {application.trackingNumber}
         </p>
         <h1 className="mt-2 text-3xl font-semibold text-navy">

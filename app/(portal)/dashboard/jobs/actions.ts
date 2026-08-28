@@ -95,6 +95,7 @@ export async function updateJob(jobId: string, formData: FormData) {
   });
   revalidatePath("/careers");
   revalidatePath("/dashboard/jobs");
+  revalidatePath(`/dashboard/jobs/${jobId}`);
 }
 
 export async function setJobStatus(jobId: string, status: JobStatus) {
@@ -116,4 +117,5 @@ export async function setJobStatus(jobId: string, status: JobStatus) {
   });
   revalidatePath("/careers");
   revalidatePath("/dashboard/jobs");
+  revalidatePath(`/dashboard/jobs/${jobId}`);
 }

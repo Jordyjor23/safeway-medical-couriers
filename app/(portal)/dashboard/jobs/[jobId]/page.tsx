@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { setJobStatus } from "@/app/(portal)/dashboard/jobs/actions";
 import { JobForm } from "@/components/portal/JobForm";
@@ -24,7 +25,10 @@ export default async function EditJobPage({
     <div>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-semibold text-navy">{job.title}</h1>
+          <Link href="/dashboard/jobs" className="text-sm font-semibold text-medical hover:underline">
+            ← Job postings
+          </Link>
+          <h1 className="mt-3 text-3xl font-semibold text-navy">{job.title}</h1>
           <p className="mt-1 text-sm text-muted">Status: {job.status}</p>
         </div>
         {hasPermission(ctx, "jobs.publish") ? (

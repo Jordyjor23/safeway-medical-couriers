@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { recordLogout } from "@/app/(auth)/logout-action";
 import { authClient } from "@/lib/auth-client";
 
 export function SignOutButton() {
@@ -11,6 +12,7 @@ export function SignOutButton() {
       type="button"
       className="inline-flex items-center gap-2 text-sm text-white/70 hover:text-white"
       onClick={async () => {
+        await recordLogout();
         await authClient.signOut();
         router.push("/login");
         router.refresh();

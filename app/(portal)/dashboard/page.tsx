@@ -27,9 +27,10 @@ export default async function DashboardPage() {
 
       {owner && !ctx.user.twoFactorEnabled ? (
         <div className="mt-6 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-          Owner accounts should enable multi-factor authentication.{" "}
+          Owner accounts should enable multi-factor authentication and replace the temporary
+          password.{" "}
           <Link href="/dashboard/security" className="font-semibold underline">
-            Set up MFA
+            Change password / set up MFA
           </Link>
         </div>
       ) : null}

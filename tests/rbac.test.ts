@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
   ROLE_PERMISSIONS,
+  canAccessPortal,
+  canAssignRoleKey,
   canChangeOwnerAssignment,
+  homePathForRoles,
   permissionsForRoles,
   roleHasPermission,
 } from "@/lib/permissions";
+import { accountAllowsLogin, accountAllowsPasswordReset } from "@/lib/account-status";
 import { createTrackingNumber } from "@/lib/ids";
 
 describe("RBAC matrix", () => {
@@ -13,6 +17,7 @@ describe("RBAC matrix", () => {
     expect(ROLE_PERMISSIONS.OWNER).toContain("audit.view");
     expect(ROLE_PERMISSIONS.OWNER).toContain("applicants.screening.view");
     expect(ROLE_PERMISSIONS.OWNER).toContain("finance.view");
+    expect(ROLE_PERMISSIONS.OWNER).toContain("permission.manage");
   });
 
   it("does not let HR change owner security or view finance settings", () => {
@@ -28,7 +33,7 @@ describe("RBAC matrix", () => {
     expect(roleHasPermission("DISPATCHER", "applicants.screening.view")).toBe(false);
     expect(roleHasPermission("DISPATCHER", "employees.sensitive.view")).toBe(false);
     expect(roleHasPermission("DISPATCHER", "finance.view")).toBe(false);
-    expect(roleHasPermission("DISPATCHER", "employees.view")).toBe(true);
+    expect(roleHasPermission("DISPATCHER", "dispatch.view")).toBe(true);
   });
 
   it("does not let sales view applicants or employee HR records", () => {
@@ -43,9 +48,28 @@ describe("RBAC matrix", () => {
     expect(roleHasPermission("COMPLIANCE_ADMIN", "compliance.view")).toBe(true);
   });
 
-  it("keeps employee and customer portal roles empty of staff permissions", () => {
-    expect(ROLE_PERMISSIONS.EMPLOYEE).toHaveLength(0);
-    expect(ROLE_PERMISSIONS.CUSTOMER).toHaveLength(0);
+  it("keeps Admin below Owner-only controls", () => {
+    expect(roleHasPermission("ADMIN", "employees.view")).toBe(true);
+    expect(roleHasPermission("ADMIN", "settings.manage")).toBe(false);
+    expect(roleHasPermission("ADMIN", "roles.manage")).toBe(false);
+    expect(roleHasPermission("ADMIN", "finance.view")).toBe(false);
+    expect(canAssignRoleKey(["ADMIN"], "OWNER")).toBe(false);
+  });
+
+  it("keeps drivers off owner and finance surfaces", () => {
+    expect(roleHasPermission("DRIVER", "settings.manage")).toBe(false);
+    expect(roleHasPermission("DRIVER", "finance.view")).toBe(false);
+    expect(roleHasPermission("DRIVER", "users.manage")).toBe(false);
+    expect(roleHasPermission("DRIVER", "delivery.update")).toBe(true);
+    expect(canAccessPortal(["DRIVER"], "staff")).toBe(false);
+    expect(homePathForRoles(["DRIVER"])).toBe("/driver/dashboard");
+  });
+
+  it("routes employees and customers to isolated homes", () => {
+    expect(homePathForRoles(["EMPLOYEE"])).toBe("/employee/dashboard");
+    expect(homePathForRoles(["CUSTOMER"])).toBe("/customer/dashboard");
+    expect(canAccessPortal(["CUSTOMER"], "staff")).toBe(false);
+    expect(canAccessPortal(["EMPLOYEE"], "staff")).toBe(false);
   });
 
   it("prevents ordinary administrators from demoting the last owner", () => {
@@ -81,6 +105,26 @@ describe("RBAC matrix", () => {
     const permissions = permissionsForRoles(["DISPATCHER", "SALES_ACCOUNT_MANAGER"]);
     expect(permissions.has("customers.edit")).toBe(true);
     expect(permissions.has("applicants.view")).toBe(false);
+  });
+});
+
+describe("account status", () => {
+  it("blocks terminated, locked, and disabled accounts from login", () => {
+    expect(accountAllowsLogin({ accountStatus: "ACTIVE" })).toBe(true);
+    expect(accountAllowsLogin({ accountStatus: "PENDING_ACTIVATION" })).toBe(true);
+    expect(accountAllowsLogin({ accountStatus: "TERMINATED" })).toBe(false);
+    expect(accountAllowsLogin({ accountStatus: "SUSPENDED" })).toBe(false);
+    expect(accountAllowsLogin({ accountStatus: "INACTIVE" })).toBe(false);
+    expect(accountAllowsLogin({ accountStatus: "LOCKED", lockedUntil: new Date(Date.now() + 60_000) })).toBe(false);
+    expect(accountAllowsLogin({ accountStatus: "LOCKED" })).toBe(false);
+    expect(accountAllowsLogin({ accountStatus: "LOCKED", lockedUntil: new Date(Date.now() - 1000) })).toBe(true);
+    expect(accountAllowsLogin({ disabled: true, accountStatus: "ACTIVE" })).toBe(false);
+  });
+
+  it("blocks password reset for terminated accounts", () => {
+    expect(accountAllowsPasswordReset({ accountStatus: "ACTIVE" })).toBe(true);
+    expect(accountAllowsPasswordReset({ accountStatus: "TERMINATED" })).toBe(false);
+    expect(accountAllowsPasswordReset({ accountStatus: "SUSPENDED" })).toBe(false);
   });
 });
 

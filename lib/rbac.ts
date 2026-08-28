@@ -1,13 +1,17 @@
 import { headers } from "next/headers";
 import { forbidden, redirect } from "next/navigation";
 import { NextResponse } from "next/server";
+import { accountAllowsLogin } from "@/lib/account-status";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import {
+  canAccessCustomerTenant,
+  canAccessOwnEmployeeRecord,
+  canAccessPortal,
+  homePathForRoles,
   isOwnerRole,
-  permissionsForRoles,
   type PermissionKey,
-  type RoleKey,
+  type PortalKind,
 } from "@/lib/permissions";
 
 export type AuthContext = {
@@ -15,11 +19,16 @@ export type AuthContext = {
     id: string;
     email: string;
     name: string;
+    username?: string | null;
     disabled?: boolean | null;
     twoFactorEnabled?: boolean | null;
+    accountStatus?: string;
+    mustChangePassword?: boolean;
+    customerId?: string | null;
+    employeeId?: string | null;
   };
-  roles: RoleKey[];
-  permissions: Set<PermissionKey>;
+  roles: string[];
+  permissions: Set<string>;
 };
 
 export async function getAuthContext(): Promise<AuthContext | null> {
@@ -29,27 +38,46 @@ export async function getAuthContext(): Promise<AuthContext | null> {
 
   if (!session?.user) return null;
 
-  if ("disabled" in session.user && session.user.disabled) {
-    return null;
-  }
-
-  const assignments = await prisma.userRole.findMany({
-    where: { userId: session.user.id },
-    include: { role: true },
+  const dbUser = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    include: {
+      employee: { select: { id: true } },
+      customerUser: { select: { customerId: true } },
+      roles: { include: { role: { include: { permissions: { include: { permission: true } } } } } },
+    },
   });
 
-  const roles = assignments.map((assignment) => assignment.role.key as RoleKey);
+  if (!dbUser) return null;
+  if (!accountAllowsLogin(dbUser)) return null;
+
+  const roles = dbUser.roles.map((assignment) => assignment.role.key);
+  const permissions = new Set<string>();
+  if (isOwnerRole(roles)) {
+    const all = await prisma.permission.findMany({ select: { key: true } });
+    for (const permission of all) permissions.add(permission.key);
+  } else {
+    for (const assignment of dbUser.roles) {
+      for (const link of assignment.role.permissions) {
+        permissions.add(link.permission.key);
+      }
+    }
+  }
 
   return {
     user: {
-      id: session.user.id,
-      email: session.user.email,
-      name: session.user.name,
-      disabled: "disabled" in session.user ? Boolean(session.user.disabled) : false,
-      twoFactorEnabled: session.user.twoFactorEnabled,
+      id: dbUser.id,
+      email: dbUser.email,
+      name: dbUser.name,
+      username: dbUser.username,
+      disabled: dbUser.disabled,
+      twoFactorEnabled: dbUser.twoFactorEnabled,
+      accountStatus: dbUser.accountStatus,
+      mustChangePassword: dbUser.mustChangePassword,
+      customerId: dbUser.customerUser?.customerId ?? null,
+      employeeId: dbUser.employee?.id ?? null,
     },
     roles,
-    permissions: permissionsForRoles(roles),
+    permissions,
   };
 }
 
@@ -59,10 +87,24 @@ export async function requireAuth() {
   return ctx;
 }
 
-export async function requirePermission(permission: PermissionKey) {
+export async function requireActiveAuth() {
   const ctx = await requireAuth();
+  if (ctx.user.mustChangePassword) redirect("/set-password");
+  return ctx;
+}
+
+export async function requirePermission(permission: PermissionKey | string) {
+  const ctx = await requireActiveAuth();
   if (isOwnerRole(ctx.roles)) return ctx;
   if (!ctx.permissions.has(permission)) forbidden();
+  return ctx;
+}
+
+export async function requirePortal(kind: PortalKind) {
+  const ctx = await requireActiveAuth();
+  if (!canAccessPortal(ctx.roles, kind)) {
+    redirect(homePathForRoles(ctx.roles));
+  }
   return ctx;
 }
 
@@ -74,10 +116,16 @@ export async function requireApiAuth() {
       ctx: null,
     };
   }
+  if (ctx.user.mustChangePassword) {
+    return {
+      error: NextResponse.json({ error: "Password change required." }, { status: 403 }),
+      ctx: null,
+    };
+  }
   return { error: null, ctx };
 }
 
-export async function requireApiPermission(permission: PermissionKey) {
+export async function requireApiPermission(permission: PermissionKey | string) {
   const result = await requireApiAuth();
   if (result.error || !result.ctx) return result;
   if (!isOwnerRole(result.ctx.roles) && !result.ctx.permissions.has(permission)) {
@@ -90,19 +138,18 @@ export async function requireApiPermission(permission: PermissionKey) {
 }
 
 export function assertSameCustomer(ctx: AuthContext, customerId: string, authorizedCustomerId?: string | null) {
-  if (isOwnerRole(ctx.roles)) return;
-  if (ctx.roles.includes("CUSTOMER") && authorizedCustomerId !== customerId) {
+  const allowed = authorizedCustomerId ?? ctx.user.customerId;
+  if (!canAccessCustomerTenant(ctx.roles, allowed, customerId)) {
     forbidden();
   }
 }
 
-export function assertSameEmployee(ctx: AuthContext, employeeUserId: string) {
-  if (isOwnerRole(ctx.roles)) return;
-  if (ctx.roles.length === 1 && ctx.roles[0] === "EMPLOYEE" && ctx.user.id !== employeeUserId) {
+export function assertSameEmployee(ctx: AuthContext, employeeId: string) {
+  if (!canAccessOwnEmployeeRecord(ctx.roles, ctx.user.employeeId, employeeId)) {
     forbidden();
   }
 }
 
-export function hasPermission(ctx: AuthContext, permission: PermissionKey) {
+export function hasPermission(ctx: AuthContext, permission: PermissionKey | string) {
   return isOwnerRole(ctx.roles) || ctx.permissions.has(permission);
 }

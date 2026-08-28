@@ -20,4 +20,13 @@ Apply on Vercel after attaching Postgres:
 - Build command may remain `prisma generate && next build`
 - Run `prisma migrate deploy` and `prisma db seed` once (Vercel CLI or a release command)
 
+## 0002_account_rbac_upgrade
+
+Adds account status, unique usernames, sequential employee/driver/client IDs, custom role keys, deliveries, incidents, and employee tasks. Existing data is preserved.
+
+```bash
+npx prisma migrate deploy
+npx prisma db seed
+```
+
 Owner account: visit `/setup` with `OWNER_SETUP_SECRET`. Never commit passwords.

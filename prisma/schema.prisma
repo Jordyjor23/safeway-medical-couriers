@@ -17,16 +17,38 @@ datasource db {
 // Authentication (Better Auth)
 // ---------------------------------------------------------------------------
 
+enum AccountStatus {
+  PENDING_ACTIVATION
+  ACTIVE
+  LOCKED
+  SUSPENDED
+  INACTIVE
+  TERMINATED
+}
+
 model User {
-  id               String    @id @default(uuid())
-  name             String
-  email            String    @unique
-  emailVerified    Boolean   @default(false)
-  image            String?
-  twoFactorEnabled Boolean?  @default(false)
-  disabled         Boolean   @default(false)
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  id                  String        @id @default(uuid())
+  name                String
+  firstName           String?
+  lastName            String?
+  email               String        @unique
+  emailVerified       Boolean       @default(false)
+  image               String?
+  username            String?       @unique
+  phone               String?
+  twoFactorEnabled    Boolean?      @default(false)
+  disabled            Boolean       @default(false)
+  accountStatus       AccountStatus @default(ACTIVE)
+  mustChangePassword  Boolean       @default(false)
+  passwordChangedAt   DateTime?
+  lastLoginAt         DateTime?
+  lockedUntil         DateTime?
+  failedLoginCount    Int           @default(0)
+  activationExpiresAt DateTime?
+  terminatedAt        DateTime?
+  terminatedBy        String?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
 
   sessions     Session[]
   accounts     Account[]
@@ -37,6 +59,8 @@ model User {
   assignedApplications Application[] @relation("ApplicationReviewer")
   employee     Employee?
   customerUser CustomerUser?
+  incidents    IncidentReport[]
+  assignedDeliveries Delivery[] @relation("DeliveryAssigner")
 
   @@map("user")
 }
@@ -118,20 +142,9 @@ model RateLimit {
 // RBAC
 // ---------------------------------------------------------------------------
 
-enum RoleKey {
-  OWNER
-  HR_RECRUITER
-  OPERATIONS_ADMIN
-  DISPATCHER
-  COMPLIANCE_ADMIN
-  SALES_ACCOUNT_MANAGER
-  EMPLOYEE
-  CUSTOMER
-}
-
 model Role {
   id          String   @id @default(uuid())
-  key         RoleKey  @unique
+  key         String   @unique
   name        String
   description String
   system      Boolean  @default(true)
@@ -600,6 +613,10 @@ model Employee {
   classification           EmploymentClassification
   hireDate                 DateTime?
   status                   EmployeeStatus           @default(PENDING_ONBOARDING)
+  isDriver                 Boolean                  @default(false)
+  managerId                String?
+  manager                  Employee?                @relation("EmployeeReports", fields: [managerId], references: [id], onDelete: SetNull)
+  directReports            Employee[]               @relation("EmployeeReports")
   /// Encrypted at rest when collected during restricted onboarding. Never collected on the public application.
   encryptedSsn             String?
   createdAt                DateTime                 @default(now())
@@ -614,6 +631,10 @@ model Employee {
   vehicle       EmployeeVehicle?
   notes         EmployeeNote[]
   complianceRecords ComplianceRecord[]
+  deliveries    Delivery[]
+  tasks         EmployeeTask[]
+
+  @@index([managerId])
 }
 
 model EmployeeDocument {
@@ -783,6 +804,7 @@ enum CustomerType {
 
 model Customer {
   id                String         @id @default(uuid())
+  clientNumber      String?        @unique
   legalName         String
   dba               String?
   customerType      CustomerType
@@ -807,6 +829,7 @@ model Customer {
   documents CustomerDocument[]
   users     CustomerUser[]
   notesList CustomerNote[]
+  deliveries Delivery[]
 
   @@index([status])
   @@index([accountOwnerId])
@@ -1038,6 +1061,106 @@ model Notification {
   createdAt DateTime         @default(now())
 
   @@index([userId, readAt])
+}
+
+model IdSequence {
+  key   String @id
+  value Int    @default(0)
+}
+
+enum DeliveryStatus {
+  DRAFT
+  ASSIGNED
+  ACCEPTED
+  EN_ROUTE_PICKUP
+  ARRIVED_PICKUP
+  PICKED_UP
+  IN_TRANSIT
+  ARRIVED_DELIVERY
+  DELIVERED
+  EXCEPTION
+  CANCELLED
+}
+
+model Delivery {
+  id                      String         @id @default(uuid())
+  deliveryNumber          String         @unique
+  customerId              String
+  customer                Customer       @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  driverEmployeeId        String?
+  driver                  Employee?      @relation(fields: [driverEmployeeId], references: [id], onDelete: SetNull)
+  assignedById            String?
+  assignedBy              User?          @relation("DeliveryAssigner", fields: [assignedById], references: [id], onDelete: SetNull)
+  status                  DeliveryStatus @default(DRAFT)
+  pickupAddress           String
+  deliveryAddress         String
+  pickupAt                DateTime?
+  deliverBy               DateTime?
+  customerInstructions    String?
+  handlingInstructions    String?
+  shipmentType            String?
+  temperatureRequired     String?
+  chainOfCustodyRequired  Boolean        @default(false)
+  proofOfDeliveryRequired Boolean        @default(true)
+  recipientName           String?
+  deliveryNotes           String?
+  createdAt               DateTime       @default(now())
+  updatedAt               DateTime       @updatedAt
+
+  events DeliveryEvent[]
+  incidents IncidentReport[]
+
+  @@index([customerId, status])
+  @@index([driverEmployeeId, status])
+}
+
+model DeliveryEvent {
+  id          String   @id @default(uuid())
+  deliveryId  String
+  delivery    Delivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  actorUserId String?
+  kind        String
+  note        String?
+  createdAt   DateTime @default(now())
+
+  @@index([deliveryId, createdAt])
+}
+
+enum IncidentType {
+  SAFETY
+  EXPOSURE
+  VEHICLE
+  PACKAGE
+  SECURITY
+  TEMPERATURE
+  DAMAGE
+}
+
+model IncidentReport {
+  id             String       @id @default(uuid())
+  reporterUserId String
+  reporter       User         @relation(fields: [reporterUserId], references: [id], onDelete: Restrict)
+  deliveryId     String?
+  delivery       Delivery?    @relation(fields: [deliveryId], references: [id], onDelete: SetNull)
+  type           IncidentType
+  title          String
+  body           String
+  status         String       @default("OPEN")
+  createdAt      DateTime     @default(now())
+
+  @@index([reporterUserId, createdAt])
+}
+
+model EmployeeTask {
+  id          String    @id @default(uuid())
+  employeeId  String
+  employee    Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  title       String
+  dueAt       DateTime?
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([employeeId])
 }
 
 model AuditLog {
