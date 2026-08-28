@@ -1,10 +1,5 @@
 import { PrismaClient } from "@prisma/client";
-import {
-  PERMISSIONS,
-  ROLE_KEYS,
-  ROLE_LABELS,
-  ROLE_PERMISSIONS,
-} from "../lib/permissions";
+import { ensureSystemRoles } from "../lib/ensure-rbac";
 import {
   DEFAULT_ACCOMMODATION_NOTICE,
   DEFAULT_APPLICANT_PRIVACY,
@@ -142,52 +137,7 @@ async function seedLegal(slug: string, title: string, body: string) {
 }
 
 async function main() {
-  for (const key of PERMISSIONS) {
-    await prisma.permission.upsert({
-      where: { key },
-      update: {},
-      create: {
-        key,
-        description: key.replaceAll(".", " "),
-      },
-    });
-  }
-
-  for (const key of ROLE_KEYS) {
-    const role = await prisma.role.upsert({
-      where: { key },
-      update: { name: ROLE_LABELS[key] },
-      create: {
-        key,
-        name: ROLE_LABELS[key],
-        description: ROLE_LABELS[key],
-        system: true,
-      },
-    });
-
-    const existingLinks = await prisma.rolePermission.count({ where: { roleId: role.id } });
-    if (existingLinks === 0) {
-      const permissionKeys = ROLE_PERMISSIONS[key];
-      if (permissionKeys.length === 0) continue;
-      const permissions = await prisma.permission.findMany({
-        where: { key: { in: [...permissionKeys] } },
-      });
-      await prisma.rolePermission.createMany({
-        data: permissions.map((permission) => ({
-          roleId: role.id,
-          permissionId: permission.id,
-        })),
-      });
-    }
-  }
-
-  for (const key of ["EMP", "DRV", "CLI", "DLV"]) {
-    await prisma.idSequence.upsert({
-      where: { key },
-      update: {},
-      create: { key, value: 0 },
-    });
-  }
+  await ensureSystemRoles(prisma);
 
   for (const category of careerCategories) {
     await prisma.careerCategory.upsert({

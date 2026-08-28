@@ -14,6 +14,7 @@ function LoginFormFields() {
   const searchParams = useSearchParams();
   const next = safeInternalPath(searchParams.get("next"), "/portal");
   const activated = searchParams.get("activated") === "1";
+  const recovered = searchParams.get("recovered") === "1";
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -52,6 +53,11 @@ function LoginFormFields() {
           Account activated. Sign in with your new password.
         </p>
       ) : null}
+      {recovered ? (
+        <p className="rounded-lg border border-medical/30 bg-ice px-3 py-2 text-sm text-navy">
+          Owner password saved. Sign in with the password you just set.
+        </p>
+      ) : null}
       <label className="block text-sm font-semibold text-navy">
         Email or username
         <input
@@ -87,6 +93,10 @@ function LoginFormFields() {
       <p className="text-center text-sm text-muted">
         <Link href="/forgot-password" className="font-semibold text-medical hover:underline">
           Forgot password?
+        </Link>
+        {" · "}
+        <Link href="/setup" className="font-semibold text-medical hover:underline">
+          Owner setup
         </Link>
       </p>
     </form>

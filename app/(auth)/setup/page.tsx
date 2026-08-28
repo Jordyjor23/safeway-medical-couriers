@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
 import { SetupForm } from "@/components/auth/SetupForm";
 import { prisma } from "@/lib/db";
 
@@ -15,21 +14,21 @@ export default async function SetupPage() {
     where: { role: { key: "OWNER" } },
   });
 
-  if (ownerCount > 0) {
-    redirect("/login");
-  }
-
   return (
     <div className="w-full max-w-md rounded-2xl bg-paper p-8 shadow-xl">
       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-medical">
-        First-time setup
+        {ownerCount > 0 ? "Owner recovery" : "First-time setup"}
       </p>
-      <h1 className="mt-2 text-2xl font-semibold text-navy">Create the owner account</h1>
+      <h1 className="mt-2 text-2xl font-semibold text-navy">
+        {ownerCount > 0 ? "Set the owner password" : "Create the owner account"}
+      </h1>
       <p className="mt-2 text-sm text-muted">
-        This page works only until the first owner exists. Use the setup secret from your
-        environment configuration. Never store that secret in source control.
+        Localhost and production are different databases. Use this page on{" "}
+        <strong>portal.safewaycouriers.com</strong> with the Vercel setup secret. If you already
+        inserted an owner email in the production database, enter that email and choose a new
+        password here. This does not copy passwords from localhost.
       </p>
-      <SetupForm />
+      <SetupForm recover={ownerCount > 0} />
     </div>
   );
 }

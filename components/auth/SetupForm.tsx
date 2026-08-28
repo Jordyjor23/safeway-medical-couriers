@@ -7,7 +7,7 @@ import { setupOwner } from "@/app/(auth)/setup/actions";
 const fieldClass =
   "mt-1.5 w-full rounded-lg border border-line bg-white px-3 py-2.5 text-sm text-ink outline-none ring-medical/25 transition focus:border-medical focus:ring-2";
 
-export function SetupForm() {
+export function SetupForm({ recover = false }: { recover?: boolean }) {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -64,7 +64,13 @@ export function SetupForm() {
         disabled={pending}
         className="w-full rounded-full bg-navy px-5 py-3 text-sm font-semibold text-white transition hover:bg-medical disabled:opacity-60"
       >
-        {pending ? "Creating owner account…" : "Create owner account"}
+        {pending
+          ? recover
+            ? "Saving password…"
+            : "Creating owner account…"
+          : recover
+            ? "Set owner password"
+            : "Create owner account"}
       </button>
     </form>
   );

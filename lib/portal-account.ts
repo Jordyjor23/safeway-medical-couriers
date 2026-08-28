@@ -1,4 +1,5 @@
 import { hashPassword } from "better-auth/crypto";
+import { appOrigin } from "@/lib/app-url";
 import { prisma } from "@/lib/db";
 import { allocateUsername, createTemporaryPassword } from "@/lib/ids";
 
@@ -8,6 +9,38 @@ export async function credentialIssuer() {
     select: { issuer: true },
   });
   return template?.issuer ?? null;
+}
+
+export async function setCredentialPassword(userId: string, password: string) {
+  const passwordHash = await hashPassword(password);
+  const updated = await prisma.account.updateMany({
+    where: { userId, providerId: "credential" },
+    data: { password: passwordHash },
+  });
+  if (updated.count === 0) {
+    const issuer = (await credentialIssuer()) || appOrigin();
+    await prisma.account.create({
+      data: {
+        issuer,
+        accountId: userId,
+        providerId: "credential",
+        userId,
+        password: passwordHash,
+      },
+    });
+  }
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      accountStatus: "ACTIVE",
+      disabled: false,
+      mustChangePassword: false,
+      lockedUntil: null,
+      failedLoginCount: 0,
+      passwordChangedAt: new Date(),
+    },
+  });
+  await prisma.session.deleteMany({ where: { userId } });
 }
 
 export async function attachCredentialAccount(userId: string, issuer: string) {
