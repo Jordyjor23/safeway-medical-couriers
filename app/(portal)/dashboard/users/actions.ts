@@ -14,6 +14,7 @@ import { allocateUsername, createTemporaryPassword, nextScopedId } from "@/lib/i
 import { ONBOARDING_STEPS } from "@/lib/onboarding";
 import { canAssignRoleKey, canChangeOwnerAssignment } from "@/lib/permissions";
 import { attachCredentialAccount, credentialIssuer, setCredentialPassword } from "@/lib/portal-account";
+import { issuePasswordReset } from "@/lib/password-reset";
 import { requirePermission } from "@/lib/rbac";
 import type { AccountStatus, EmployeeStatus, EmploymentClassification } from "@prisma/client";
 
@@ -323,10 +324,11 @@ export async function sendPasswordReset(formData: FormData) {
   if (!user || user.accountStatus === "TERMINATED") {
     return { error: "Password reset is not available for this account." };
   }
-  const { auth } = await import("@/lib/auth");
-  await auth.api.requestPasswordReset({
-    body: { email: user.email, redirectTo: "/reset-password" },
-  });
+  if (!user.email.trim()) return { error: "This account does not have an email address." };
+  const reset = await issuePasswordReset(user.id, user.email);
+  if (!reset.emailSent) {
+    return { error: "Password reset email could not be sent. Try again later." };
+  }
   await recordAuthEvent({
     actorId: ctx.user.id,
     actorEmail: ctx.user.email,

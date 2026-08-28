@@ -49,13 +49,20 @@ export const auth = betterAuth({
     sendResetPassword: async ({ user, token }) => {
       const record = await prisma.user.findUnique({ where: { id: user.id } });
       if (!record || !accountAllowsPasswordReset(record)) return;
+      await prisma.verification.create({
+        data: {
+          identifier: `password-reset:${token}`,
+          value: user.id,
+          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        },
+      });
       const url = buildPasswordResetUrl(token, baseURL);
       await sendTransactionalEmail({
         to: user.email,
         subject: "Reset your Safeway Couriers portal password",
         html: `<p>We received a request to reset your Safeway Couriers portal password.</p>
 <p><a href="${url}">Reset password</a></p>
-<p>If you did not request this, you can ignore this email.</p>`,
+<p>This link expires in 24 hours. If you did not request this, you can ignore this email.</p>`,
       });
     },
     revokeSessionsOnPasswordReset: true,

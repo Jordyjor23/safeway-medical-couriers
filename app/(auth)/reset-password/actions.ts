@@ -5,8 +5,22 @@ import { accountAllowsPasswordReset } from "@/lib/account-status";
 import { recordAuthEvent } from "@/lib/activation";
 import { prisma } from "@/lib/db";
 import { isStrongPassword, passwordIssues } from "@/lib/password";
-import { consumePasswordResetToken, resolvePasswordResetToken } from "@/lib/password-reset";
+import {
+  consumePasswordResetToken,
+  issuePasswordReset,
+  resolvePasswordResetToken,
+} from "@/lib/password-reset";
 import { setCredentialPassword } from "@/lib/portal-account";
+
+export async function requestPasswordReset(formData: FormData) {
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  if (!email) return { ok: true as const };
+  const user = await prisma.user.findUnique({ where: { email } });
+  if (user && accountAllowsPasswordReset(user)) {
+    await issuePasswordReset(user.id, user.email);
+  }
+  return { ok: true as const };
+}
 
 export async function completePasswordReset(formData: FormData) {
   const token = String(formData.get("token") ?? "");
