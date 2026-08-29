@@ -1,12 +1,15 @@
 import { forbidden } from "next/navigation";
+import { EntityDocumentsSection } from "@/components/portal/EntityDocumentsSection";
+import { CUSTOMER_DOCUMENT_GROUPS } from "@/lib/documents/groups";
+import { DOCUMENT_LIST_INCLUDE, documentLibraryWhere } from "@/lib/documents/query";
 import { prisma } from "@/lib/db";
-import { requirePortal, assertSameCustomer } from "@/lib/rbac";
+import { hasPermission, requirePortal, assertSameCustomer } from "@/lib/rbac";
 
 export default async function CustomerDashboardPage() {
   const ctx = await requirePortal("customer");
   if (!ctx.user.customerId) forbidden();
   assertSameCustomer(ctx, ctx.user.customerId);
-  const [customer, deliveries, contracts] = await Promise.all([
+  const [customer, deliveries, contracts, documents] = await Promise.all([
     prisma.customer.findUnique({ where: { id: ctx.user.customerId } }),
     prisma.delivery.findMany({
       where: { customerId: ctx.user.customerId },
@@ -17,6 +20,13 @@ export default async function CustomerDashboardPage() {
       where: { customerId: ctx.user.customerId },
       orderBy: { updatedAt: "desc" },
     }),
+    hasPermission(ctx, "documents.view")
+      ? prisma.managedDocument.findMany({
+          where: documentLibraryWhere(ctx, { customerId: ctx.user.customerId, archived: "all" }),
+          include: DOCUMENT_LIST_INCLUDE,
+          orderBy: { createdAt: "desc" },
+        })
+      : Promise.resolve([]),
   ]);
 
   return (
@@ -53,6 +63,16 @@ export default async function CustomerDashboardPage() {
           )}
         </ul>
       </section>
+      {hasPermission(ctx, "documents.view") ? (
+        <EntityDocumentsSection
+          title="Documents"
+          documents={documents}
+          groups={CUSTOMER_DOCUMENT_GROUPS}
+          canDownload={hasPermission(ctx, "documents.download")}
+          canOpenDetails={false}
+          emptyBody="No files are available for your organization."
+        />
+      ) : null}
     </div>
   );
 }

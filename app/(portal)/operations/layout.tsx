@@ -10,6 +10,8 @@ export default async function OperationsLayout({ children }: { children: React.R
       links={[
         { href: "/operations/dashboard", label: "Overview" },
         { href: "/dispatch/dashboard", label: "Dispatch" },
+        { href: "/operations/documents", label: "Documents" },
+        { href: "/operations/documents/review", label: "Needs review" },
       ]}
     >
       {children}

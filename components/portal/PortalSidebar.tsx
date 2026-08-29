@@ -33,6 +33,7 @@ const items: NavItem[] = [
   { href: "/dashboard/customers", label: "Customers", permission: "customers.view", icon: Building2 },
   { href: "/dashboard/contracts", label: "Contracts", permission: "contracts.view", icon: FileText },
   { href: "/dashboard/documents", label: "Documents", permission: "documents.view", icon: ScrollText },
+  { href: "/dashboard/documents/alerts", label: "Document alerts", permission: "documents.view", icon: Bell },
   { href: "/dashboard/compliance", label: "Compliance tracking", permission: "compliance.view", icon: ClipboardCheck },
   { href: "/dashboard/notifications", label: "Notifications", icon: Bell },
   { href: "/dashboard/audit", label: "Audit log", permission: "audit.view", icon: Shield },

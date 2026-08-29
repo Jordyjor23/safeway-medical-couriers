@@ -1,6 +1,9 @@
 import { createIncident } from "@/app/(portal)/deliveries/actions";
+import { EntityDocumentsSection } from "@/components/portal/EntityDocumentsSection";
+import { employeeDocumentBuckets, missingRequirementLabels } from "@/lib/documents/buckets";
+import { DOCUMENT_LIST_INCLUDE, documentLibraryWhere } from "@/lib/documents/query";
 import { prisma } from "@/lib/db";
-import { assertSameEmployee, requirePortal } from "@/lib/rbac";
+import { assertSameEmployee, hasPermission, requirePortal } from "@/lib/rbac";
 
 export default async function EmployeeDashboardPage() {
   const ctx = await requirePortal("employee");
@@ -11,11 +14,29 @@ export default async function EmployeeDashboardPage() {
           trainings: true,
           tasks: { orderBy: { createdAt: "desc" } },
           manager: true,
-          documents: { include: { document: true } },
         },
       })
     : null;
   if (employee) assertSameEmployee(ctx, employee.id);
+  const documents =
+    employee && hasPermission(ctx, "documents.view")
+      ? await prisma.managedDocument.findMany({
+          where: documentLibraryWhere(ctx, { employeeId: employee.id, archived: "all" }),
+          include: DOCUMENT_LIST_INCLUDE,
+          orderBy: { createdAt: "desc" },
+        })
+      : [];
+  const rules = hasPermission(ctx, "documents.view")
+    ? await prisma.documentRequirementRule.findMany({ include: { requirement: true } })
+    : [];
+  const records = employee
+    ? await prisma.complianceRecord.findMany({
+        where: { employeeId: employee.id },
+        include: { requirement: true },
+      })
+    : [];
+  const buckets = employeeDocumentBuckets(documents);
+  const missing = missingRequirementLabels({ rules, records, documents });
   const incidents = await prisma.incidentReport.findMany({
     where: { reporterUserId: ctx.user.id },
     orderBy: { createdAt: "desc" },
@@ -40,20 +61,23 @@ export default async function EmployeeDashboardPage() {
           <p className="mt-2 text-sm text-muted">No employee profile is linked to this login yet.</p>
         )}
       </section>
-      <section className="rounded-2xl border border-line bg-paper p-5">
-        <h2 className="font-semibold text-navy">My documents</h2>
-        {employee?.documents.length ? (
-          <ul className="mt-2 text-sm">
-            {employee.documents.map((link) => (
-              <li key={link.id}>
-                {link.document.name} · {link.document.category.replaceAll("_", " ")}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="mt-2 text-sm text-muted">No assigned handbook, policy, or SOP files yet.</p>
-        )}
-      </section>
+      {hasPermission(ctx, "documents.view") ? (
+        <EntityDocumentsSection
+          title="Your documents"
+          documents={documents}
+          canDownload={hasPermission(ctx, "documents.download")}
+          canOpenDetails={false}
+          missing={missing}
+          sections={[
+            { label: "Your documents", documents: buckets.uploaded, empty: "No current files." },
+            { label: "Expiring soon", documents: buckets.expiringSoon, empty: "None." },
+            { label: "Expired", documents: buckets.expired, empty: "None." },
+            { label: "Rejected", documents: buckets.rejected, empty: "None." },
+            { label: "Needs action", documents: buckets.needsAction, empty: "Nothing needs action." },
+          ]}
+          emptyBody="No assigned handbook, policy, or other files yet."
+        />
+      ) : null}
       <section className="rounded-2xl border border-line bg-paper p-5">
         <h2 className="font-semibold text-navy">My training</h2>
         {employee?.trainings.length ? (

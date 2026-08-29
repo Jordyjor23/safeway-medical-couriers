@@ -1,13 +1,15 @@
 import { prisma } from "@/lib/db";
+import { getDocumentAlertStats } from "@/lib/documents/alert-stats";
 import { requirePortal } from "@/lib/rbac";
 
 export default async function OperationsDashboardPage() {
   await requirePortal("operations");
-  const [activeDrivers, openDeliveries, exceptions, incidents] = await Promise.all([
+  const [activeDrivers, openDeliveries, exceptions, incidents, documentAlerts] = await Promise.all([
     prisma.employee.count({ where: { isDriver: true, status: "ACTIVE" } }),
     prisma.delivery.count({ where: { status: { notIn: ["DELIVERED", "CANCELLED"] } } }),
     prisma.delivery.count({ where: { status: "EXCEPTION" } }),
     prisma.incidentReport.count({ where: { status: "OPEN" } }),
+    getDocumentAlertStats(),
   ]);
   return (
     <div>
@@ -18,6 +20,10 @@ export default async function OperationsDashboardPage() {
         <Stat label="Open deliveries" value={openDeliveries} />
         <Stat label="Exceptions" value={exceptions} />
         <Stat label="Open incidents" value={incidents} />
+        <Stat label="Expiring in 30 days" value={documentAlerts.expiringIn30Days} />
+        <Stat label="Expired" value={documentAlerts.expired} />
+        <Stat label="Needs review" value={documentAlerts.needsReview} />
+        <Stat label="Action required" value={documentAlerts.actionRequired} />
       </div>
     </div>
   );

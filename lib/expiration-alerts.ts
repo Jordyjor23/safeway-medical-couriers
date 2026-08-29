@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/db";
+import { runDocumentNotificationScheduler } from "@/lib/documents/notification-scheduler";
 import { getSetting } from "@/lib/settings";
 
-export async function createExpirationNotifications() {
+export async function createExpirationNotifications(now = new Date()) {
   const settings = await getSetting("notifications", { contractExpirationDays: [90, 60, 30, 14, 7] });
   const days = settings.contractExpirationDays;
   const owners = await prisma.userRole.findMany({
@@ -9,7 +10,6 @@ export async function createExpirationNotifications() {
     select: { userId: true },
   });
 
-  const now = new Date();
   const created: string[] = [];
 
   for (const day of days) {
@@ -26,39 +26,31 @@ export async function createExpirationNotifications() {
 
     for (const contract of contracts) {
       for (const owner of owners) {
-        await prisma.notification.create({
-          data: {
-            userId: owner.userId,
-            type: "CONTRACT_EXPIRING",
-            title: `Contract expiring in ${day} days`,
-            body: `${contract.contractNumber} for ${contract.customer.legalName}`,
-            href: "/dashboard/contracts",
-          },
-        });
-        created.push(contract.id);
+        const dedupeKey = `contract:${contract.id}:user:${owner.userId}:type:CONTRACT_EXPIRING:threshold:${day}d`;
+        const existing = await prisma.notification.findUnique({ where: { dedupeKey } });
+        if (existing) continue;
+        try {
+          await prisma.notification.create({
+            data: {
+              userId: owner.userId,
+              type: "CONTRACT_EXPIRING",
+              title: `Contract expiring in ${day} days`,
+              body: `${contract.contractNumber} for ${contract.customer.legalName}`,
+              href: "/dashboard/contracts",
+              dedupeKey,
+              thresholdKey: `${day}d`,
+              emailStatus: "SUPPRESSED",
+            },
+          });
+          created.push(contract.id);
+        } catch (error) {
+          if (error && typeof error === "object" && "code" in error && error.code === "P2002") continue;
+          throw error;
+        }
       }
     }
   }
 
-  const documents = await prisma.managedDocument.findMany({
-    where: {
-      expirationDate: { gte: now, lte: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000) },
-      status: { in: ["CURRENT", "EXPIRING_SOON"] },
-    },
-  });
-  for (const document of documents) {
-    for (const owner of owners) {
-      await prisma.notification.create({
-        data: {
-          userId: owner.userId,
-          type: "DOCUMENT_EXPIRING",
-          title: "Document expiring soon",
-          body: document.name,
-          href: "/dashboard/documents",
-        },
-      });
-    }
-  }
-
-  return { created: created.length };
+  const documents = await runDocumentNotificationScheduler({ now });
+  return { created: created.length, documents };
 }

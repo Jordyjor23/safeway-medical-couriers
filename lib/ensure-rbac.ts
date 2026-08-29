@@ -43,6 +43,8 @@ export async function ensureSystemRoles(db: PrismaClient) {
           permissionId: permission.id,
         })),
       });
+    } else {
+      await ensureNewDocumentPermissions(db, role.id, ROLE_PERMISSIONS[key]);
     }
   }
 
@@ -51,6 +53,31 @@ export async function ensureSystemRoles(db: PrismaClient) {
       where: { key },
       update: {},
       create: { key, value: 0 },
+    });
+  }
+}
+
+const NEW_DOCUMENT_PERMISSIONS = [
+  "documents.editMetadata",
+  "documents.verify",
+  "documents.archive",
+  "documents.download",
+  "documents.viewSensitive",
+] as const;
+
+async function ensureNewDocumentPermissions(
+  db: PrismaClient,
+  roleId: string,
+  rolePermissions: readonly string[],
+) {
+  const keys = NEW_DOCUMENT_PERMISSIONS.filter((key) => rolePermissions.includes(key));
+  if (!keys.length) return;
+  const permissions = await db.permission.findMany({ where: { key: { in: [...keys] } } });
+  for (const permission of permissions) {
+    await db.rolePermission.upsert({
+      where: { roleId_permissionId: { roleId, permissionId: permission.id } },
+      create: { roleId, permissionId: permission.id },
+      update: {},
     });
   }
 }

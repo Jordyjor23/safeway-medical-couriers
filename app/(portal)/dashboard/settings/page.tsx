@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import {
   updateCareersSettings,
+  updateDocumentNotificationSettings,
   updateLegalDocument,
   updateNotificationSettings,
 } from "@/app/(portal)/dashboard/settings/actions";
 import { prisma } from "@/lib/db";
+import { documentEmailNotificationsEnabled, getDocumentNotificationSettings } from "@/lib/documents/notification-config";
 import { getSetting } from "@/lib/settings";
 import { site } from "@/lib/site";
 import { requirePermission } from "@/lib/rbac";
@@ -29,7 +31,7 @@ export default async function SettingsPage({
 }) {
   await requirePermission("settings.manage");
   const params = await searchParams;
-  const [legal, careers, notifications, retention] = await Promise.all([
+  const [legal, careers, notifications, retention, documentNotifications] = await Promise.all([
     prisma.legalDocument.findMany({
       where: { isCurrent: true },
       orderBy: { slug: "asc" },
@@ -48,7 +50,9 @@ export default async function SettingsPage({
     getSetting<{ applicationRetentionDays: number }>("retention", {
       applicationRetentionDays: 730,
     }),
+    getDocumentNotificationSettings(),
   ]);
+  const emailStatus = documentEmailNotificationsEnabled();
 
   return (
     <div className="space-y-8">
@@ -135,6 +139,58 @@ export default async function SettingsPage({
           </label>
           <button className="w-fit rounded-full bg-navy px-4 py-2 text-sm font-semibold text-white">
             Save alert settings
+          </button>
+        </form>
+      </section>
+
+      <section className="rounded-2xl border border-line bg-paper p-5">
+        <h2 className="text-xl font-semibold text-navy">Document reminders</h2>
+        <p className="mt-2 text-sm text-muted">
+          In-app notifications are created even when email is off. SMS is not enabled. Email cannot be turned on from
+          this screen.
+        </p>
+        <p className="mt-2 text-sm text-navy">
+          Email notifications: {emailStatus ? "enabled by DOCUMENT_EMAIL_NOTIFICATIONS" : "disabled (DOCUMENT_EMAIL_NOTIFICATIONS is not true)"}
+        </p>
+        <form action={updateDocumentNotificationSettings} className="mt-4 grid gap-3 sm:grid-cols-2">
+          <label className="text-sm font-semibold text-navy">
+            Default reminder days
+            <input
+              name="documentReminderDays"
+              defaultValue={documentNotifications.thresholdsDays.join(", ")}
+              className={fieldClass}
+            />
+            <span className="mt-1 block text-xs font-normal text-muted">
+              Comma-separated. Defaults: 90, 60, 30, 14, 7, 1. Expired is always included.
+            </span>
+          </label>
+          <label className="text-sm font-semibold text-navy">
+            Include admins at or below (days)
+            <input
+              name="escalateAfterDays"
+              type="number"
+              min={1}
+              defaultValue={7}
+              className={fieldClass}
+            />
+            <span className="mt-1 block text-xs font-normal text-muted">
+              Example: 7 means employees-only until 14/30, then employee plus admin at 7, 1, and expired.
+            </span>
+          </label>
+          <label className="flex items-center gap-2 text-sm text-navy sm:col-span-2">
+            <input
+              name="employeeDirectReminders"
+              type="checkbox"
+              defaultChecked={documentNotifications.employeeDirectReminders}
+            />
+            Send direct reminders to the associated employee or driver
+          </label>
+          <label className="flex items-center gap-2 text-sm text-navy sm:col-span-2">
+            <input name="adminEscalation" type="checkbox" defaultChecked={documentNotifications.adminEscalation} />
+            Escalate to Admin and Owner at the configured window
+          </label>
+          <button className="w-fit rounded-full bg-navy px-4 py-2 text-sm font-semibold text-white">
+            Save document reminder settings
           </button>
         </form>
       </section>

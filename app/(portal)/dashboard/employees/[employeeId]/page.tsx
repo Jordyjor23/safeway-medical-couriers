@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import {
-  addEmployeeTraining,
-  updateEmployee,
-  updateNewHireReport,
-  updateOnboardingStep,
-} from "@/app/(portal)/dashboard/employees/actions";
+import { addEmployeeTraining, updateEmployee, updateNewHireReport, updateOnboardingStep } from "@/app/(portal)/dashboard/employees/actions";
+import { documentUploadCapabilities } from "@/app/(portal)/dashboard/documents/actions";
+import { DocumentUploader } from "@/components/portal/DocumentUploader";
+import { EntityDocumentsSection } from "@/components/portal/EntityDocumentsSection";
+import { employeeDocumentBuckets, missingRequirementLabels } from "@/lib/documents/buckets";
+import { canAssociateEmployee } from "@/lib/documents/access";
+import { DOCUMENT_LIST_INCLUDE, documentLibraryWhere } from "@/lib/documents/query";
 import { prisma } from "@/lib/db";
 import { hasPermission, requirePermission } from "@/lib/rbac";
 
@@ -37,6 +38,24 @@ export default async function EmployeeProfilePage({
   });
   if (!employee) notFound();
   const canEdit = hasPermission(ctx, "employees.edit");
+  const canViewDocs = hasPermission(ctx, "documents.view");
+  const [documents, capabilities, rules] = canViewDocs
+    ? await Promise.all([
+        prisma.managedDocument.findMany({
+          where: documentLibraryWhere(ctx, { employeeId, archived: "all" }),
+          include: DOCUMENT_LIST_INCLUDE,
+          orderBy: { createdAt: "desc" },
+        }),
+        documentUploadCapabilities(),
+        prisma.documentRequirementRule.findMany({ include: { requirement: true } }),
+      ])
+    : [[], null, []];
+  const buckets = employeeDocumentBuckets(documents);
+  const missing = missingRequirementLabels({
+    rules,
+    records: employee.complianceRecords,
+    documents,
+  });
   const updateProfile = updateEmployee.bind(null, employee.id);
   const updateStep = updateOnboardingStep.bind(null, employee.id);
   const addTraining = addEmployeeTraining.bind(null, employee.id);
@@ -269,6 +288,31 @@ export default async function EmployeeProfilePage({
           </ul>
         )}
       </section>
+
+      {canViewDocs ? (
+        <EntityDocumentsSection
+          title="Documents"
+          documents={documents}
+          canDownload={hasPermission(ctx, "documents.download")}
+          canUpload={Boolean(capabilities?.canUpload && canAssociateEmployee(ctx, employee.id))}
+          missing={missing}
+          sections={[
+            { label: "Uploaded documents", documents: buckets.uploaded, empty: "No current files." },
+            { label: "Expiring soon", documents: buckets.expiringSoon, empty: "None." },
+            { label: "Expired", documents: buckets.expired, empty: "None." },
+            { label: "Archived", documents: buckets.archived, empty: "None." },
+          ]}
+        >
+          <DocumentUploader
+            associations={capabilities?.associations ?? { employee: false, customer: false, contract: false, delivery: false }}
+            preset={{
+              employeeId: employee.id,
+              employeeLabel: `${employee.legalFirstName} ${employee.legalLastName}`,
+              category: "EMPLOYEE_DOCUMENTS",
+            }}
+          />
+        </EntityDocumentsSection>
+      ) : null}
     </div>
   );
 }

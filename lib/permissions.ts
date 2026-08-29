@@ -37,7 +37,12 @@ export const PERMISSIONS = [
   "incident.manage",
   "documents.view",
   "documents.upload",
+  "documents.editMetadata",
+  "documents.verify",
+  "documents.archive",
   "documents.delete",
+  "documents.download",
+  "documents.viewSensitive",
   "billing.view",
   "billing.manage",
   "users.manage",
@@ -117,6 +122,11 @@ const DAILY_ADMIN: PermissionKey[] = [
   "incident.view",
   "documents.view",
   "documents.upload",
+  "documents.download",
+  "documents.editMetadata",
+  "documents.archive",
+  "documents.verify",
+  "documents.viewSensitive",
   "notifications.manage",
 ];
 
@@ -140,6 +150,8 @@ export const ROLE_PERMISSIONS: Record<RoleKey, readonly PermissionKey[]> = {
     "compliance.view",
     "documents.view",
     "documents.upload",
+    "documents.download",
+    "documents.archive",
   ],
   HR_RECRUITER: [
     "jobs.view",
@@ -154,6 +166,9 @@ export const ROLE_PERMISSIONS: Record<RoleKey, readonly PermissionKey[]> = {
     "training.view",
     "documents.view",
     "documents.upload",
+    "documents.download",
+    "documents.editMetadata",
+    "documents.viewSensitive",
     "notifications.manage",
   ],
   OPERATIONS_ADMIN: [
@@ -166,6 +181,8 @@ export const ROLE_PERMISSIONS: Record<RoleKey, readonly PermissionKey[]> = {
     "compliance.view",
     "documents.view",
     "documents.upload",
+    "documents.download",
+    "documents.archive",
   ],
   DISPATCHER: [
     "driver.view",
@@ -179,8 +196,9 @@ export const ROLE_PERMISSIONS: Record<RoleKey, readonly PermissionKey[]> = {
     "delivery.update",
     "incident.view",
     "documents.view",
+    "documents.download",
   ],
-  DRIVER: ["delivery.view", "delivery.update", "incident.view", "training.view", "documents.view"],
+  DRIVER: ["delivery.view", "delivery.update", "incident.view", "training.view", "documents.view", "documents.download"],
   COMPLIANCE_ADMIN: [
     "compliance.view",
     "compliance.edit",
@@ -192,6 +210,11 @@ export const ROLE_PERMISSIONS: Record<RoleKey, readonly PermissionKey[]> = {
     "incident.manage",
     "documents.view",
     "documents.upload",
+    "documents.download",
+    "documents.editMetadata",
+    "documents.verify",
+    "documents.archive",
+    "documents.viewSensitive",
   ],
   SALES_ACCOUNT_MANAGER: [
     "customers.view",
@@ -203,9 +226,11 @@ export const ROLE_PERMISSIONS: Record<RoleKey, readonly PermissionKey[]> = {
     "delivery.view",
     "documents.view",
     "documents.upload",
+    "documents.download",
+    "documents.editMetadata",
   ],
-  EMPLOYEE: ["training.view", "documents.view", "incident.view"],
-  CUSTOMER: ["delivery.view", "contracts.view", "documents.view"],
+  EMPLOYEE: ["training.view", "documents.view", "documents.download", "incident.view"],
+  CUSTOMER: ["delivery.view", "contracts.view", "documents.view", "documents.download"],
 };
 
 export const OWNER_ONLY_PERMISSIONS: readonly PermissionKey[] = [

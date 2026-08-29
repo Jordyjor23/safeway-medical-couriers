@@ -2,6 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { updateContract } from "@/app/(portal)/dashboard/contracts/actions";
+import { documentUploadCapabilities } from "@/app/(portal)/dashboard/documents/actions";
+import { DocumentUploader } from "@/components/portal/DocumentUploader";
+import { EntityDocumentsSection } from "@/components/portal/EntityDocumentsSection";
+import { canAssociateContract } from "@/lib/documents/access";
+import { CONTRACT_DOCUMENT_GROUPS } from "@/lib/documents/groups";
+import { DOCUMENT_LIST_INCLUDE, documentLibraryWhere } from "@/lib/documents/query";
 import { prisma } from "@/lib/db";
 import { hasPermission, requirePermission } from "@/lib/rbac";
 
@@ -42,6 +48,17 @@ export default async function ContractDetailPage({
   ]);
   if (!contract) notFound();
   const canEdit = hasPermission(ctx, "contracts.edit");
+  const canViewDocs = hasPermission(ctx, "documents.view");
+  const [documents, capabilities] = canViewDocs
+    ? await Promise.all([
+        prisma.managedDocument.findMany({
+          where: documentLibraryWhere(ctx, { contractId, archived: "all" }),
+          include: DOCUMENT_LIST_INCLUDE,
+          orderBy: { createdAt: "desc" },
+        }),
+        documentUploadCapabilities(),
+      ])
+    : [[], null];
   const save = updateContract.bind(null, contract.id);
 
   return (
@@ -132,6 +149,28 @@ export default async function ContractDetailPage({
           </div>
         )}
       </section>
+
+      {canViewDocs ? (
+        <EntityDocumentsSection
+          title="Documents"
+          documents={documents}
+          groups={CONTRACT_DOCUMENT_GROUPS}
+          canDownload={hasPermission(ctx, "documents.download")}
+          canUpload={Boolean(capabilities?.canUpload && canAssociateContract(ctx, contract.customerId))}
+          emptyBody="No authorized contract files yet."
+        >
+          <DocumentUploader
+            associations={capabilities?.associations ?? { employee: false, customer: false, contract: false, delivery: false }}
+            preset={{
+              contractId: contract.id,
+              contractLabel: `${contract.contractNumber} · ${contract.customer.legalName}`,
+              customerId: contract.customerId,
+              customerLabel: contract.customer.legalName,
+              category: "CUSTOMER_CONTRACTS",
+            }}
+          />
+        </EntityDocumentsSection>
+      ) : null}
     </div>
   );
 }

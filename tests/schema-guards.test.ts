@@ -45,4 +45,15 @@ describe("application schema employment-law guards", () => {
     expect(applicationBlock).not.toMatch(/ssn/i);
     expect(schema).toContain("encryptedSsn");
   });
+
+  it("extends ManagedDocument instead of replacing it", () => {
+    expect(schema).toContain("model ManagedDocument");
+    expect(schema).toContain("expirationDate");
+    expect(schema).not.toMatch(/model ManagedDocument \{[^}]*expiresAt/s);
+    expect(schema).toContain("blobKey");
+    expect(schema).toContain("model EmployeeDocument");
+    expect(schema).toContain("model DeliveryDocument");
+    expect(schema).toContain("extractionStatus");
+    expect(schema).toContain("OCR_DISABLED");
+  });
 });

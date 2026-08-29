@@ -2,6 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { addCustomerContact, updateCustomer } from "@/app/(portal)/dashboard/customers/actions";
+import { documentUploadCapabilities } from "@/app/(portal)/dashboard/documents/actions";
+import { DocumentUploader } from "@/components/portal/DocumentUploader";
+import { EntityDocumentsSection } from "@/components/portal/EntityDocumentsSection";
+import { canAssociateCustomer } from "@/lib/documents/access";
+import { CUSTOMER_DOCUMENT_GROUPS } from "@/lib/documents/groups";
+import { DOCUMENT_LIST_INCLUDE, documentLibraryWhere } from "@/lib/documents/query";
 import { prisma } from "@/lib/db";
 import { hasPermission, requirePermission } from "@/lib/rbac";
 
@@ -35,6 +41,17 @@ export default async function CustomerProfilePage({
   });
   if (!customer) notFound();
   const canEdit = hasPermission(ctx, "customers.edit");
+  const canViewDocs = hasPermission(ctx, "documents.view");
+  const [documents, capabilities] = canViewDocs
+    ? await Promise.all([
+        prisma.managedDocument.findMany({
+          where: documentLibraryWhere(ctx, { customerId, archived: "all" }),
+          include: DOCUMENT_LIST_INCLUDE,
+          orderBy: { createdAt: "desc" },
+        }),
+        documentUploadCapabilities(),
+      ])
+    : [[], null];
   const saveCustomer = updateCustomer.bind(null, customer.id);
   const addContact = addCustomerContact.bind(null, customer.id);
 
@@ -182,6 +199,26 @@ export default async function CustomerProfilePage({
           )}
         </ul>
       </section>
+
+      {canViewDocs ? (
+        <EntityDocumentsSection
+          title="Documents"
+          documents={documents}
+          groups={CUSTOMER_DOCUMENT_GROUPS}
+          canDownload={hasPermission(ctx, "documents.download")}
+          canUpload={Boolean(capabilities?.canUpload && canAssociateCustomer(ctx, customer.id))}
+          emptyBody="No authorized customer files yet."
+        >
+          <DocumentUploader
+            associations={capabilities?.associations ?? { employee: false, customer: false, contract: false, delivery: false }}
+            preset={{
+              customerId: customer.id,
+              customerLabel: customer.legalName,
+              category: "CUSTOMER_CONTRACTS",
+            }}
+          />
+        </EntityDocumentsSection>
+      ) : null}
     </div>
   );
 }

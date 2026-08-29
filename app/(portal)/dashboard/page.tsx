@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { StatCard } from "@/components/portal/StatCard";
 import { getDashboardOverview } from "@/lib/dashboard-stats";
+import { getDocumentAlertStats } from "@/lib/documents/alert-stats";
 import { isOwnerRole } from "@/lib/permissions";
 import { requireAuth } from "@/lib/rbac";
 
@@ -12,6 +13,7 @@ export const metadata: Metadata = {
 export default async function DashboardPage() {
   const ctx = await requireAuth();
   const stats = await getDashboardOverview();
+  const documentAlerts = await getDocumentAlertStats();
   const owner = isOwnerRole(ctx.roles);
 
   return (
@@ -46,6 +48,11 @@ export default async function DashboardPage() {
         <StatCard label="Active contracts" value={stats.activeContracts} href="/dashboard/contracts" />
         <StatCard label="Contracts expiring soon" value={stats.contractsExpiringSoon} href="/dashboard/contracts" />
         <StatCard label="Pending contracts" value={stats.pendingContracts} href="/dashboard/contracts" />
+        <StatCard label="Expiring in 30 days" value={documentAlerts.expiringIn30Days} href="/dashboard/documents/alerts" />
+        <StatCard label="Expired" value={documentAlerts.expired} href="/dashboard/documents/alerts?expirationWindow=expired" />
+        <StatCard label="Missing documents" value={documentAlerts.missingDocuments} href="/dashboard/documents/alerts" />
+        <StatCard label="Needs review" value={documentAlerts.needsReview} href="/dashboard/documents/review" />
+        <StatCard label="Action required" value={documentAlerts.actionRequired} href="/dashboard/documents/alerts" />
         <StatCard label="Documents expiring soon" value={stats.documentsExpiringSoon} href="/dashboard/documents" />
         <StatCard label="Compliance alerts" value={stats.complianceAlerts} href="/dashboard/compliance" />
         <StatCard label="Training expirations" value={stats.upcomingTrainingExpirations} href="/dashboard/compliance" />

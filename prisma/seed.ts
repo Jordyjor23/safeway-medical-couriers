@@ -155,6 +155,35 @@ async function main() {
     });
   }
 
+  const requirementRows = await prisma.complianceRequirement.findMany();
+  const requirementByKey = new Map(requirementRows.map((row) => [row.key, row.id]));
+  const documentRules: { key: string; documentType: string; appliesTo: string }[] = [
+    { key: "hipaa", documentType: "HIPAA_TRAINING", appliesTo: "ALL" },
+    { key: "bloodborne_pathogens", documentType: "BLOODBORNE_PATHOGENS", appliesTo: "ALL" },
+    { key: "driver_qualification", documentType: "DRIVERS_LICENSE", appliesTo: "DRIVER" },
+    { key: "insurance", documentType: "AUTO_INSURANCE", appliesTo: "DRIVER" },
+    { key: "vehicle_registration", documentType: "VEHICLE_REGISTRATION", appliesTo: "DRIVER" },
+  ];
+  for (const rule of documentRules) {
+    const requirementId = requirementByKey.get(rule.key);
+    if (!requirementId) continue;
+    await prisma.documentRequirementRule.upsert({
+      where: {
+        requirementId_documentType_appliesTo: {
+          requirementId,
+          documentType: rule.documentType,
+          appliesTo: rule.appliesTo,
+        },
+      },
+      update: {},
+      create: {
+        requirementId,
+        documentType: rule.documentType,
+        appliesTo: rule.appliesTo,
+      },
+    });
+  }
+
   await seedLegal("eeo", "Equal Employment Opportunity", DEFAULT_EEO_STATEMENT);
   await seedLegal("applicant-privacy", "Applicant Privacy Notice", DEFAULT_APPLICANT_PRIVACY);
   await seedLegal(

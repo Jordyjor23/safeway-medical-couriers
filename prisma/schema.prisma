@@ -472,6 +472,9 @@ model ApplicantDocument {
   documentId    String
   document      ManagedDocument @relation(fields: [documentId], references: [id], onDelete: Restrict)
   createdAt     DateTime    @default(now())
+
+  @@index([applicationId])
+  @@index([documentId])
 }
 
 model Interview {
@@ -644,6 +647,9 @@ model EmployeeDocument {
   documentId String
   document   ManagedDocument @relation(fields: [documentId], references: [id], onDelete: Restrict)
   createdAt  DateTime        @default(now())
+
+  @@index([employeeId])
+  @@index([documentId])
 }
 
 model EmployeeTraining {
@@ -873,6 +879,9 @@ model CustomerDocument {
   customer   Customer        @relation(fields: [customerId], references: [id], onDelete: Cascade)
   documentId String
   document   ManagedDocument @relation(fields: [documentId], references: [id], onDelete: Restrict)
+
+  @@index([customerId])
+  @@index([documentId])
 }
 
 // ---------------------------------------------------------------------------
@@ -946,6 +955,9 @@ model ContractDocument {
   contract   Contract        @relation(fields: [contractId], references: [id], onDelete: Cascade)
   documentId String
   document   ManagedDocument @relation(fields: [documentId], references: [id], onDelete: Restrict)
+
+  @@index([contractId])
+  @@index([documentId])
 }
 
 // ---------------------------------------------------------------------------
@@ -975,6 +987,47 @@ enum DocumentStatus {
   ARCHIVED
 }
 
+/// Stored workflow state. EXPIRING_SOON and EXPIRED are derived from expirationDate, not stored here.
+enum DocumentLifecycleStatus {
+  UPLOADED
+  PROCESSING
+  NEEDS_REVIEW
+  VERIFIED
+  REJECTED
+  SUPERSEDED
+  ARCHIVED
+}
+
+enum DocumentVerificationStatus {
+  UNVERIFIED
+  VERIFIED
+  REJECTED
+}
+
+enum DocumentExtractionStatus {
+  OCR_DISABLED
+  PENDING
+  PROCESSING
+  COMPLETED
+  PARTIAL
+  FAILED
+  NOT_APPLICABLE
+}
+
+enum ExtractedFieldReviewStatus {
+  PENDING
+  ACCEPTED
+  EDITED
+  IGNORED
+  REJECTED
+}
+
+enum SuggestedTypeReviewStatus {
+  PENDING
+  ACCEPTED
+  IGNORED
+}
+
 model ManagedDocument {
   id            String           @id @default(uuid())
   name          String
@@ -993,13 +1046,88 @@ model ManagedDocument {
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
 
+  /// Fine-grained type under category, e.g. DRIVERS_LICENSE. Not a compliance determination.
+  documentType          String?
+  originalFileName      String?
+  storedFileName        String?
+  contentSha256         String?
+  pageCount             Int?
+  isSensitive           Boolean                     @default(false)
+  lifecycleStatus       DocumentLifecycleStatus      @default(UPLOADED)
+  verificationStatus    DocumentVerificationStatus  @default(UNVERIFIED)
+  verifiedAt            DateTime?
+  verifiedBy            String?
+  rejectedAt            DateTime?
+  rejectedBy            String?
+  rejectionReason       String?
+  archivedAt            DateTime?
+  archivedBy            String?
+  archiveReason         String?
+  supersedesId          String?
+  supersedes            ManagedDocument?           @relation("DocumentSupersession", fields: [supersedesId], references: [id], onDelete: SetNull)
+  supersededBy          ManagedDocument[]          @relation("DocumentSupersession")
+  extractionStatus      DocumentExtractionStatus     @default(OCR_DISABLED)
+  extractionProvider    String?
+  extractionError       String?
+  extractionStartedAt  DateTime?
+  extractionCompletedAt DateTime?
+  suggestedDocumentType String?
+  suggestedTypeConfidence Float?
+  suggestedTypeStatus  SuggestedTypeReviewStatus?
+  /// Raw OCR text is review-only. It is not used in library search.
+  extractionRawText     String?                      @db.Text
+  extractedFields       DocumentExtractedField[]
+
   applicantLinks ApplicantDocument[]
   employeeLinks  EmployeeDocument[]
   customerLinks  CustomerDocument[]
   contractLinks  ContractDocument[]
+  deliveryLinks  DeliveryDocument[]
 
   @@index([category, status])
   @@index([expirationDate])
+  @@index([lifecycleStatus])
+  @@index([verificationStatus])
+  @@index([archivedAt])
+  @@index([createdAt])
+  @@index([category, documentType])
+  @@index([contentSha256])
+  @@index([supersedesId])
+  @@index([extractionStatus])
+}
+
+model DocumentExtractedField {
+  id              String                     @id @default(uuid())
+  documentId      String
+  document        ManagedDocument            @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  fieldKey        String
+  displayLabel    String
+  rawValue        String
+  proposedValue   String
+  confidence      Float
+  sourcePage      Int?
+  sourceSnippet   String?
+  reviewStatus    ExtractedFieldReviewStatus @default(PENDING)
+  ambiguousDate   Boolean                    @default(false)
+  /// expirationDate | effectiveDate | name — never Employee/Customer profile fields
+  mapsToDocumentField String?
+  createdAt       DateTime                   @default(now())
+  updatedAt       DateTime                   @updatedAt
+
+  @@index([documentId, reviewStatus])
+  @@index([fieldKey])
+}
+
+model DeliveryDocument {
+  id         String          @id @default(uuid())
+  deliveryId String
+  delivery   Delivery        @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  documentId String
+  document   ManagedDocument @relation(fields: [documentId], references: [id], onDelete: Restrict)
+  createdAt  DateTime        @default(now())
+
+  @@index([deliveryId])
+  @@index([documentId])
 }
 
 enum ComplianceTrackingStatus {
@@ -1018,6 +1146,24 @@ model ComplianceRequirement {
   defaultRequired Boolean            @default(true)
   sortOrder       Int                @default(0)
   records         ComplianceRecord[]
+  documentRules   DocumentRequirementRule[]
+}
+
+/// Maps a configurable compliance requirement to a document type. Presence of a file is not verification.
+model DocumentRequirementRule {
+  id                    String                 @id @default(uuid())
+  requirementId         String
+  requirement           ComplianceRequirement    @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+  documentType          String
+  appliesTo             String                  @default("ALL")
+  createdAt             DateTime               @default(now())
+  /// Optional override of default reminder day thresholds, e.g. [30, 14, 7, 1].
+  reminderThresholdDays Json?
+  /// Optional override of escalation audiences per threshold.
+  escalationRules       Json?
+
+  @@unique([requirementId, documentType, appliesTo])
+  @@index([documentType])
 }
 
 model ComplianceRecord {
@@ -1042,6 +1188,12 @@ model ComplianceRecord {
 enum NotificationType {
   CONTRACT_EXPIRING
   DOCUMENT_EXPIRING
+  DOCUMENT_EXPIRED
+  REQUIRED_DOCUMENT_MISSING
+  DOCUMENT_REJECTED
+  DOCUMENT_NEEDS_REVIEW
+  COMPLIANCE_ACTION_REQUIRED
+  COMPLIANCE_NON_COMPLIANT
   TRAINING_EXPIRING
   COMPLIANCE_ALERT
   APPLICATION_RECEIVED
@@ -1050,17 +1202,23 @@ enum NotificationType {
 }
 
 model Notification {
-  id        String           @id @default(uuid())
-  userId    String?
-  user      User?            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type      NotificationType
-  title     String
-  body      String
-  href      String?
-  readAt    DateTime?
-  createdAt DateTime         @default(now())
+  id               String           @id @default(uuid())
+  userId           String?
+  user             User?            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type             NotificationType
+  title            String
+  body             String
+  href             String?
+  readAt           DateTime?
+  createdAt        DateTime         @default(now())
+  /// documentId+recipientId+type+threshold (or equivalent). Unique so cron reruns do not duplicate.
+  dedupeKey        String?          @unique
+  thresholdKey     String?
+  emailStatus      String?
+  emailAttemptedAt DateTime?
 
   @@index([userId, readAt])
+  @@index([type, createdAt])
 }
 
 model IdSequence {
@@ -1109,6 +1267,7 @@ model Delivery {
 
   events DeliveryEvent[]
   incidents IncidentReport[]
+  documents DeliveryDocument[]
 
   @@index([customerId, status])
   @@index([driverEmployeeId, status])

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { createDelivery } from "@/app/(portal)/deliveries/actions";
 import { prisma } from "@/lib/db";
 import { hasPermission, requirePortal } from "@/lib/rbac";
@@ -60,7 +61,12 @@ export default async function DispatchDashboardPage() {
         ) : (
           deliveries.map((delivery) => (
             <li key={delivery.id} className="px-4 py-3 text-sm">
-              <p className="font-semibold text-navy">{delivery.deliveryNumber} · {delivery.status.replaceAll("_", " ")}</p>
+              <p className="font-semibold text-navy">
+                <Link href={`/dispatch/deliveries/${delivery.id}`} className="hover:text-medical">
+                  {delivery.deliveryNumber}
+                </Link>{" "}
+                · {delivery.status.replaceAll("_", " ")}
+              </p>
               <p className="text-muted">
                 {delivery.customer.legalName} · {delivery.driver ? `${delivery.driver.legalFirstName} ${delivery.driver.legalLastName}` : "Unassigned"}
               </p>

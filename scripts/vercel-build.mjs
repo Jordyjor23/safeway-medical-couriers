@@ -45,5 +45,8 @@ run("npx", ["prisma", "generate"]);
 console.log("Applying database migrations…");
 run("node", ["scripts/migrate-deploy.mjs"]);
 
+console.log("Ensuring additive RBAC permission keys…");
+run("npx", ["tsx", "scripts/ensure-rbac.ts"]);
+
 console.log("Building Next.js…");
 run("npx", ["next", "build"]);

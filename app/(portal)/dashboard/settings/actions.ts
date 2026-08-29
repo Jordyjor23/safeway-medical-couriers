@@ -91,6 +91,68 @@ export async function updateNotificationSettings(formData: FormData) {
   redirect("/dashboard/settings?saved=alerts");
 }
 
+export async function updateDocumentNotificationSettings(formData: FormData) {
+  const ctx = await requirePermission("settings.manage");
+  const { parseThresholdDays, DEFAULT_DOCUMENT_NOTIFICATION_SETTINGS } = await import("@/lib/documents/notification-config");
+  const thresholdsDays = parseThresholdDays(
+    String(formData.get("documentReminderDays") ?? ""),
+    DEFAULT_DOCUMENT_NOTIFICATION_SETTINGS.thresholdsDays,
+  );
+  const escalateAfterDays = Number(formData.get("escalateAfterDays") ?? 7);
+  const employeeDirectReminders = formData.get("employeeDirectReminders") === "on";
+  const adminEscalation = formData.get("adminEscalation") === "on";
+  const escalation = thresholdsDays.map((threshold) => ({
+    threshold,
+    audiences:
+      adminEscalation && threshold <= (Number.isFinite(escalateAfterDays) ? escalateAfterDays : 7)
+        ? (["employee", "admin"] as const)
+        : (["employee"] as const),
+  }));
+  escalation.push({
+    threshold: "expired",
+    audiences: adminEscalation ? (["employee", "admin"] as const) : (["employee"] as const),
+  });
+
+  await prisma.systemSetting.upsert({
+    where: { key: "documentNotifications" },
+    update: {
+      updatedBy: ctx.user.id,
+      value: {
+        thresholdsDays,
+        includeExpired: true,
+        employeeDirectReminders,
+        adminEscalation,
+        needsReviewHours: [24, 72, 168],
+        escalation,
+        channels: { inApp: true, email: false, sms: false },
+      },
+    },
+    create: {
+      key: "documentNotifications",
+      updatedBy: ctx.user.id,
+      value: {
+        thresholdsDays,
+        includeExpired: true,
+        employeeDirectReminders,
+        adminEscalation,
+        needsReviewHours: [24, 72, 168],
+        escalation,
+        channels: { inApp: true, email: false, sms: false },
+      },
+    },
+  });
+  await writeAuditLog({
+    actorId: ctx.user.id,
+    actorEmail: ctx.user.email,
+    action: "settings.documentNotifications.updated",
+    targetType: "setting",
+    targetId: "documentNotifications",
+    metadata: { thresholdsDays, employeeDirectReminders, adminEscalation, escalateAfterDays },
+  });
+  revalidatePath("/dashboard/settings");
+  redirect("/dashboard/settings?saved=document-alerts");
+}
+
 export async function updateLegalDocument(formData: FormData) {
   const ctx = await requirePermission("settings.manage");
   const slug = String(formData.get("slug") ?? "").trim();
