@@ -39,37 +39,37 @@ export default async function JobDetailPage({
         title={job.title}
         description={`${job.location} · ${job.department}`}
       />
-      <Container className="grid gap-10 py-16 lg:grid-cols-[1fr_18rem]">
-        <article className="space-y-6 text-muted leading-relaxed">
+      <Container className="mkt-split-sidebar grid gap-10 py-16 lg:grid-cols-2">
+        <article className="space-y-6 leading-relaxed text-mist-soft">
           <p>{job.description}</p>
           <section>
-            <h2 className="text-xl font-semibold text-navy">Essential duties</h2>
+            <h2 className="text-xl font-semibold text-mist">Essential duties</h2>
             <p className="mt-2 whitespace-pre-wrap">{job.essentialDuties}</p>
           </section>
           <section>
-            <h2 className="text-xl font-semibold text-navy">Minimum qualifications</h2>
+            <h2 className="text-xl font-semibold text-mist">Minimum qualifications</h2>
             <p className="mt-2 whitespace-pre-wrap">{job.minimumQualifications}</p>
           </section>
           {job.preferredQualifications ? (
             <section>
-              <h2 className="text-xl font-semibold text-navy">Preferred qualifications</h2>
+              <h2 className="text-xl font-semibold text-mist">Preferred qualifications</h2>
               <p className="mt-2 whitespace-pre-wrap">{job.preferredQualifications}</p>
             </section>
           ) : null}
           {job.physicalRequirements ? (
             <section>
-              <h2 className="text-xl font-semibold text-navy">Physical / job requirements</h2>
+              <h2 className="text-xl font-semibold text-mist">Physical / job requirements</h2>
               <p className="mt-2 whitespace-pre-wrap">{job.physicalRequirements}</p>
             </section>
           ) : null}
         </article>
-        <aside className="h-fit rounded-2xl border border-line bg-paper p-5">
-          <p className="text-sm font-semibold text-navy">Compensation</p>
-          <p className="mt-2 text-sm text-muted">{compensationLabel(job)}</p>
-          <p className="mt-4 text-sm text-muted">{job.schedule ?? "Schedule is described in the posting."}</p>
+        <aside className="h-fit rounded-2xl border border-white/10 bg-panel p-5">
+          <p className="text-sm font-semibold text-mist">Compensation</p>
+          <p className="mt-2 text-sm text-mist-soft">{compensationLabel(job)}</p>
+          <p className="mt-4 text-sm text-mist-soft">{job.schedule ?? "Schedule is described in the posting."}</p>
           <Link
             href={`/careers/apply/${job.publicId}`}
-            className="mt-6 inline-flex w-full justify-center rounded-full bg-navy px-4 py-3 text-sm font-semibold text-white hover:bg-medical"
+            className="mkt-btn mkt-btn-primary mt-6 w-full"
           >
             Apply
           </Link>

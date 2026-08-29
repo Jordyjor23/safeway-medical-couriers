@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 
-const fieldClass =
-  "mt-1.5 w-full rounded-lg border border-line bg-white px-3 py-2.5 text-sm text-ink outline-none ring-medical/25 transition focus:border-medical focus:ring-2";
+const fieldClass = "mkt-field";
 
 type Result = {
   trackingNumber: string;
@@ -43,30 +42,27 @@ export function StatusLookupForm() {
           });
         }}
       >
-        <label className="text-sm font-semibold text-navy">
+        <label className="text-sm font-semibold text-mist">
           Reference number
           <input name="tracking" required className={fieldClass} />
         </label>
-        <label className="text-sm font-semibold text-navy">
+        <label className="text-sm font-semibold text-mist">
           Email used on the application
           <input name="email" type="email" required className={fieldClass} />
         </label>
-        <button
-          type="submit"
-          className="rounded-full bg-navy px-5 py-3 text-sm font-semibold text-white hover:bg-medical sm:col-span-2 sm:w-fit"
-        >
+        <button type="submit" className="mkt-btn mkt-btn-primary sm:col-span-2 sm:w-fit">
           Check status
         </button>
       </form>
       {error ? (
-        <p className="mt-4 text-sm text-red-700" role="alert">
+        <p className="mt-4 text-sm text-red-400" role="alert">
           {error}
         </p>
       ) : null}
       {result ? (
-        <div className="mt-6 rounded-2xl border border-line bg-paper p-6">
-          <p className="font-semibold text-navy">{result.applicantName}</p>
-          <p className="text-sm text-muted">{result.position}</p>
+        <div className="mt-6 rounded-2xl border border-white/10 bg-panel p-6">
+          <p className="font-semibold text-mist">{result.applicantName}</p>
+          <p className="text-sm text-mist-soft">{result.position}</p>
           <p className="mt-3 text-sm">Reference: {result.trackingNumber}</p>
           <p className="text-sm">Status: {result.statusLabel}</p>
         </div>

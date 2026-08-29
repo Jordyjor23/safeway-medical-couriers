@@ -42,27 +42,24 @@ export default async function ConfirmationPage({
         description="We have your application. Keep your reference number to check status."
       />
       <Container className="max-w-lg py-16">
-        <div className="rounded-2xl border border-medical/30 bg-paper p-8">
-          <p className="text-sm text-muted">Applicant</p>
-          <p className="font-semibold text-navy">{view.applicantName}</p>
-          <p className="mt-4 text-sm text-muted">Position</p>
-          <p className="font-semibold text-navy">{view.position}</p>
-          <p className="mt-4 text-sm text-muted">Reference number</p>
-          <p className="font-semibold text-navy">{view.trackingNumber}</p>
-          <p className="mt-4 text-sm text-muted">Submitted</p>
-          <p className="font-semibold text-navy">
+        <div className="rounded-2xl border border-medical/40 bg-panel p-8">
+          <p className="text-sm text-mist-soft">Applicant</p>
+          <p className="font-semibold text-mist">{view.applicantName}</p>
+          <p className="mt-4 text-sm text-mist-soft">Position</p>
+          <p className="font-semibold text-mist">{view.position}</p>
+          <p className="mt-4 text-sm text-mist-soft">Reference number</p>
+          <p className="font-semibold text-mist">{view.trackingNumber}</p>
+          <p className="mt-4 text-sm text-mist-soft">Submitted</p>
+          <p className="font-semibold text-mist">
             {view.submittedAt ? view.submittedAt.toLocaleString() : "—"}
           </p>
-          <p className="mt-4 text-sm text-muted">Current status</p>
-          <p className="font-semibold text-navy">{publicStatusLabel(view.status)}</p>
-          <p className="mt-6 text-sm text-muted">
+          <p className="mt-4 text-sm text-mist-soft">Current status</p>
+          <p className="font-semibold text-mist">{publicStatusLabel(view.status)}</p>
+          <p className="mt-6 text-sm text-mist-soft">
             A confirmation email is sent when email delivery is configured. You can also check
             status anytime.
           </p>
-          <Link
-            href="/careers/status"
-            className="mt-6 inline-flex rounded-full bg-navy px-5 py-3 text-sm font-semibold text-white hover:bg-medical"
-          >
+          <Link href="/careers/status" className="mkt-btn mkt-btn-primary mt-6">
             Check application status
           </Link>
         </div>

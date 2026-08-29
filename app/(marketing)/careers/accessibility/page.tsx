@@ -23,7 +23,7 @@ export default async function AccessibilityPage() {
         title={doc.title}
         description="Request assistance or a reasonable accommodation during the application process."
       />
-      <Container className="max-w-3xl space-y-5 py-16 text-muted leading-relaxed whitespace-pre-wrap">
+      <Container className="max-w-3xl space-y-5 whitespace-pre-wrap py-16 leading-relaxed text-mist-soft">
         <p>{doc.body}</p>
         <p>
           Contact:{" "}

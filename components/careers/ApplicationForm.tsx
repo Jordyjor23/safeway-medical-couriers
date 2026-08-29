@@ -4,8 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
-const fieldClass =
-  "mt-1.5 w-full rounded-lg border border-line bg-white px-3 py-2.5 text-sm text-ink outline-none ring-medical/25 transition focus:border-medical focus:ring-2";
+const fieldClass = "mkt-field";
 
 type Question = { id: string; prompt: string; required: boolean };
 
@@ -177,8 +176,8 @@ export function ApplicationForm({
         router.push(`/careers/apply/confirmation/${result.application.trackingNumber}?email=${encodeURIComponent(payload.email)}`);
       }}
     >
-      <section className="rounded-2xl border border-line bg-paper p-6">
-        <h2 className="text-xl font-semibold text-navy">Applicant information</h2>
+      <section className="rounded-2xl border border-white/10 bg-panel p-6">
+        <h2 className="text-xl font-semibold text-mist">Applicant information</h2>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <Field label="Legal first name" name="legalFirstName" required autoComplete="given-name" />
           <Field label="Middle name (optional)" name="middleName" autoComplete="additional-name" />
@@ -192,11 +191,11 @@ export function ApplicationForm({
         </div>
       </section>
 
-      <section className="rounded-2xl border border-line bg-paper p-6">
-        <h2 className="text-xl font-semibold text-navy">Position information</h2>
-        <p className="mt-2 text-sm text-muted">Applying for: {job.title}</p>
+      <section className="rounded-2xl border border-white/10 bg-panel p-6">
+        <h2 className="text-xl font-semibold text-mist">Position information</h2>
+        <p className="mt-2 text-sm text-mist-soft">Applying for: {job.title}</p>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <label className="text-sm font-semibold text-navy">
+          <label className="text-sm font-semibold text-mist">
             Preferred employment type
             <select name="preferredEmploymentType" className={fieldClass} defaultValue="FULL_TIME">
               <option value="FULL_TIME">Full-time</option>
@@ -207,27 +206,27 @@ export function ApplicationForm({
           </label>
           <Field label="Available start date" name="availableStartDate" type="date" />
           <Field label="Preferred shift" name="preferredShift" />
-          <label className="text-sm font-semibold text-navy">
+          <label className="text-sm font-semibold text-mist">
             Full-time / part-time preference
             <select name="fullTimePreference" className={fieldClass} defaultValue="full-time">
               <option value="full-time">Full-time</option>
               <option value="part-time">Part-time</option>
             </select>
           </label>
-          <label className="text-sm font-semibold text-navy sm:col-span-2">
+          <label className="text-sm font-semibold text-mist sm:col-span-2">
             Geographic areas you can service
             <textarea name="serviceAreas" rows={3} className={fieldClass} />
           </label>
-          <label className="text-sm font-semibold text-navy sm:col-span-2">
+          <label className="text-sm font-semibold text-mist sm:col-span-2">
             General availability
             <textarea name="generalAvailability" rows={3} className={fieldClass} />
           </label>
         </div>
         <fieldset className="mt-4">
-          <legend className="text-sm font-semibold text-navy">Willing to work</legend>
+          <legend className="text-sm font-semibold text-mist">Willing to work</legend>
           <div className="mt-2 grid gap-2 sm:grid-cols-2">
             {["weekdays", "weekends", "holidays", "earlyMornings", "evenings", "overnight", "onCallStat"].map((name) => (
-              <label key={name} className="flex items-center gap-2 text-sm text-navy">
+              <label key={name} className="flex items-center gap-2 text-sm text-mist">
                 <input type="checkbox" name={name} className="h-4 w-4" />
                 {name === "onCallStat" ? "On-call / STAT assignments" : name.replace(/([A-Z])/g, " $1")}
               </label>
@@ -236,22 +235,22 @@ export function ApplicationForm({
         </fieldset>
       </section>
 
-      <section className="rounded-2xl border border-line bg-paper p-6">
-        <h2 className="text-xl font-semibold text-navy">Work authorization</h2>
+      <section className="rounded-2xl border border-white/10 bg-panel p-6">
+        <h2 className="text-xl font-semibold text-mist">Work authorization</h2>
         <YesNo name="authorizedToWorkUs" label="Are you legally authorized to work in the United States?" required />
         <YesNo name="requiresSponsorship" label="Will you now or in the future require employment sponsorship?" />
       </section>
 
-      <section className="rounded-2xl border border-line bg-paper p-6">
-        <h2 className="text-xl font-semibold text-navy">Employment history</h2>
-        <p className="mt-2 text-sm text-muted">Do not include previous pay, salary, or benefits.</p>
+      <section className="rounded-2xl border border-white/10 bg-panel p-6">
+        <h2 className="text-xl font-semibold text-mist">Employment history</h2>
+        <p className="mt-2 text-sm text-mist-soft">Do not include previous pay, salary, or benefits.</p>
         {employment.map((row, index) => (
-          <div key={index} className="mt-4 grid gap-4 rounded-xl border border-line p-4 sm:grid-cols-2">
+          <div key={index} className="mt-4 grid gap-4 rounded-xl border border-white/10 p-4 sm:grid-cols-2">
             <Field label="Employer name" value={row.employerName} onChange={(value) => updateEmployment(index, { employerName: value })} />
             <Field label="Position / title" value={row.positionTitle} onChange={(value) => updateEmployment(index, { positionTitle: value })} />
             <Field label="Start date" type="date" value={row.startDate} onChange={(value) => updateEmployment(index, { startDate: value })} />
             <Field label="End date" type="date" value={row.endDate} onChange={(value) => updateEmployment(index, { endDate: value })} />
-            <label className="text-sm font-semibold text-navy sm:col-span-2">
+            <label className="text-sm font-semibold text-mist sm:col-span-2">
               Responsibilities
               <textarea
                 rows={3}
@@ -261,7 +260,7 @@ export function ApplicationForm({
               />
             </label>
             <Field label="Reason for leaving (optional)" value={row.reasonForLeaving} onChange={(value) => updateEmployment(index, { reasonForLeaving: value })} />
-            <label className="flex items-center gap-2 text-sm font-semibold text-navy">
+            <label className="flex items-center gap-2 text-sm font-semibold text-mist">
               <input
                 type="checkbox"
                 checked={row.permissionToContact}
@@ -280,40 +279,40 @@ export function ApplicationForm({
         </button>
       </section>
 
-      <section className="rounded-2xl border border-line bg-paper p-6">
-        <h2 className="text-xl font-semibold text-navy">Education and qualifications</h2>
-        <p className="mt-2 text-sm text-muted">Graduation dates are not requested.</p>
+      <section className="rounded-2xl border border-white/10 bg-panel p-6">
+        <h2 className="text-xl font-semibold text-mist">Education and qualifications</h2>
+        <p className="mt-2 text-sm text-mist-soft">Graduation dates are not requested.</p>
         <div className="mt-4 grid gap-4">
           <Field label="Highest relevant education" name="highestEducation" />
-          <label className="text-sm font-semibold text-navy">
+          <label className="text-sm font-semibold text-mist">
             Relevant education or training
             <textarea name="relevantTraining" rows={3} className={fieldClass} />
           </label>
-          <label className="text-sm font-semibold text-navy">
+          <label className="text-sm font-semibold text-mist">
             Professional licenses
             <textarea name="licenses" rows={2} className={fieldClass} />
           </label>
-          <label className="text-sm font-semibold text-navy">
+          <label className="text-sm font-semibold text-mist">
             Certifications
             <textarea name="certifications" rows={2} className={fieldClass} />
           </label>
-          <label className="text-sm font-semibold text-navy">
+          <label className="text-sm font-semibold text-mist">
             Courier / logistics experience
             <textarea name="courierExperience" rows={3} className={fieldClass} />
           </label>
-          <label className="text-sm font-semibold text-navy">
+          <label className="text-sm font-semibold text-mist">
             Healthcare logistics experience
             <textarea name="healthcareLogisticsExperience" rows={3} className={fieldClass} />
           </label>
-          <label className="text-sm font-semibold text-navy">
+          <label className="text-sm font-semibold text-mist">
             Customer-service experience
             <textarea name="customerServiceExperience" rows={3} className={fieldClass} />
           </label>
-          <label className="text-sm font-semibold text-navy">
+          <label className="text-sm font-semibold text-mist">
             Dispatch experience
             <textarea name="dispatchExperience" rows={3} className={fieldClass} />
           </label>
-          <label className="text-sm font-semibold text-navy">
+          <label className="text-sm font-semibold text-mist">
             Technology experience (if job related)
             <textarea name="technologyExperience" rows={3} className={fieldClass} />
           </label>
@@ -321,9 +320,9 @@ export function ApplicationForm({
       </section>
 
       {job.requiresDriversLicense ? (
-        <section className="rounded-2xl border border-line bg-paper p-6">
-          <h2 className="text-xl font-semibold text-navy">Driver qualifications</h2>
-          <p className="mt-2 text-sm text-muted">
+        <section className="rounded-2xl border border-white/10 bg-panel p-6">
+          <h2 className="text-xl font-semibold text-mist">Driver qualifications</h2>
+          <p className="mt-2 text-sm text-mist-soft">
             Do not enter a driver’s license number here. License numbers, MVR authorization, and
             insurance documents are collected later through a restricted onboarding workflow if needed.
           </p>
@@ -337,7 +336,7 @@ export function ApplicationForm({
           <YesNo name="hasPersonalVehicle" label="Do you have access to a personally supplied vehicle if this role requires one?" />
           <YesNo name="proofOfInsurance" label="Do you currently maintain required vehicle insurance?" />
           <YesNo name="canUseGpsApps" label="Are you able to use GPS and mobile applications?" />
-          <label className="mt-4 block text-sm font-semibold text-navy">
+          <label className="mt-4 block text-sm font-semibold text-mist">
             Relevant courier driving experience
             <textarea name="relevantCourierDrivingExperience" rows={3} className={fieldClass} />
           </label>
@@ -345,9 +344,9 @@ export function ApplicationForm({
       ) : null}
 
       {job.isMedicalCourier ? (
-        <section className="rounded-2xl border border-line bg-paper p-6">
-          <h2 className="text-xl font-semibold text-navy">Medical courier qualifications</h2>
-          <p className="mt-2 text-sm text-muted">
+        <section className="rounded-2xl border border-white/10 bg-panel p-6">
+          <h2 className="text-xl font-semibold text-mist">Medical courier qualifications</h2>
+          <p className="mt-2 text-sm text-mist-soft">
             Existing training may be considered. Safeway Couriers may require company-specific
             training before assignment. Voluntary certificates are not government licenses unless
             they actually are.
@@ -363,7 +362,7 @@ export function ApplicationForm({
               ["pharmaceuticalDeliveryExperience", "Pharmaceutical delivery experience"],
               ["laboratoryCourierExperience", "Laboratory / specimen courier experience"],
             ].map(([name, label]) => (
-              <label key={name} className="flex items-center gap-2 text-sm text-navy">
+              <label key={name} className="flex items-center gap-2 text-sm text-mist">
                 <input type="checkbox" name={name} className="h-4 w-4" />
                 {label}
               </label>
@@ -372,20 +371,20 @@ export function ApplicationForm({
         </section>
       ) : null}
 
-      <section className="rounded-2xl border border-line bg-paper p-6">
-        <h2 className="text-xl font-semibold text-navy">Job function</h2>
+      <section className="rounded-2xl border border-white/10 bg-panel p-6">
+        <h2 className="text-xl font-semibold text-mist">Job function</h2>
         <YesNo
           name="canPerformEssentialFunctions"
           label="Are you able to perform the essential functions of this position, with or without reasonable accommodation?"
           required
         />
         {job.questions.map((question) => (
-          <label key={question.id} className="mt-4 block text-sm font-semibold text-navy">
+          <label key={question.id} className="mt-4 block text-sm font-semibold text-mist">
             {question.prompt}
             <textarea name={`answer-${question.id}`} rows={3} required={question.required} className={fieldClass} />
           </label>
         ))}
-        <p className="mt-4 text-sm text-muted">
+        <p className="mt-4 text-sm text-mist-soft">
           Safeway Couriers provides reasonable accommodations to qualified applicants with
           disabilities during the application and hiring process. Applicants who need assistance
           may contact{" "}
@@ -396,10 +395,10 @@ export function ApplicationForm({
         </p>
       </section>
 
-      <section className="rounded-2xl border border-line bg-paper p-6">
-        <h2 className="text-xl font-semibold text-navy">Acknowledgement</h2>
-        <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-muted">{acknowledgement}</p>
-        <label className="mt-4 flex items-start gap-2 text-sm font-semibold text-navy">
+      <section className="rounded-2xl border border-white/10 bg-panel p-6">
+        <h2 className="text-xl font-semibold text-mist">Acknowledgement</h2>
+        <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-mist-soft">{acknowledgement}</p>
+        <label className="mt-4 flex items-start gap-2 text-sm font-semibold text-mist">
           <input type="checkbox" name="privacyReviewed" required className="mt-1 h-4 w-4" />
           I have reviewed the{" "}
           <Link href={privacyHref} className="text-medical underline">
@@ -407,14 +406,14 @@ export function ApplicationForm({
           </Link>
           .
         </label>
-        <label className="mt-3 flex items-start gap-2 text-sm font-semibold text-navy">
+        <label className="mt-3 flex items-start gap-2 text-sm font-semibold text-mist">
           <input type="checkbox" name="acknowledgementAccepted" required className="mt-1 h-4 w-4" />
           I agree to the acknowledgement above.
         </label>
       </section>
 
       {error ? (
-        <p className="text-sm text-red-700" role="alert">
+        <p className="text-sm text-red-400" role="alert">
           {error}
         </p>
       ) : null}
@@ -422,7 +421,7 @@ export function ApplicationForm({
       <button
         type="submit"
         disabled={pending}
-        className="rounded-full bg-navy px-6 py-3 text-sm font-semibold text-white hover:bg-medical disabled:opacity-60"
+        className="mkt-btn mkt-btn-primary disabled:opacity-60"
       >
         {pending ? "Submitting…" : "Submit application"}
       </button>
@@ -452,7 +451,7 @@ function Field({
   onChange?: (value: string) => void;
 }) {
   return (
-    <label className="text-sm font-semibold text-navy">
+    <label className="text-sm font-semibold text-mist">
       {label}
       <input
         name={name}
@@ -470,13 +469,13 @@ function Field({
 function YesNo({ name, label, required }: { name: string; label: string; required?: boolean }) {
   return (
     <fieldset className="mt-4">
-      <legend className="text-sm font-semibold text-navy">{label}</legend>
+      <legend className="text-sm font-semibold text-mist">{label}</legend>
       <div className="mt-2 flex gap-4">
-        <label className="text-sm text-navy">
+        <label className="text-sm text-mist">
           <input type="radio" name={name} value="yes" required={required} className="mr-2" />
           Yes
         </label>
-        <label className="text-sm text-navy">
+        <label className="text-sm text-mist">
           <input type="radio" name={name} value="no" required={required} className="mr-2" />
           No
         </label>

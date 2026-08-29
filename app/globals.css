@@ -18,6 +18,13 @@
   --color-ink: #142033;
   --color-muted: #5b6b7c;
   --color-line: #d7e3ef;
+  --color-void: #07090b;
+  --color-charcoal: #0c1117;
+  --color-graphite: #12181f;
+  --color-panel: #171e27;
+  --color-mist: #e8eef3;
+  --color-mist-soft: #9aa8b5;
+  --max-width-7xl: 80rem;
   --font-sans: var(--font-plus-jakarta);
 }
 
@@ -38,4 +45,282 @@ body {
 
 .section-anchor {
   scroll-margin-top: 5.5rem;
+}
+
+/* Marketing site only — portals keep the light operational UI. */
+.marketing-site {
+  background: #07090b;
+  color: #e8eef3;
+  color-scheme: dark;
+  isolation: isolate;
+}
+
+.marketing-site ::selection {
+  background: #1a6fb5;
+  color: #fff;
+}
+
+.marketing-site a:focus-visible,
+.marketing-site button:focus-visible,
+.marketing-site input:focus-visible,
+.marketing-site select:focus-visible,
+.marketing-site textarea:focus-visible,
+.marketing-site summary:focus-visible {
+  outline: 2px solid #2b86d1;
+  outline-offset: 3px;
+}
+
+.mkt-field {
+  margin-top: 0.375rem;
+  width: 100%;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(232, 238, 243, 0.14);
+  background: #0a0e12;
+  padding: 0.625rem 0.75rem;
+  font-size: 0.875rem;
+  color: #e8eef3;
+  outline: none;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.mkt-field:focus {
+  border-color: #1a6fb5;
+  box-shadow: 0 0 0 3px rgba(26, 111, 181, 0.28);
+}
+
+.mkt-card {
+  border-radius: 1rem;
+  border: 1px solid rgba(232, 238, 243, 0.1);
+  background: #171e27;
+}
+
+@media (min-width: 1024px) {
+  .mkt-split {
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  }
+
+  .mkt-split-quote {
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  }
+
+  .mkt-split-sidebar {
+    grid-template-columns: minmax(0, 1fr) 18rem;
+  }
+}
+
+.mkt-network svg {
+  max-height: 32rem;
+  width: 100%;
+  height: auto;
+}
+
+.mkt-reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition:
+    opacity 700ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 700ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.mkt-reveal.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+.mkt-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 9999px;
+  padding: 0.8rem 1.35rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition:
+    transform 160ms ease,
+    background-color 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.mkt-btn:hover {
+  transform: translateY(-1px);
+}
+
+.mkt-btn:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.mkt-btn-primary {
+  background: #1a6fb5;
+  color: #fff;
+  box-shadow: 0 0 0 1px rgba(43, 134, 209, 0.25);
+}
+
+.mkt-btn-primary:hover {
+  background: #2b86d1;
+  box-shadow: 0 10px 30px -12px rgba(43, 134, 209, 0.7);
+}
+
+.mkt-btn-secondary {
+  border: 1px solid rgba(232, 238, 243, 0.22);
+  background: transparent;
+  color: #e8eef3;
+}
+
+.mkt-btn-secondary:hover {
+  border-color: rgba(232, 238, 243, 0.55);
+  background: rgba(232, 238, 243, 0.05);
+}
+
+.mkt-grid {
+  background-image:
+    linear-gradient(rgba(26, 111, 181, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(26, 111, 181, 0.08) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+.mkt-route-draw {
+  stroke-dasharray: 6 10;
+  animation: mkt-dash 18s linear infinite;
+}
+
+.mkt-pulse {
+  transform-origin: center;
+  animation: mkt-pulse 2.8s ease-in-out infinite;
+}
+
+.mkt-scan {
+  animation: mkt-scan 5.5s ease-in-out infinite;
+}
+
+.mkt-float {
+  animation: mkt-float 8s ease-in-out infinite;
+}
+
+.mkt-glow-node {
+  animation: mkt-glow 2.6s ease-in-out infinite;
+}
+
+.mkt-shipment {
+  offset-rotate: 0deg;
+  animation: mkt-ship 9s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.mkt-dashboard {
+  transform: perspective(1400px) rotateX(8deg) rotateY(-12deg);
+  transform-origin: center;
+  transition: transform 700ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.mkt-dashboard.is-visible {
+  transform: perspective(1400px) rotateX(4deg) rotateY(-6deg) translateY(-6px);
+}
+
+@keyframes mkt-dash {
+  to {
+    stroke-dashoffset: -240;
+  }
+}
+
+@keyframes mkt-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.18);
+  }
+}
+
+@keyframes mkt-glow {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes mkt-scan {
+  0% {
+    transform: translateY(-30%);
+    opacity: 0;
+  }
+  12% {
+    opacity: 0.45;
+  }
+  100% {
+    transform: translateY(130%);
+    opacity: 0;
+  }
+}
+
+@keyframes mkt-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes mkt-ship {
+  0% {
+    offset-distance: 0%;
+    opacity: 0;
+  }
+  8% {
+    opacity: 1;
+  }
+  92% {
+    opacity: 1;
+  }
+  100% {
+    offset-distance: 100%;
+    opacity: 0;
+  }
+}
+
+@media (max-width: 767px) {
+  .mkt-dashboard {
+    transform: none;
+  }
+
+  .mkt-dashboard.is-visible {
+    transform: none;
+  }
+
+  .mkt-float {
+    animation: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mkt-reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+
+  .mkt-shipment {
+    display: none;
+  }
+
+  .mkt-dashboard,
+  .mkt-dashboard.is-visible {
+    transform: none;
+    transition: none;
+  }
+
+  .mkt-btn:hover,
+  .mkt-btn:active {
+    transform: none;
+  }
 }

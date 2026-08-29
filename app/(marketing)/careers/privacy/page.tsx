@@ -18,7 +18,7 @@ export default async function ApplicantPrivacyPage() {
         title={doc.title}
         description="How Safeway Couriers handles information submitted in employment and contractor applications."
       />
-      <Container className="max-w-3xl py-16 text-muted leading-relaxed whitespace-pre-wrap">
+      <Container className="max-w-3xl whitespace-pre-wrap py-16 leading-relaxed text-mist-soft">
         {doc.body}
       </Container>
     </>

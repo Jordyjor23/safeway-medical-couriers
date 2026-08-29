@@ -16,7 +16,7 @@ export default function TermsPage() {
         title="Terms of Service"
         description="Website terms for visitors and prospective clients of Safeway Couriers."
       />
-      <Container className="max-w-3xl space-y-5 py-16 text-muted leading-relaxed">
+      <Container className="max-w-3xl space-y-5 py-16 leading-relaxed text-mist-soft">
         <p>
           This website provides general information about medical courier
           services offered by {site.name} in Columbus and Central Ohio. Submitting

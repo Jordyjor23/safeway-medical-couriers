@@ -16,7 +16,7 @@ export default function PrivacyPage() {
         title="Privacy Policy"
         description="How Safeway Couriers handles information submitted through this website."
       />
-      <Container className="max-w-3xl space-y-5 py-16 text-muted leading-relaxed">
+      <Container className="max-w-3xl space-y-5 py-16 leading-relaxed text-mist-soft">
         <p>
           This website collects information you choose to submit through quote
           and contact forms, such as your name, organization, email, phone
