@@ -455,7 +455,7 @@ async function deliverNotification(args: {
   const href = portalHrefForRecipient({ roles: args.recipient.roles, documentId: args.documentId });
   const path = safePath(href);
 
-  let emailStatus = args.emailEnabled ? "PENDING" : "SUPPRESSED";
+  const emailStatus = args.emailEnabled ? "PENDING" : "SUPPRESSED";
   try {
     const created = await prisma.notification.create({
       data: {
