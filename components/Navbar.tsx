@@ -34,7 +34,7 @@ export function Navbar() {
           : "border-transparent bg-transparent"
       }`}
     >
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
+      <div className="mx-auto flex max-w-7xl min-w-0 items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
         <Link href="/" className="flex items-center rounded-md bg-white px-2 py-1.5" onClick={() => setOpen(false)}>
           <Image
             src="/safeway-logo.png"
@@ -42,7 +42,7 @@ export function Navbar() {
             width={260}
             height={87}
             priority
-            className="h-auto w-[150px] sm:w-[180px] lg:w-[196px]"
+            className="h-auto w-[118px] sm:w-[150px] lg:w-[196px]"
           />
         </Link>
 
@@ -67,7 +67,7 @@ export function Navbar() {
         </nav>
 
         <div className="flex items-center gap-2">
-          <Link href="/quote" className="mkt-btn mkt-btn-primary !px-3 !py-2 text-xs sm:!px-4 sm:text-sm">
+          <Link href="/quote" className="mkt-btn mkt-btn-primary hidden !px-3 !py-2 text-xs sm:!px-4 sm:text-sm xl:inline-flex">
             Request a Quote
           </Link>
           <button

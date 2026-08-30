@@ -5,7 +5,7 @@ import { Container } from "@/components/Container";
 import { PageHeader } from "@/components/PageHeader";
 import { getPublishedJobByPublicId } from "@/lib/jobs";
 import { getCurrentLegalDocument, getSetting } from "@/lib/settings";
-import { site } from "@/lib/site";
+import { site, publishedContactEmail } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
@@ -43,7 +43,7 @@ export default async function ApplyPage({
           }}
           acknowledgement={ack?.body ?? ""}
           privacyHref="/careers/privacy"
-          accommodationEmail={careers.accommodationEmail}
+          accommodationEmail={publishedContactEmail(careers.accommodationEmail)}
         />
       </Container>
     </>

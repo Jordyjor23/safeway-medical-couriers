@@ -6,7 +6,7 @@ import { SectionHeading } from "@/components/SectionHeading";
 import { WHY_WORK_ITEMS } from "@/lib/careers-content";
 import { compensationLabel, getCareerCategories, getPublishedJobs } from "@/lib/jobs";
 import { getCurrentLegalDocument, getSetting } from "@/lib/settings";
-import { site } from "@/lib/site";
+import { site, publishedContactEmail } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +30,7 @@ export default async function CareersPage() {
     getCurrentLegalDocument("eeo"),
   ]);
 
+  const contactEmail = publishedContactEmail(careers.accommodationEmail);
   const employmentJobs = jobs.filter((job) => job.workerClassification === "EMPLOYEE");
   const contractorJobs = jobs.filter((job) => job.workerClassification === "INDEPENDENT_CONTRACTOR");
   const employmentCategories = categories.filter((item) => item.opportunityType === "EMPLOYMENT");
@@ -187,8 +188,8 @@ export default async function CareersPage() {
           </div>
           <p className="mt-8 text-sm text-mist-soft">
             Need an accommodation during the application process? Contact{" "}
-            <a className="font-semibold text-medical-bright" href={`mailto:${careers.accommodationEmail}`}>
-              {careers.accommodationEmail}
+            <a className="font-semibold text-medical-bright" href={`mailto:${contactEmail}`}>
+              {contactEmail}
             </a>
             . Check status with your tracking number on the{" "}
             <Link href="/careers/status" className="font-semibold text-medical-bright">

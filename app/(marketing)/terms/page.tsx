@@ -29,8 +29,15 @@ export default function TermsPage() {
           in client-specific procedures.
         </p>
         <p>
-          {site.name} is located at {site.street}, {site.city}, {site.state}{" "}
-          {site.zip}.
+          {site.name} is located at {site.street}, {site.city}, {site.state} {site.zip}. Contact{" "}
+          <a href={site.phoneHref} className="font-semibold text-medical">
+            {site.phone}
+          </a>{" "}
+          or{" "}
+          <a href={`mailto:${site.email}`} className="font-semibold text-medical">
+            {site.email}
+          </a>
+          .
         </p>
       </Container>
     </>

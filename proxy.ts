@@ -31,6 +31,11 @@ export function proxy(request: NextRequest) {
   ) {
     const httpsUrl = request.nextUrl.clone();
     httpsUrl.protocol = "https:";
+    httpsUrl.port = "";
+    const forwardedHost = request.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
+    if (forwardedHost && !isLocalHostname(forwardedHost.split(":")[0] ?? "")) {
+      httpsUrl.host = forwardedHost;
+    }
     return NextResponse.redirect(httpsUrl, 308);
   }
 

@@ -205,7 +205,7 @@ async function main() {
           "Safeway Couriers provides secure, dependable and professional courier services specializing in healthcare, medical, time-sensitive and business deliveries.",
         primaryCta: "View Open Positions",
         secondaryCta: "Join Our Courier Network",
-        accommodationEmail: "[Business Email]",
+        accommodationEmail: "medworld@safewaycouriers.com",
         voluntaryEeoEnabled: false,
       },
     },

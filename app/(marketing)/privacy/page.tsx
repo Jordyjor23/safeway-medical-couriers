@@ -30,8 +30,15 @@ export default function PrivacyPage() {
           information-security policies.
         </p>
         <p>
-          Questions about this policy may be sent to {site.email} or mailed to{" "}
-          {site.street}, {site.city}, {site.state} {site.zip}.
+          Questions about this policy may be sent to{" "}
+          <a href={`mailto:${site.email}`} className="font-semibold text-medical">
+            {site.email}
+          </a>
+          , called at{" "}
+          <a href={site.phoneHref} className="font-semibold text-medical">
+            {site.phone}
+          </a>
+          , or mailed to {site.street}, {site.city}, {site.state} {site.zip}.
         </p>
       </Container>
     </>
