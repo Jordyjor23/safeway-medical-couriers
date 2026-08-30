@@ -59,8 +59,18 @@ export function Footer() {
                 </Link>
               </li>
             ))}
-            <li className="pt-2 text-mist-soft">Phone: {site.phone}</li>
-            <li className="text-mist-soft">Email: {site.email}</li>
+            <li className="pt-2 text-mist-soft">
+              Phone:{" "}
+              <a href={site.phoneHref} className="transition hover:text-mist">
+                {site.phone}
+              </a>
+            </li>
+            <li className="text-mist-soft">
+              Email:{" "}
+              <a href={`mailto:${site.email}`} className="transition hover:text-mist">
+                {site.email}
+              </a>
+            </li>
           </ul>
         </div>
       </Container>

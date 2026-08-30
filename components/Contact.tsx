@@ -32,8 +32,8 @@ export function Contact({ showHeading = true }: { showHeading?: boolean }) {
                 </>
               ),
             },
-            { icon: Phone, kicker: "Phone", label: site.phone },
-            { icon: Mail, kicker: "Email", label: site.email },
+            { icon: Phone, kicker: "Phone", label: site.phone, href: site.phoneHref },
+            { icon: Mail, kicker: "Email", label: site.email, href: `mailto:${site.email}` },
           ].map((item, index) => {
             const Icon = item.icon;
             return (
@@ -45,7 +45,13 @@ export function Contact({ showHeading = true }: { showHeading?: boolean }) {
                       {item.kicker}
                     </p>
                   ) : null}
-                  <p className="mt-4 text-lg font-semibold text-mist">{item.label}</p>
+                  {"href" in item && item.href ? (
+                    <a href={item.href} className="mt-4 inline-block text-lg font-semibold text-mist hover:underline">
+                      {item.label}
+                    </a>
+                  ) : (
+                    <p className="mt-4 text-lg font-semibold text-mist">{item.label}</p>
+                  )}
                   {"body" in item ? (
                     <p className="mt-2 text-sm leading-relaxed text-mist-soft">{item.body}</p>
                   ) : null}

@@ -6,13 +6,14 @@ export const site = {
   description:
     "Safeway Couriers provides reliable, professional and time-sensitive medical courier services for healthcare organizations throughout Columbus and Central Ohio.",
   seoTitle: "Safeway Couriers | Medical Courier Services in Columbus, Ohio",
-  street: "1747 Olentangy River Rd, Suite 1023",
+  street: "1747 Olentangy River Rd #1023",
   city: "Columbus",
-  state: "Ohio",
+  state: "OH",
   zip: "43212",
   region: "Columbus and Central Ohio",
-  phone: "[Business Phone]",
-  email: "[Business Email]",
+  phone: "614-779-2360",
+  phoneHref: "tel:+16147792360",
+  email: "medworld@safewaycouriers.com",
   year: 2026,
   showInsuredBadge: false,
   showBackgroundScreenedBadge: false,
@@ -24,6 +25,13 @@ export const addressLines = [
 ] as const;
 
 export const fullAddress = `${site.street}, ${site.city}, ${site.state} ${site.zip}`;
+
+/** Public contact email shown on the marketing site. Ignores non-email values still stored in settings. */
+export function publishedContactEmail(value?: string | null) {
+  const next = value?.trim() ?? "";
+  if (!next.includes("@")) return site.email;
+  return next;
+}
 
 export const nav = [
   { href: "/", label: "Home" },

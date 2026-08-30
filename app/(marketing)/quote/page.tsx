@@ -19,6 +19,17 @@ export default function QuotePage() {
       />
       <Container className="py-16">
         <QuoteForm />
+        <p className="mt-8 text-sm text-mist-soft">
+          Prefer to talk first? Call{" "}
+          <a className="font-semibold text-medical" href={site.phoneHref}>
+            {site.phone}
+          </a>{" "}
+          or email{" "}
+          <a className="font-semibold text-medical" href={`mailto:${site.email}`}>
+            {site.email}
+          </a>
+          .
+        </p>
       </Container>
     </>
   );

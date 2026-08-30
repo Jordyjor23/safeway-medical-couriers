@@ -53,6 +53,7 @@ body {
   color: #e8eef3;
   color-scheme: dark;
   isolation: isolate;
+  overflow-x: clip;
 }
 
 .marketing-site ::selection {
@@ -117,8 +118,8 @@ body {
 }
 
 .mkt-reveal {
-  opacity: 0;
-  transform: translateY(18px);
+  opacity: 1;
+  transform: none;
   transition:
     opacity 700ms cubic-bezier(0.22, 1, 0.36, 1),
     transform 700ms cubic-bezier(0.22, 1, 0.36, 1);
@@ -127,6 +128,15 @@ body {
 .mkt-reveal.is-visible {
   opacity: 1;
   transform: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  @media (min-width: 768px) {
+    .mkt-reveal:not(.is-visible) {
+      opacity: 0;
+      transform: translateY(18px);
+    }
+  }
 }
 
 .mkt-btn {
