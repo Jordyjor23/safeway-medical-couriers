@@ -1,5 +1,6 @@
 import { MANUAL_EXTRACTION_MESSAGE, isExtractionUnsupportedFormat } from "@/lib/documents/extraction/unsupported";
 import { mapProviderDocumentType } from "@/lib/documents/extraction/map-type";
+import { prepareExtractedField } from "@/lib/documents/extraction/fields";
 import { sanitizeExtractedText } from "@/lib/documents/extraction/privacy";
 import type {
   DocumentExtractionInput,
@@ -146,8 +147,8 @@ async function pollAzure(url: string, key: string) {
 }
 
 function collectAzureText(result: unknown) {
-  const record = result as { content?: string; content?: string };
-  if (typeof (result as { content?: string }).content === "string") return (result as { content: string }).content;
+  const record = result as { content?: string };
+  if (typeof record.content === "string") return record.content;
   return JSON.stringify(record).slice(0, 4000);
 }
 

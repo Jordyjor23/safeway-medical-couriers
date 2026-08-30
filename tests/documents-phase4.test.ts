@@ -19,7 +19,7 @@ const prisma = vi.hoisted(() => ({
 }));
 
 const loadManagedDocumentForAccess = vi.hoisted(() => vi.fn());
-const writeAuditLog = vi.hoisted(() => vi.fn(async () => undefined));
+const writeAuditLog = vi.hoisted(() => vi.fn<(input: { action: string }) => Promise<void>>());
 
 vi.mock("@/lib/db", () => ({ prisma }));
 vi.mock("@/lib/audit", () => ({ writeAuditLog }));
@@ -137,13 +137,12 @@ describe("phase 4 provider selection", () => {
 
   it("does not enable the test provider in production", () => {
     process.env.DOCUMENT_EXTRACTION_PROVIDER = "test";
-    const previous = process.env.NODE_ENV;
+    vi.stubEnv("NODE_ENV", "production");
     try {
-      process.env.NODE_ENV = "production";
       expect(isExtractionEnabled()).toBe(false);
       expect(resolveExtractionProvider().id).toBe("noop");
     } finally {
-      process.env.NODE_ENV = previous;
+      vi.unstubAllEnvs();
     }
   });
 });

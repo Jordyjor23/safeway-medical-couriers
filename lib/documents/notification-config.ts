@@ -116,10 +116,10 @@ export function audiencesForThreshold(
   settings: DocumentNotificationSettings,
   threshold: number | "expired",
   ruleOverride?: EscalationRule[] | null,
-) {
+): NotificationAudience[] {
   const rules = ruleOverride?.length ? ruleOverride : settings.escalation;
   const match = rules.find((rule) => rule.threshold === threshold);
-  const audiences = new Set(match?.audiences ?? ["employee"]);
+  const audiences = new Set<NotificationAudience>(match?.audiences ?? ["employee"]);
   if (!settings.employeeDirectReminders) audiences.delete("employee");
   if (!settings.adminEscalation) {
     audiences.delete("admin");

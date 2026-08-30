@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { writeAuditLog } from "@/lib/audit";
 import { prisma } from "@/lib/db";
+import type { EscalationRule, NotificationAudience } from "@/lib/documents/notification-config";
 import { requirePermission } from "@/lib/rbac";
 
 export async function updateCareersSettings(formData: FormData) {
@@ -101,17 +102,19 @@ export async function updateDocumentNotificationSettings(formData: FormData) {
   const escalateAfterDays = Number(formData.get("escalateAfterDays") ?? 7);
   const employeeDirectReminders = formData.get("employeeDirectReminders") === "on";
   const adminEscalation = formData.get("adminEscalation") === "on";
-  const escalation = thresholdsDays.map((threshold) => ({
-    threshold,
-    audiences:
-      adminEscalation && threshold <= (Number.isFinite(escalateAfterDays) ? escalateAfterDays : 7)
-        ? (["employee", "admin"] as const)
-        : (["employee"] as const),
-  }));
-  escalation.push({
-    threshold: "expired",
-    audiences: adminEscalation ? (["employee", "admin"] as const) : (["employee"] as const),
-  });
+  const escalateAt = Number.isFinite(escalateAfterDays) ? escalateAfterDays : 7;
+  const employeeOnly: NotificationAudience[] = ["employee"];
+  const employeeAndAdmin: NotificationAudience[] = ["employee", "admin"];
+  const escalation: EscalationRule[] = [
+    ...thresholdsDays.map((threshold) => ({
+      threshold,
+      audiences: adminEscalation && threshold <= escalateAt ? employeeAndAdmin : employeeOnly,
+    })),
+    {
+      threshold: "expired",
+      audiences: adminEscalation ? employeeAndAdmin : employeeOnly,
+    },
+  ];
 
   await prisma.systemSetting.upsert({
     where: { key: "documentNotifications" },

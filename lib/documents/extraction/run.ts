@@ -1,11 +1,10 @@
 import { writeAuditLog } from "@/lib/audit";
-import { canAccessManagedDocument, type DocumentActor } from "@/lib/documents/access";
+import { canAccessManagedDocument, hasPermission, type DocumentActor } from "@/lib/documents/access";
 import { isExtractionEnabled, resolveExtractionProvider } from "@/lib/documents/extraction/provider";
 import { EXTRACTION_RETRY_MS, EXTRACTION_STALE_PROCESSING_MS } from "@/lib/documents/extraction/types";
 import { MANUAL_EXTRACTION_MESSAGE, isExtractionUnsupportedFormat } from "@/lib/documents/extraction/unsupported";
 import { loadManagedDocumentForAccess } from "@/lib/documents/operations";
 import { prisma } from "@/lib/db";
-import { hasPermission } from "@/lib/rbac";
 import { readPrivateFile } from "@/lib/storage";
 
 function canTriggerExtraction(actor: DocumentActor) {

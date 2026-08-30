@@ -49,7 +49,7 @@ describe("application schema employment-law guards", () => {
   it("extends ManagedDocument instead of replacing it", () => {
     expect(schema).toContain("model ManagedDocument");
     expect(schema).toContain("expirationDate");
-    expect(schema).not.toMatch(/model ManagedDocument \{[^}]*expiresAt/s);
+    expect(schema).not.toMatch(/model ManagedDocument \{[^}]*expiresAt/);
     expect(schema).toContain("blobKey");
     expect(schema).toContain("model EmployeeDocument");
     expect(schema).toContain("model DeliveryDocument");

@@ -41,8 +41,8 @@ const prisma = vi.hoisted(() => ({
   systemSetting: { findUnique: vi.fn() },
 }));
 
-const writeAuditLog = vi.hoisted(() => vi.fn(async () => undefined));
-const sendTransactionalEmail = vi.hoisted(() => vi.fn(async () => ({ id: "email_1" })));
+const writeAuditLog = vi.hoisted(() => vi.fn<(input: { action: string }) => Promise<void>>());
+const sendTransactionalEmail = vi.hoisted(() => vi.fn<(args: { html?: string }) => Promise<{ id: string }>>());
 
 vi.mock("@/lib/db", () => ({ prisma }));
 vi.mock("@/lib/audit", () => ({ writeAuditLog }));

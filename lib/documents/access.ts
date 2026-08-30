@@ -64,7 +64,7 @@ const DELIVERY_DOC_ROLES = new Set([
   "COMPLIANCE_ADMIN",
 ]);
 
-function hasPermission(ctx: DocumentActor, permission: string) {
+export function hasPermission(ctx: DocumentActor, permission: string) {
   return isOwnerRole(ctx.roles) || ctx.permissions.has(permission);
 }
 
