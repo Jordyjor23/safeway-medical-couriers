@@ -12,6 +12,8 @@ export const DOCUMENT_CAPTURE = {
   camera: { accept: DOCUMENT_IMAGE_ACCEPT, capture: "environment" as const },
 };
 
+export const SCAN_DOCUMENT_LABEL = "Scan Document";
+
 export const DUPLICATE_FILE_WARNING = "This file appears to already exist.";
 
 export const ARCHIVE_CONFIRMATION =

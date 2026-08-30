@@ -8,10 +8,13 @@ import {
   DOCUMENT_CATEGORIES,
   DOCUMENT_CATEGORY_LABELS,
   DUPLICATE_FILE_WARNING,
+  SCAN_DOCUMENT_LABEL,
   TYPES_BY_CATEGORY,
   labelDocumentType,
 } from "@/lib/documents/catalog";
 import { ALLOWED_DOCUMENT_EXTENSIONS, DEFAULT_DOCUMENT_MAX_BYTES, fileExtension } from "@/lib/documents/types";
+import { DocumentScanner } from "@/components/portal/DocumentScanner";
+import { detectScannerCapabilities } from "@/lib/documents/scanner/capabilities";
 import type { DocumentCategory } from "@prisma/client";
 
 type AssociationOption = { id: string; label: string };
@@ -63,6 +66,8 @@ export function DocumentUploader({
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [duplicates, setDuplicates] = useState<{ id: string; name: string; uploadedAt: string }[] | null>(null);
+  const [scanOpen, setScanOpen] = useState(false);
+  const canScan = detectScannerCapabilities().canScan;
   const fileRef = useRef<HTMLInputElement>(null);
   const photoRef = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
@@ -82,6 +87,15 @@ export function DocumentUploader({
     setExpirationDate("");
     setIsSensitive(false);
     setDocumentType("");
+    setCategory(preset?.category ?? "EMPLOYEE_DOCUMENTS");
+    setEmployeeId(preset?.employeeId ?? "");
+    setCustomerId(preset?.customerId ?? "");
+    setContractId(preset?.contractId ?? "");
+    setDeliveryId(preset?.deliveryId ?? "");
+    setScanOpen(false);
+    if (fileRef.current) fileRef.current.value = "";
+    if (photoRef.current) photoRef.current.value = "";
+    if (cameraRef.current) cameraRef.current.value = "";
   }
 
   function onFiles(list: FileList | null) {
@@ -199,6 +213,18 @@ export function DocumentUploader({
   }
 
   return (
+    <>
+      {scanOpen ? (
+        <DocumentScanner
+          onComplete={(next) => {
+            setFile(next);
+            setName((current) => current || next.name.replace(/\.[^.]+$/, ""));
+            setScanOpen(false);
+            setError(null);
+          }}
+          onCancel={() => setScanOpen(false)}
+        />
+      ) : null}
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-navy/40 p-4 sm:items-center" role="dialog" aria-modal="true" aria-labelledby="upload-document-title">
       <div className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-paper p-6 shadow-xl">
         <div className="flex items-start justify-between gap-4">
@@ -233,7 +259,12 @@ export function DocumentUploader({
               {file ? <p className="mt-3 text-sm text-navy">{file.name}</p> : null}
             </div>
             <div className="flex flex-wrap gap-2">
-              <button type="button" className="rounded-full bg-navy px-4 py-2 text-sm font-semibold text-white" onClick={() => cameraRef.current?.click()} aria-controls="document-camera">
+              {canScan ? (
+                <button type="button" className="rounded-full bg-navy px-4 py-2 text-sm font-semibold text-white" onClick={() => setScanOpen(true)}>
+                  {SCAN_DOCUMENT_LABEL}
+                </button>
+              ) : null}
+              <button type="button" className="rounded-full border border-line px-4 py-2 text-sm font-semibold text-navy" onClick={() => cameraRef.current?.click()} aria-controls="document-camera">
                 Take Photo
               </button>
               <button type="button" className="rounded-full border border-line px-4 py-2 text-sm font-semibold text-navy" onClick={() => photoRef.current?.click()} aria-controls="document-photo">
@@ -412,6 +443,7 @@ export function DocumentUploader({
         </div>
       </div>
     </div>
+    </>
   );
 }
 
