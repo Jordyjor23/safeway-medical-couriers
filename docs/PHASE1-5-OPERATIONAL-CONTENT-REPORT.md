@@ -116,13 +116,19 @@ Dropdowns now always have option data from `lib/jobs/options.ts`: department, em
 
 ## 9. Draft Medical Courier Driver job
 
-`ensureMedicalCourierDriverDraft()` creates **Medical Courier Driver** as **DRAFT** if no posting with that title exists.
+`ensureMedicalCourierDriverDraft()` creates **Medical Courier Driver** as **DRAFT** if no posting with that title exists. If a **DRAFT** already exists, it updates that draft with the owner-approved fields, questions, and baseline job requirements. It does **not** overwrite PUBLISHED / PAUSED / CLOSED / ARCHIVED postings.
 
-- W-2 employee (`workerClassification: EMPLOYEE`)
-- Personal vehicle and current auto insurance are required (`vehicleRequirements` plus the `insurance` job requirement)
-- No compensation numbers (`compensationNotes` unset)
-- Location left as an owner-editable placeholder; Jordan sets pay and location in the dashboard before publishing
-- Job-level requirements prepared: resume, DL, insurance, HIPAA, BBP, SOP acknowledgment, background/MVR auth, HazMat awareness
+Owner-approved draft defaults:
+
+- W-2 employee, full-time (`workerClassification: EMPLOYEE`, `employmentType: FULL_TIME`)
+- Compensation notes: `$20.00–$23.00/hour depending on experience and qualifications. Approved business mileage reimbursed at $0.76 per mile.`
+- Compensation range fields: `$20.00`–`$23.00` hourly (`compensationMin` / `compensationMax`)
+- Location: `Columbus, Ohio / Central Ohio service area`
+- Vehicle: reliable personal vehicle, valid DL, and current auto insurance; vehicle kept in safe operating condition
+- Schedule: full-time; varies by route and may include daytime, evening, overnight, weekend, holiday, and on-call
+- Application questions: six required screening questions plus one preferred (not required) experience question
+- Job-level apply-time requirements: resume, DL, insurance, HIPAA, BBP, SOP/policy acknowledgments, background authorization, MVR authorization
+- HazMat / specialty handling is **not** a universal apply-time requirement; it may be assigned later by route or role
 - Called from `prisma/seed.ts` after requirement seed
 - **Not published**
 
@@ -175,6 +181,6 @@ No new production dependencies. No paid scanners or e-sign SDKs. No new public e
 1. Upload approved manuals/SOPs/forms into the library (do not commit PDFs to Git)
 2. Set effective/review dates, document numbers, and responsible roles
 3. Assign each ACTIVE document (who must read / acknowledge / upload a certificate)
-4. Review the Medical Courier Driver **draft**, set compensation/location/legal terms, then publish if desired
+4. Review the Medical Courier Driver **draft** (compensation, location, vehicle, and schedule are now owner-approved), then publish only if desired
 5. Confirm job-level requirement checkboxes per posting
 6. Choose a future e-sign provider if/when Phase 2 starts

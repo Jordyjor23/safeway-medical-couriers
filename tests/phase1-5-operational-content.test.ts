@@ -19,7 +19,16 @@ import {
 } from "@/lib/compliance/library-catalog";
 import { canAccessManagedDocument, type DocumentAccessRecord, type DocumentActor } from "@/lib/documents/access";
 import { jobIsPubliclyVisible, jobOptionListsArePopulated, JOB_DEPARTMENTS, JOB_STATUSES } from "@/lib/jobs/options";
-import { defaultMedicalCourierRequirementKeys } from "@/lib/jobs/ensure-draft";
+import {
+  defaultMedicalCourierRequirementKeys,
+  MEDICAL_COURIER_COMPENSATION_NOTES,
+  MEDICAL_COURIER_DRIVER_QUESTIONS,
+  MEDICAL_COURIER_LOCATION,
+  MEDICAL_COURIER_SCHEDULE,
+  MEDICAL_COURIER_VEHICLE_REQUIREMENTS,
+  medicalCourierDriverDraftFields,
+  shouldUpdateMedicalCourierDraft,
+} from "@/lib/jobs/ensure-draft";
 import { issueDocumentSignedUrl } from "@/lib/documents/signed-url-issue";
 
 function actor(overrides: { roles: string[]; permissions?: string[]; user?: Partial<DocumentActor["user"]> }): DocumentActor {
@@ -170,13 +179,41 @@ describe("Phase 1.5 job posting administration", () => {
       }),
     ).toEqual(["resume"]);
     expect(defaultMedicalCourierRequirementKeys()).toEqual(
-      expect.arrayContaining(["driver_qualification", "insurance", "hipaa", "bloodborne_pathogens", "sop_acknowledgement"]),
+      expect.arrayContaining([
+        "driver_qualification",
+        "insurance",
+        "mvr_authorization",
+        "background_authorization",
+        "hipaa",
+        "bloodborne_pathogens",
+        "sop_acknowledgement",
+        "resume",
+      ]),
     );
+    expect(defaultMedicalCourierRequirementKeys()).not.toContain("hazmat_awareness");
+    const fields = medicalCourierDriverDraftFields();
+    expect(fields.status).toBe("DRAFT");
+    expect(fields.workerClassification).toBe("EMPLOYEE");
+    expect(fields.employmentType).toBe("FULL_TIME");
+    expect(fields.compensationNotes).toBe(MEDICAL_COURIER_COMPENSATION_NOTES);
+    expect(fields.compensationMin).toBe(20);
+    expect(fields.compensationMax).toBe(23);
+    expect(fields.location).toBe(MEDICAL_COURIER_LOCATION);
+    expect(fields.vehicleRequirements).toBe(MEDICAL_COURIER_VEHICLE_REQUIREMENTS);
+    expect(fields.schedule).toBe(MEDICAL_COURIER_SCHEDULE);
+    expect(fields.requiredCertifications).toMatch(/HazMat awareness.*may be assigned later/i);
+    expect(MEDICAL_COURIER_DRIVER_QUESTIONS).toHaveLength(7);
+    expect(MEDICAL_COURIER_DRIVER_QUESTIONS.filter((question) => question.required)).toHaveLength(6);
+    expect(MEDICAL_COURIER_DRIVER_QUESTIONS[6]?.required).toBe(false);
+    expect(shouldUpdateMedicalCourierDraft("DRAFT")).toBe(true);
+    expect(shouldUpdateMedicalCourierDraft("PUBLISHED")).toBe(false);
+    expect(shouldUpdateMedicalCourierDraft("PAUSED")).toBe(false);
+    expect(shouldUpdateMedicalCourierDraft("CLOSED")).toBe(false);
+    expect(shouldUpdateMedicalCourierDraft("ARCHIVED")).toBe(false);
     const draftSource = readFileSync(path.join(process.cwd(), "lib/jobs/ensure-draft.ts"), "utf8");
-    expect(draftSource).toContain('status: "DRAFT"');
-    expect(draftSource).toContain('workerClassification: "EMPLOYEE"');
-    expect(draftSource).toContain("compensationNotes: null");
-    expect(draftSource).toContain("A personal vehicle and current auto insurance are required.");
+    expect(draftSource).toContain("existing_non_draft");
+    expect(draftSource).toContain("syncDraftQuestionsAndRequirements");
+    expect(draftSource).not.toContain("hazmat_awareness");
     expect(draftSource).not.toMatch(/Personal or company vehicle requirements are set by the owner/);
   });
 });
