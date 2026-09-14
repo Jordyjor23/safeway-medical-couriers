@@ -97,7 +97,7 @@ Roles: OWNER, HR_RECRUITER, OPERATIONS_ADMIN, DISPATCHER, COMPLIANCE_ADMIN, SALE
 - Session cookies: httpOnly, Secure in production, SameSite=Lax
 - Password hashing via Better Auth (scrypt); min length 12; leaked-password check where available
 - Login rate limits + lockout counters in DB (serverless-safe)
-- MFA (TOTP) required for OWNER after first login; encouraged for other staff
+- MFA (TOTP) required for OWNER after first login (enforced server-side); encouraged for other staff
 - CSRF: Better Auth origin checks + Next.js; portal mutations are server actions / POST APIs only
 - Files: Vercel Blob private; short-lived signed URLs; no guessable public paths
 - Audit log is append-only at the application layer (no delete API)
@@ -110,7 +110,7 @@ Roles: OWNER, HR_RECRUITER, OPERATIONS_ADMIN, DISPATCHER, COMPLIANCE_ADMIN, SALE
 | `DATABASE_URL` | PostgreSQL |
 | `BETTER_AUTH_SECRET` | Auth signing (≥32 chars) |
 | `BETTER_AUTH_URL` | Canonical origin (`https://www.safewaycouriers.com`) |
-| `OWNER_SETUP_SECRET` | One-time owner bootstrap at `/setup` |
+| `OWNER_SETUP_SECRET` | One-time owner bootstrap at `/setup` if no Owner exists; remove after MFA |
 | `DATA_ENCRYPTION_KEY` | 32-byte key for future sensitive-field encryption |
 | `BLOB_READ_WRITE_TOKEN` | Vercel Blob (documents) |
 | `RESEND_API_KEY` / `EMAIL_FROM` | Transactional email (reset, application confirmation) |

@@ -56,6 +56,6 @@ This repository also includes the owner/staff portal at `/dashboard`. It is not 
 2. Copy `.env.example` to `.env.local` and set secrets (`openssl rand -base64 32`).
 3. `npx prisma migrate deploy`
 4. `npx prisma db seed`
-5. Open `/setup` with `OWNER_SETUP_SECRET` to create the first owner. There is no default password.
+5. Open `/setup` with `OWNER_SETUP_SECRET` to create the first owner. There is no default password. `/setup` is disabled after an Owner exists.
 
 See `docs/IMPLEMENTATION-REPORT.md` and `docs/MIGRATIONS.md`. Legal notices require attorney/HR review before production hiring use.

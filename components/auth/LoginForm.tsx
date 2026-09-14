@@ -100,10 +100,6 @@ function LoginFormFields() {
         <Link href="/forgot-password" className="font-semibold text-medical hover:underline">
           Forgot password?
         </Link>
-        {" · "}
-        <Link href="/setup" className="font-semibold text-medical hover:underline">
-          Owner setup
-        </Link>
       </p>
     </form>
   );

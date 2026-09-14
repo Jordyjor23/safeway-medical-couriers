@@ -33,4 +33,4 @@ npx prisma migrate deploy
 npx prisma db seed
 ```
 
-Owner account: visit `/setup` with `OWNER_SETUP_SECRET`. Never commit passwords.
+Owner account: visit `/setup` with `OWNER_SETUP_SECRET` only when zero owners exist. Never commit passwords. After Owner MFA, remove `OWNER_SETUP_SECRET` from Production.
