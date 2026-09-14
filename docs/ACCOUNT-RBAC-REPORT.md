@@ -118,8 +118,10 @@ HR Recruiter, Operations Admin, Compliance Admin, and Sales keep their existing 
 ## Security controls
 
 - Passwords hashed by Better Auth; never stored or displayed after creation.
-- Public registration disabled. Owner bootstrap requires `OWNER_SETUP_SECRET` and only runs if no Owner exists.
-- Cookie gate on portal prefixes; every page/action still checks session + status + permission on the server.
+- Public registration disabled. Owner bootstrap requires `OWNER_SETUP_SECRET`, only runs if no Owner exists, and cannot reset an existing Owner password.
+- Cookie presence is a coarse portal gate; every page/action still checks a live session + account status + permission on the server. Session cookie cache is off so lock/disable applies on the next request.
+- Owner accounts must enable TOTP MFA before using the rest of the portal; they cannot disable MFA.
+- `GET /api/portal/me` returns the caller’s identity, roles, and home path — not the full permission catalog.
 - Account statuses other than `ACTIVE` / valid `PENDING_ACTIVATION` cannot use the portal.
 - Five failed logins lock an active account for 15 minutes. Owner **Lock** stays locked until Unlock.
 - Customer queries are scoped to `ctx.user.customerId`. Drivers can only mutate their assigned deliveries. Employees only load their own profile, training, tasks, documents, and incidents.

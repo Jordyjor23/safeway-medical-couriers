@@ -1,28 +1,26 @@
 import { betterAuth } from "better-auth";
-import { APIError, createAuthMiddleware } from "better-auth/api";
+import { APIError, createAuthMiddleware, getSessionFromCtx } from "better-auth/api";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
 import { bearer, twoFactor, username } from "better-auth/plugins";
 import { accountAllowsLogin, accountAllowsPasswordReset, nextFailedLoginState } from "@/lib/account-status";
 import { allowedOrigins, appOrigin } from "@/lib/app-url";
 import { writeAuditLog } from "@/lib/audit";
+import { assertRuntimeAuthSecret, resolveBetterAuthSecret } from "@/lib/auth-secret";
 import { prisma } from "@/lib/db";
 import { sendTransactionalEmail } from "@/lib/email";
+import { allowOwnerBootstrapSignup } from "@/lib/owner-bootstrap";
 import { buildPasswordResetUrl } from "@/lib/password-reset";
+import { readServerEnv } from "@/lib/secrets";
 
-export const authConfigured = Boolean(
-  process.env.BETTER_AUTH_SECRET && process.env.DATABASE_URL,
-);
+assertRuntimeAuthSecret();
 
-const isNextProductionBuild = process.env.NEXT_PHASE === "phase-production-build";
+export const authConfigured = Boolean(readServerEnv("BETTER_AUTH_SECRET") && readServerEnv("DATABASE_URL"));
 
-if (process.env.VERCEL === "1" && !process.env.BETTER_AUTH_SECRET && !isNextProductionBuild) {
-  throw new Error("BETTER_AUTH_SECRET is required on Vercel.");
-}
-
-const secret = process.env.BETTER_AUTH_SECRET;
+const secret = resolveBetterAuthSecret();
 const baseURL = appOrigin();
 const trustedOrigins = allowedOrigins();
+const useSecureCookies = baseURL.startsWith("https://");
 
 async function findUserForAuth(identifier: string) {
   const value = identifier.trim().toLowerCase();
@@ -35,9 +33,25 @@ async function findUserForAuth(identifier: string) {
   });
 }
 
+async function ownerCount() {
+  return prisma.userRole.count({ where: { role: { key: "OWNER" } } });
+}
+
+async function userIsOwner(userId: string) {
+  const assignment = await prisma.userRole.findFirst({
+    where: { userId, role: { key: "OWNER" } },
+    select: { id: true },
+  });
+  return Boolean(assignment);
+}
+
+function sessionUserId(session: { user?: { id?: string }; session?: { userId?: string } } | null | undefined) {
+  return session?.user?.id || session?.session?.userId || "";
+}
+
 export const auth = betterAuth({
   appName: "Safeway Couriers",
-  secret: secret ?? "unconfigured-local-secret-not-for-production-use",
+  secret,
   baseURL,
   database: prismaAdapter(prisma, { provider: "postgresql" }),
   emailAndPassword: {
@@ -86,8 +100,7 @@ export const auth = betterAuth({
     expiresIn: 60 * 60 * 8,
     updateAge: 60 * 30,
     cookieCache: {
-      enabled: true,
-      maxAge: 60 * 5,
+      enabled: false,
     },
   },
   rateLimit: {
@@ -125,7 +138,13 @@ export const auth = betterAuth({
     },
   },
   advanced: {
-    useSecureCookies: baseURL.startsWith("https://"),
+    useSecureCookies,
+    defaultCookieAttributes: {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: useSecureCookies,
+      path: "/",
+    },
     database: {
       generateId: false,
     },
@@ -161,15 +180,28 @@ export const auth = betterAuth({
   hooks: {
     before: createAuthMiddleware(async (ctx) => {
       if (ctx.path === "/sign-up/email") {
-        const setupSecret = process.env.OWNER_SETUP_SECRET;
-        const staffSecret = process.env.BETTER_AUTH_SECRET;
-        const setupHeader = ctx.headers?.get("x-owner-setup");
-        const staffHeader = ctx.headers?.get("x-staff-create");
-        if (setupSecret && setupHeader && setupHeader === setupSecret) return;
-        if (staffSecret && staffHeader && staffHeader === staffSecret) return;
-        throw new APIError("FORBIDDEN", {
-          message: "Public registration is disabled.",
+        const decision = allowOwnerBootstrapSignup({
+          setupSecret: readServerEnv("OWNER_SETUP_SECRET"),
+          setupHeader: ctx.headers?.get("x-owner-setup") ?? "",
+          ownerCount: await ownerCount(),
         });
+        if (!decision.ok) {
+          throw new APIError("FORBIDDEN", { message: decision.message });
+        }
+        return;
+      }
+
+      if (ctx.path === "/two-factor/disable") {
+        const session = await getSessionFromCtx(ctx);
+        const userId = sessionUserId(session);
+        if (!userId) {
+          throw new APIError("UNAUTHORIZED", { message: "Sign in required." });
+        }
+        if (await userIsOwner(userId)) {
+          throw new APIError("FORBIDDEN", {
+            message: "Owner accounts cannot disable multi-factor authentication.",
+          });
+        }
       }
 
       if (ctx.path === "/sign-in/email" || ctx.path === "/sign-in/username") {

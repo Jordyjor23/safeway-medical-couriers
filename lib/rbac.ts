@@ -10,9 +10,11 @@ import {
   canAccessPortal,
   homePathForRoles,
   isOwnerRole,
+  roleRequiresTwoFactor,
   type PermissionKey,
   type PortalKind,
 } from "@/lib/permissions";
+import { isPasswordChangePath, isTwoFactorSetupPath, REQUEST_PATHNAME_HEADER } from "@/lib/request-path";
 
 export type AuthContext = {
   user: {
@@ -48,7 +50,10 @@ export async function getAuthContext(): Promise<AuthContext | null> {
   });
 
   if (!dbUser) return null;
-  if (!accountAllowsLogin(dbUser)) return null;
+  if (!accountAllowsLogin(dbUser)) {
+    await prisma.session.deleteMany({ where: { userId: dbUser.id } });
+    return null;
+  }
 
   const roles = dbUser.roles.map((assignment) => assignment.role.key);
   const permissions = new Set<string>();
@@ -81,6 +86,23 @@ export async function getAuthContext(): Promise<AuthContext | null> {
   };
 }
 
+async function requestPathname() {
+  const headerList = await headers();
+  const explicit = headerList.get(REQUEST_PATHNAME_HEADER);
+  if (explicit) return explicit;
+  const nextUrl = headerList.get("next-url");
+  if (!nextUrl) return "";
+  try {
+    return new URL(nextUrl, "http://localhost").pathname;
+  } catch {
+    return nextUrl.startsWith("/") ? nextUrl : "";
+  }
+}
+
+function twoFactorSetupRequired(ctx: AuthContext) {
+  return roleRequiresTwoFactor(ctx.roles) && !ctx.user.twoFactorEnabled;
+}
+
 export async function requireAuth() {
   const ctx = await getAuthContext();
   if (!ctx) redirect("/login");
@@ -90,6 +112,12 @@ export async function requireAuth() {
 export async function requireActiveAuth() {
   const ctx = await requireAuth();
   if (ctx.user.mustChangePassword) redirect("/set-password");
+  if (twoFactorSetupRequired(ctx)) {
+    const pathname = await requestPathname();
+    if (!isTwoFactorSetupPath(pathname) && !isPasswordChangePath(pathname)) {
+      redirect("/dashboard/security?mfa=required");
+    }
+  }
   return ctx;
 }
 
@@ -119,6 +147,12 @@ export async function requireApiAuth() {
   if (ctx.user.mustChangePassword) {
     return {
       error: NextResponse.json({ error: "Password change required." }, { status: 403 }),
+      ctx: null,
+    };
+  }
+  if (twoFactorSetupRequired(ctx)) {
+    return {
+      error: NextResponse.json({ error: "MFA setup required." }, { status: 403 }),
       ctx: null,
     };
   }

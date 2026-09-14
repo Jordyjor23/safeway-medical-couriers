@@ -20,10 +20,8 @@ export async function GET(request: NextRequest) {
         email: ctx.user.email,
         name: ctx.user.name,
         username: ctx.user.username,
-        accountStatus: ctx.user.accountStatus,
       },
       roles: ctx.roles,
-      permissions: [...ctx.permissions],
       homePath: homePathForRoles(ctx.roles),
     }),
   );

@@ -67,6 +67,7 @@ describe("app origin helpers", () => {
     expect(isPortalPath("/dashboard/users")).toBe(true);
     expect(isPortalPath("/about")).toBe(false);
     expect(isProtectedPortalPath("/login")).toBe(false);
+    expect(isProtectedPortalPath("/setup")).toBe(false);
     expect(isProtectedPortalPath("/driver/dashboard")).toBe(true);
     expect(PRODUCTION_PORTAL_ORIGIN).toBe("https://portal.safewaycouriers.com");
   });
