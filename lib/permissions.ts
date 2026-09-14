@@ -5,6 +5,8 @@ export const PERMISSIONS = [
   "jobs.publish",
   "applicants.view",
   "applicants.edit",
+  "applicants.self.view",
+  "applicants.self.edit",
   "applicants.screening.view",
   "applicants.notes.view",
   "employees.view",
@@ -72,6 +74,7 @@ export const SYSTEM_ROLE_KEYS = [
   "SALES_ACCOUNT_MANAGER",
   "EMPLOYEE",
   "CUSTOMER",
+  "APPLICANT",
 ] as const;
 
 /** @deprecated Use SYSTEM_ROLE_KEYS. Kept so existing imports continue to work. */
@@ -91,6 +94,7 @@ export const ROLE_LABELS: Record<RoleKey, string> = {
   SALES_ACCOUNT_MANAGER: "Sales / Account Manager",
   EMPLOYEE: "Employee",
   CUSTOMER: "Customer / Client",
+  APPLICANT: "Applicant",
 };
 
 const ALL = [...PERMISSIONS];
@@ -101,6 +105,8 @@ const DAILY_ADMIN: PermissionKey[] = [
   "jobs.edit",
   "applicants.view",
   "applicants.edit",
+  "applicants.self.view",
+  "applicants.self.edit",
   "applicants.notes.view",
   "employees.view",
   "employees.create",
@@ -229,8 +235,9 @@ export const ROLE_PERMISSIONS: Record<RoleKey, readonly PermissionKey[]> = {
     "documents.download",
     "documents.editMetadata",
   ],
-  EMPLOYEE: ["training.view", "documents.view", "documents.download", "incident.view"],
+  EMPLOYEE: ["training.view", "documents.view", "documents.download", "documents.upload", "incident.view"],
   CUSTOMER: ["delivery.view", "contracts.view", "documents.view", "documents.download"],
+  APPLICANT: ["applicants.self.view", "applicants.self.edit", "documents.view", "documents.download", "documents.upload"],
 };
 
 export const OWNER_ONLY_PERMISSIONS: readonly PermissionKey[] = [
@@ -294,7 +301,7 @@ export function canAssignRoleKey(actorRoles: string[], roleKey: string) {
   return actorRoles.includes("OWNER") || actorRoles.includes("ADMIN");
 }
 
-export type PortalKind = "staff" | "admin" | "operations" | "dispatch" | "driver" | "employee" | "customer";
+export type PortalKind = "staff" | "admin" | "operations" | "dispatch" | "driver" | "employee" | "customer" | "applicant";
 
 export function homePathForRoles(roles: string[]) {
   if (roles.includes("OWNER")) return "/dashboard";
@@ -312,6 +319,7 @@ export function homePathForRoles(roles: string[]) {
   }
   if (roles.includes("EMPLOYEE")) return "/employee/dashboard";
   if (roles.includes("CUSTOMER")) return "/customer/dashboard";
+  if (roles.includes("APPLICANT")) return "/applicant/dashboard";
   return "/dashboard";
 }
 
@@ -382,6 +390,8 @@ export function canAccessPortal(roles: string[], kind: PortalKind) {
       return roles.includes("EMPLOYEE") || roles.includes("DRIVER") || roles.includes("DISPATCHER");
     case "customer":
       return roles.includes("CUSTOMER");
+    case "applicant":
+      return roles.includes("APPLICANT");
     default:
       return false;
   }

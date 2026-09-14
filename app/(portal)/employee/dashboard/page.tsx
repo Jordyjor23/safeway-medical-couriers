@@ -1,6 +1,8 @@
 import { createIncident } from "@/app/(portal)/deliveries/actions";
+import { DocumentUploader } from "@/components/portal/DocumentUploader";
 import { EntityDocumentsSection } from "@/components/portal/EntityDocumentsSection";
 import { employeeDocumentBuckets, missingRequirementLabels } from "@/lib/documents/buckets";
+import { documentReviewState } from "@/lib/documents/review-status";
 import { DOCUMENT_LIST_INCLUDE, documentLibraryWhere } from "@/lib/documents/query";
 import { prisma } from "@/lib/db";
 import { assertSameEmployee, hasPermission, requirePortal } from "@/lib/rbac";
@@ -66,17 +68,32 @@ export default async function EmployeeDashboardPage() {
           title="Your documents"
           documents={documents}
           canDownload={hasPermission(ctx, "documents.download")}
+          canUpload={hasPermission(ctx, "documents.upload")}
           canOpenDetails={false}
           missing={missing}
           sections={[
-            { label: "Your documents", documents: buckets.uploaded, empty: "No current files." },
+            { label: "Required / missing", documents: [], empty: missing.length ? undefined : "No missing requirements." },
+            { label: "Uploaded / pending review", documents: documents.filter((doc) => ["UPLOADED", "PENDING_REVIEW"].includes(documentReviewState(doc))), empty: "None pending." },
+            { label: "Approved", documents: documents.filter((doc) => documentReviewState(doc) === "APPROVED"), empty: "None approved yet." },
+            { label: "Rejected", documents: buckets.rejected, empty: "None." },
             { label: "Expiring soon", documents: buckets.expiringSoon, empty: "None." },
             { label: "Expired", documents: buckets.expired, empty: "None." },
-            { label: "Rejected", documents: buckets.rejected, empty: "None." },
-            { label: "Needs action", documents: buckets.needsAction, empty: "Nothing needs action." },
           ]}
           emptyBody="No assigned handbook, policy, or other files yet."
-        />
+        >
+          {employee && hasPermission(ctx, "documents.upload") ? (
+            <DocumentUploader
+              associations={{ employee: false, customer: false, contract: false, delivery: false }}
+              preset={{
+                employeeId: employee.id,
+                employeeLabel: `${employee.legalFirstName} ${employee.legalLastName}`,
+                category: "HR",
+              }}
+              triggerLabel="Upload compliance document"
+              redirectOnSuccess={false}
+            />
+          ) : null}
+        </EntityDocumentsSection>
       ) : null}
       <section className="rounded-2xl border border-line bg-paper p-5">
         <h2 className="font-semibold text-navy">My training</h2>

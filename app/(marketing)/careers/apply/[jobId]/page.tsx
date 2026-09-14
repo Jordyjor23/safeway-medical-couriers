@@ -6,6 +6,8 @@ import { PageHeader } from "@/components/PageHeader";
 import { getPublishedJobByPublicId } from "@/lib/jobs";
 import { getCurrentLegalDocument, getSetting } from "@/lib/settings";
 import { site, publishedContactEmail } from "@/lib/site";
+import { getAuthContext } from "@/lib/rbac";
+import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -19,10 +21,18 @@ export default async function ApplyPage({
   const { jobId } = await params;
   const job = await getPublishedJobByPublicId(jobId);
   if (!job) notFound();
-  const [ack, careers] = await Promise.all([
+  const [ack, careers, ctx] = await Promise.all([
     getCurrentLegalDocument("application-acknowledgement"),
     getSetting("careers", { accommodationEmail: site.email }),
+    getAuthContext(),
   ]);
+  const signedIn = Boolean(ctx?.roles.includes("APPLICANT") || ctx?.user.applicantId);
+  const draft = ctx?.user.applicantId
+    ? await prisma.application.findFirst({
+        where: { applicantId: ctx.user.applicantId, jobOpeningId: job.id, status: "DRAFT" },
+        select: { draftPayload: true },
+      })
+    : null;
 
   return (
     <>
@@ -44,6 +54,8 @@ export default async function ApplyPage({
           acknowledgement={ack?.body ?? ""}
           privacyHref="/careers/privacy"
           accommodationEmail={publishedContactEmail(careers.accommodationEmail)}
+          signedIn={signedIn}
+          serverDraft={(draft?.draftPayload as Record<string, unknown> | null) ?? null}
         />
       </Container>
     </>

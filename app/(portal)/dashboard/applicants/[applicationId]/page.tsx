@@ -17,13 +17,17 @@ const statuses: ApplicationStatus[] = [
   "UNDER_REVIEW",
   "INTERVIEW_REQUESTED",
   "INTERVIEW_SCHEDULED",
+  "INTERVIEW",
   "CONDITIONAL_OFFER",
+  "DOCUMENTS_REQUIRED",
   "BACKGROUND_SCREENING",
+  "COMPLIANCE_REVIEW",
   "ONBOARDING",
   "HIRED",
   "POSITION_FILLED",
   "WITHDRAWN",
   "NOT_SELECTED",
+  "REJECTED",
 ];
 
 export default async function ApplicantProfilePage({
@@ -45,6 +49,7 @@ export default async function ApplicantProfilePage({
       communications: { orderBy: { createdAt: "desc" } },
       screening: { include: { events: { orderBy: { createdAt: "desc" } } } },
       acknowledgements: { include: { legalDocument: true } },
+      documents: { include: { document: true } },
     },
   });
   if (!application) notFound();
@@ -144,6 +149,10 @@ export default async function ApplicantProfilePage({
           <h2 className="text-lg font-semibold text-navy">Notes</h2>
           <form action={addApplicationNote.bind(null, applicationId)} className="mt-3">
             <textarea name="body" required rows={3} className="w-full rounded-lg border border-line px-3 py-2 text-sm" />
+            <label className="mt-2 flex items-center gap-2 text-sm text-navy">
+              <input type="checkbox" name="visibleToApplicant" value="1" />
+              Visible to applicant
+            </label>
             <button className="mt-2 rounded-full bg-navy px-4 py-2 text-sm font-semibold text-white">Add note</button>
           </form>
           <ul className="mt-4 space-y-2 text-sm">
@@ -153,6 +162,22 @@ export default async function ApplicantProfilePage({
           </ul>
         </section>
       ) : null}
+
+      <section className="rounded-2xl border border-line bg-paper p-5">
+        <h2 className="text-lg font-semibold text-navy">Applicant documents</h2>
+        <ul className="mt-3 space-y-2 text-sm">
+          {application.documents.map((link) => (
+            <li key={link.id}>
+              <Link href={`/dashboard/documents/${link.documentId}`} className="font-semibold text-medical hover:underline">
+                {link.document.name}
+              </Link>
+              {" · "}
+              {link.document.lifecycleStatus}
+              {link.document.rejectionReason ? ` · ${link.document.rejectionReason}` : ""}
+            </li>
+          ))}
+        </ul>
+      </section>
 
       <section className="rounded-2xl border border-line bg-paper p-5">
         <h2 className="text-lg font-semibold text-navy">Audit history</h2>

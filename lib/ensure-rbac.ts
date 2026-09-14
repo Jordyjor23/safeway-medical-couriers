@@ -63,6 +63,9 @@ const NEW_DOCUMENT_PERMISSIONS = [
   "documents.archive",
   "documents.download",
   "documents.viewSensitive",
+  "documents.upload",
+  "applicants.self.view",
+  "applicants.self.edit",
 ] as const;
 
 async function ensureNewDocumentPermissions(

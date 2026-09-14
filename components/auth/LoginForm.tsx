@@ -101,6 +101,10 @@ function LoginFormFields() {
           Forgot password?
         </Link>
         {" · "}
+        <Link href="/register" className="font-semibold text-medical hover:underline">
+          Create applicant account
+        </Link>
+        {" · "}
         <Link href="/setup" className="font-semibold text-medical hover:underline">
           Owner setup
         </Link>

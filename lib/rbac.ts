@@ -26,6 +26,7 @@ export type AuthContext = {
     mustChangePassword?: boolean;
     customerId?: string | null;
     employeeId?: string | null;
+    applicantId?: string | null;
   };
   roles: string[];
   permissions: Set<string>;
@@ -42,6 +43,7 @@ export async function getAuthContext(): Promise<AuthContext | null> {
     where: { id: session.user.id },
     include: {
       employee: { select: { id: true } },
+      applicant: { select: { id: true } },
       customerUser: { select: { customerId: true } },
       roles: { include: { role: { include: { permissions: { include: { permission: true } } } } } },
     },
@@ -75,6 +77,7 @@ export async function getAuthContext(): Promise<AuthContext | null> {
       mustChangePassword: dbUser.mustChangePassword,
       customerId: dbUser.customerUser?.customerId ?? null,
       employeeId: dbUser.employee?.id ?? null,
+      applicantId: dbUser.applicant?.id ?? null,
     },
     roles,
     permissions,

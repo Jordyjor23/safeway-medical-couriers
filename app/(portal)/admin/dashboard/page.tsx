@@ -1,15 +1,20 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
+import { getDashboardOverview } from "@/lib/dashboard-stats";
 import { getDocumentAlertStats } from "@/lib/documents/alert-stats";
-import { requirePortal } from "@/lib/rbac";
+import { hasPermission, requirePortal } from "@/lib/rbac";
 
 export default async function AdminDashboardPage() {
-  await requirePortal("admin");
-  const [employees, customers, deliveries, documentAlerts] = await Promise.all([
-    prisma.employee.count({ where: { status: "ACTIVE" } }),
-    prisma.customer.count({ where: { status: "ACTIVE" } }),
+  const ctx = await requirePortal("admin");
+  const overview = await getDashboardOverview(ctx);
+  const documentAlerts =
+    hasPermission(ctx, "documents.view") || hasPermission(ctx, "compliance.view")
+      ? await getDocumentAlertStats()
+      : { expiringIn30Days: 0, expired: 0, missingDocuments: 0, needsReview: 0, actionRequired: 0 };
+  const [employees, customers, deliveries] = await Promise.all([
+    overview.visibility.employees ? prisma.employee.count({ where: { status: "ACTIVE" } }) : Promise.resolve(0),
+    overview.visibility.customers ? prisma.customer.count({ where: { status: "ACTIVE" } }) : Promise.resolve(0),
     prisma.delivery.count({ where: { status: { notIn: ["DELIVERED", "CANCELLED"] } } }),
-    getDocumentAlertStats(),
   ]);
   return (
     <div>

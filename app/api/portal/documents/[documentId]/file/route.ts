@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { corsPreflight, withCors } from "@/lib/cors";
 import { canAccessManagedDocument } from "@/lib/documents/access";
 import { loadManagedDocumentForAccess } from "@/lib/documents/operations";
+import { verifyDocumentAccessToken } from "@/lib/documents/signed-url";
 import { writeAuditLog } from "@/lib/audit";
+import { prisma } from "@/lib/db";
 import { DocumentStorageError, readPrivateFile } from "@/lib/storage";
 import { requireApiAuth } from "@/lib/rbac";
 
@@ -14,12 +16,46 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ documentId: string }> },
 ) {
-  const { error, ctx } = await requireApiAuth();
-  if (error || !ctx) {
-    return withCors(request, error ?? NextResponse.json({ error: "Unauthorized" }, { status: 401 }));
+  const { documentId } = await params;
+  const token = request.nextUrl.searchParams.get("token");
+  const verified = verifyDocumentAccessToken(token);
+  let ctx = null as Awaited<ReturnType<typeof requireApiAuth>>["ctx"];
+  if (verified) {
+    if (verified.documentId !== documentId) {
+      return withCors(request, NextResponse.json({ error: "Not found." }, { status: 404 }));
+    }
+    const user = await prisma.user.findUnique({
+      where: { id: verified.userId },
+      include: {
+        employee: { select: { id: true } },
+        applicant: { select: { id: true } },
+        customerUser: { select: { customerId: true } },
+        roles: { include: { role: { include: { permissions: { include: { permission: true } } } } } },
+      },
+    });
+    if (!user) {
+      return withCors(request, NextResponse.json({ error: "Unauthorized" }, { status: 401 }));
+    }
+    ctx = {
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        employeeId: user.employee?.id ?? null,
+        applicantId: user.applicant?.id ?? null,
+        customerId: user.customerUser?.customerId ?? null,
+      },
+      roles: user.roles.map((assignment) => assignment.role.key),
+      permissions: new Set(user.roles.flatMap((assignment) => assignment.role.permissions.map((link) => link.permission.key))),
+    };
+  } else {
+    const auth = await requireApiAuth();
+    if (auth.error || !auth.ctx) {
+      return withCors(request, auth.error ?? NextResponse.json({ error: "Unauthorized" }, { status: 401 }));
+    }
+    ctx = auth.ctx;
   }
 
-  const { documentId } = await params;
   const document = await loadManagedDocumentForAccess(documentId);
   if (!document) {
     return withCors(request, NextResponse.json({ error: "Not found." }, { status: 404 }));

@@ -58,9 +58,12 @@ model User {
   notifications Notification[]
   assignedApplications Application[] @relation("ApplicationReviewer")
   employee     Employee?
+  applicant    Applicant?
   customerUser CustomerUser?
   incidents    IncidentReport[]
   assignedDeliveries Delivery[] @relation("DeliveryAssigner")
+  conversions  ApplicantEmployeeConversion[] @relation("ConversionActor")
+  requirementAssignments RequirementAssignment[] @relation("RequirementAssigner")
 
   @@map("user")
 }
@@ -304,6 +307,7 @@ model JobOpening {
 
   questions    JobQuestion[]
   applications Application[]
+  requirementAssignments RequirementAssignment[]
 
   @@index([status, postedAt])
   @@index([workerClassification])
@@ -330,13 +334,17 @@ enum ApplicationStatus {
   UNDER_REVIEW
   INTERVIEW_REQUESTED
   INTERVIEW_SCHEDULED
+  INTERVIEW
   CONDITIONAL_OFFER
+  DOCUMENTS_REQUIRED
   BACKGROUND_SCREENING
+  COMPLIANCE_REVIEW
   ONBOARDING
   HIRED
   POSITION_FILLED
   WITHDRAWN
   NOT_SELECTED
+  REJECTED
 }
 
 enum InterviewStatus {
@@ -350,6 +358,8 @@ enum InterviewStatus {
 
 model Applicant {
   id             String   @id @default(uuid())
+  userId         String?  @unique
+  user           User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
   legalFirstName String
   middleName     String?
   legalLastName  String
@@ -363,6 +373,8 @@ model Applicant {
   updatedAt      DateTime @updatedAt
 
   applications Application[]
+  requirementAssignments RequirementAssignment[]
+  conversions  ApplicantEmployeeConversion[]
 }
 
 model Application {
@@ -417,6 +429,7 @@ model Application {
   canUseGpsApps          Boolean?
   relevantCourierDrivingExperience String?
   resumeFileKey          String?
+  draftPayload           Json?
   assignedReviewerId     String?
   assignedReviewer       User?             @relation("ApplicationReviewer", fields: [assignedReviewerId], references: [id], onDelete: SetNull)
   interviewStatus        InterviewStatus   @default(NOT_REQUESTED)
@@ -436,6 +449,8 @@ model Application {
   communications    ApplicationCommunication[]
   screening         BackgroundScreening?
   employee          Employee?
+  conversions       ApplicantEmployeeConversion[]
+  requirementAssignments RequirementAssignment[]
 
   @@index([jobOpeningId, status])
   @@index([status, submittedAt])
@@ -520,6 +535,7 @@ model ApplicationNote {
   application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
   authorId      String
   body          String
+  visibleToApplicant Boolean @default(false)
   createdAt     DateTime    @default(now())
 
   @@index([applicationId])
@@ -636,6 +652,8 @@ model Employee {
   complianceRecords ComplianceRecord[]
   deliveries    Delivery[]
   tasks         EmployeeTask[]
+  requirementAssignments RequirementAssignment[]
+  conversions   ApplicantEmployeeConversion[]
 
   @@index([managerId])
 }
@@ -976,6 +994,21 @@ enum DocumentCategory {
   VEHICLE
   POLICIES
   SOPS
+  HR
+  APPLICANT
+  DELIVERY
+  CUSTOMER
+  PHI_OPERATIONAL
+}
+
+enum DocumentPolicyDomain {
+  HR
+  APPLICANT
+  COMPLIANCE
+  DELIVERY
+  CUSTOMER
+  PHI_OPERATIONAL
+  CORPORATE
 }
 
 enum DocumentStatus {
@@ -1043,6 +1076,13 @@ model ManagedDocument {
   status        DocumentStatus   @default(CURRENT)
   uploadedBy    String?
   notes         String?
+  uploadedAt    DateTime         @default(now())
+  reviewedAt    DateTime?
+  reviewedBy    String?
+  approvedAt    DateTime?
+  issueDate     DateTime?
+  verificationDate DateTime?
+  policyDomain  DocumentPolicyDomain?
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
 
@@ -1143,10 +1183,68 @@ model ComplianceRequirement {
   key             String             @unique
   name            String
   description     String?
+  category        String?
+  documentType    String?
   defaultRequired Boolean            @default(true)
+  issueDateRequired Boolean          @default(false)
+  expirationRequired Boolean         @default(false)
+  reviewRequired  Boolean            @default(true)
+  active          Boolean            @default(true)
+  reminderSchedule Json?
   sortOrder       Int                @default(0)
   records         ComplianceRecord[]
   documentRules   DocumentRequirementRule[]
+  assignments     RequirementAssignment[]
+}
+
+enum RequirementAudience {
+  APPLICANT
+  EMPLOYEE
+  JOB
+  MANUAL
+}
+
+model RequirementAssignment {
+  id              String               @id @default(uuid())
+  requirementId   String
+  requirement     ComplianceRequirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+  audience        RequirementAudience
+  applicantId     String?
+  applicant       Applicant?           @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+  employeeId      String?
+  employee        Employee?            @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  applicationId   String?
+  application     Application?         @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  jobOpeningId    String?
+  jobOpening      JobOpening?          @relation(fields: [jobOpeningId], references: [id], onDelete: Cascade)
+  assignedById    String?
+  assignedBy      User?                @relation("RequirementAssigner", fields: [assignedById], references: [id], onDelete: SetNull)
+  active          Boolean              @default(true)
+  createdAt       DateTime             @default(now())
+
+  @@index([applicantId, active])
+  @@index([employeeId, active])
+  @@index([applicationId, active])
+  @@index([jobOpeningId, active])
+}
+
+model ApplicantEmployeeConversion {
+  id              String      @id @default(uuid())
+  /// Unique per application so a second HIRED run cannot create another conversion row.
+  applicationId   String      @unique
+  application     Application @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+  applicantId     String
+  applicant       Applicant   @relation(fields: [applicantId], references: [id], onDelete: Restrict)
+  employeeId      String
+  employee        Employee    @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  userId          String?
+  convertedById   String?
+  convertedBy     User?       @relation("ConversionActor", fields: [convertedById], references: [id], onDelete: SetNull)
+  documentIds     Json
+  createdAt       DateTime    @default(now())
+
+  @@index([applicantId])
+  @@index([employeeId])
 }
 
 /// Maps a configurable compliance requirement to a document type. Presence of a file is not verification.
@@ -1198,6 +1296,8 @@ enum NotificationType {
   COMPLIANCE_ALERT
   APPLICATION_RECEIVED
   APPLICATION_STATUS
+  APPLICATION_ACTION_REQUIRED
+  DOCUMENT_REPLACEMENT_REQUESTED
   SYSTEM
 }
 
@@ -1338,4 +1438,82 @@ model AuditLog {
   @@index([createdAt])
   @@index([actorId, createdAt])
   @@index([targetType, targetId])
+}
+
+// ---------------------------------------------------------------------------
+// Future e-signature workflow (Phase 2+). Additive stubs only — no provider
+// integration and no legally binding signing behavior in Phase 1.
+// ---------------------------------------------------------------------------
+
+enum SignatureRequestStatus {
+  DRAFT
+  SENT
+  VIEWED
+  SIGNED
+  COMPLETED
+  DECLINED
+  CANCELED
+  EXPIRED
+  FAILED
+}
+
+enum SignatureSubjectType {
+  APPLICATION
+  EMPLOYEE
+  CONTRACT
+}
+
+model SignatureRequest {
+  id                   String                 @id @default(uuid())
+  status               SignatureRequestStatus @default(DRAFT)
+  subjectType          SignatureSubjectType
+  subjectId            String
+  title                String
+  /// Reserved. Must remain null until a later phase enables a real provider.
+  provider             String?
+  providerEnvelopeId   String?
+  sourceDocumentId     String?
+  completedDocumentId  String?
+  auditCertificateKey  String?
+  createdById          String?
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+  completedAt          DateTime?
+
+  signers SignatureSigner[]
+  events  SignatureEvent[]
+
+  @@index([subjectType, subjectId])
+  @@index([status])
+}
+
+model SignatureSigner {
+  id         String           @id @default(uuid())
+  requestId  String
+  request    SignatureRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  userId     String?
+  email      String
+  name       String
+  role       String?
+  status     String           @default("PENDING")
+  sortOrder  Int              @default(0)
+  viewedAt   DateTime?
+  signedAt   DateTime?
+
+  @@index([requestId])
+}
+
+model SignatureEvent {
+  id              String           @id @default(uuid())
+  requestId       String
+  request         SignatureRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  type            String
+  occurredAt      DateTime         @default(now())
+  actorId         String?
+  /// Provider webhook idempotency key when a later phase enables webhooks.
+  externalEventId String?          @unique
+  /// Sanitized event metadata only. Never store document contents or secrets.
+  metadata        Json?
+
+  @@index([requestId, occurredAt])
 }

@@ -1,95 +1,52 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { issueActivation } from "@/lib/activation";
 import { writeAuditLog } from "@/lib/audit";
+import { convertApplicationToEmployee } from "@/lib/applications/conversion";
+import { isApplicationStatus } from "@/lib/applications/status";
 import { prisma } from "@/lib/db";
-import { nextScopedId } from "@/lib/ids";
-import { ONBOARDING_STEPS } from "@/lib/onboarding";
-import { provisionEmployeePortalUser } from "@/lib/portal-account";
 import { requirePermission } from "@/lib/rbac";
 import type { ApplicationStatus, InterviewStatus } from "@prisma/client";
 
-export async function updateApplicationStatus(applicationId: string, status: ApplicationStatus) {
+export async function updateApplicationStatus(applicationId: string, status: ApplicationStatus, note?: string) {
   const ctx = await requirePermission("applicants.edit");
+  if (!isApplicationStatus(status)) return { error: "Not found." };
   const current = await prisma.application.findUnique({
     where: { id: applicationId },
     include: { applicant: true, jobOpening: true, employee: true },
   });
-  if (!current) return { error: "Application not found." };
+  if (!current) return { error: "Not found." };
 
-  await prisma.application.update({
-    where: { id: applicationId },
-    data: { status },
-  });
-  await prisma.applicantStatusHistory.create({
-    data: {
-      applicationId,
-      fromStatus: current.status,
-      toStatus: status,
-      changedBy: ctx.user.id,
-    },
-  });
-  await writeAuditLog({
-    actorId: ctx.user.id,
-    actorEmail: ctx.user.email,
-    action: "applicant.status.changed",
-    targetType: "application",
-    targetId: applicationId,
-    metadata: { from: current.status, to: status },
-  });
-
-  if (status === "HIRED" && !current.employee) {
-    const employee = await prisma.employee.create({
+  if (current.status !== status) {
+    await prisma.application.update({
+      where: { id: applicationId },
+      data: { status },
+    });
+    await prisma.applicantStatusHistory.create({
       data: {
-        employeeNumber: await nextScopedId("EMP"),
-        applicationId: current.id,
-        legalFirstName: current.applicant.legalFirstName,
-        legalLastName: current.applicant.legalLastName,
-        preferredName: current.applicant.preferredName,
-        email: current.applicant.email,
-        phone: current.applicant.phone,
-        jobTitle: current.jobOpening.title,
-        department: current.jobOpening.department,
-        classification:
-          current.jobOpening.workerClassification === "INDEPENDENT_CONTRACTOR"
-            ? "INDEPENDENT_CONTRACTOR"
-            : "W2_EMPLOYEE",
-        hireDate: new Date(),
-        status: "PENDING_ONBOARDING",
+        applicationId,
+        fromStatus: current.status,
+        toStatus: status,
+        changedBy: ctx.user.id,
+        note: note || null,
       },
     });
-    const checklist = await prisma.onboardingChecklist.create({
-      data: { employeeId: employee.id },
+    await writeAuditLog({
+      actorId: ctx.user.id,
+      actorEmail: ctx.user.email,
+      action: "applicant.status.changed",
+      targetType: "application",
+      targetId: applicationId,
+      metadata: { from: current.status, to: status },
     });
-    await prisma.onboardingStep.createMany({
-      data: ONBOARDING_STEPS.map((key) => ({
-        checklistId: checklist.id,
-        key,
-      })),
+  }
+
+  if (status === "HIRED") {
+    await convertApplicationToEmployee({
+      applicationId,
+      actorId: ctx.user.id,
+      actorEmail: ctx.user.email,
     });
-    await prisma.newHireReport.create({
-      data: { employeeId: employee.id, dateHired: new Date() },
-    });
-    const email = current.applicant.email.trim().toLowerCase();
-    if (email) {
-      const provisioned = await provisionEmployeePortalUser({
-        employeeId: employee.id,
-        email,
-        firstName: current.applicant.legalFirstName,
-        lastName: current.applicant.legalLastName,
-        phone: current.applicant.phone,
-        roleKey: "EMPLOYEE",
-        actorId: ctx.user.id,
-      });
-      if (!("error" in provisioned)) {
-        await issueActivation(
-          provisioned.userId,
-          email,
-          `${current.applicant.legalFirstName} ${current.applicant.legalLastName}`,
-        );
-      }
-    }
   }
 
   revalidatePath("/dashboard/applicants");
@@ -101,8 +58,9 @@ export async function addApplicationNote(applicationId: string, formData: FormDa
   const ctx = await requirePermission("applicants.notes.view");
   const body = String(formData.get("body") ?? "").trim();
   if (!body) return;
+  const visibleToApplicant = String(formData.get("visibleToApplicant") ?? "") === "1";
   await prisma.applicationNote.create({
-    data: { applicationId, authorId: ctx.user.id, body },
+    data: { applicationId, authorId: ctx.user.id, body, visibleToApplicant },
   });
   await writeAuditLog({
     actorId: ctx.user.id,

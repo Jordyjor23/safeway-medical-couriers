@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import { seedPhase1Requirements } from "../lib/compliance/requirements";
 import { ensureSystemRoles } from "../lib/ensure-rbac";
 import {
   DEFAULT_ACCOMMODATION_NOTICE,
@@ -110,17 +111,6 @@ const careerCategories = [
   },
 ];
 
-const complianceRequirements = [
-  { key: "hipaa", name: "HIPAA training", sortOrder: 10 },
-  { key: "bloodborne_pathogens", name: "Bloodborne Pathogens", sortOrder: 20 },
-  { key: "hazmat_awareness", name: "HazMat General Awareness", sortOrder: 30 },
-  { key: "un3373", name: "UN3373", sortOrder: 40 },
-  { key: "sop_acknowledgement", name: "Internal SOP acknowledgement", sortOrder: 50 },
-  { key: "driver_qualification", name: "Driver qualification", sortOrder: 60 },
-  { key: "insurance", name: "Insurance", sortOrder: 70 },
-  { key: "vehicle_registration", name: "Vehicle registration", sortOrder: 80 },
-];
-
 async function seedLegal(slug: string, title: string, body: string) {
   await prisma.legalDocument.upsert({
     where: { slug_version: { slug, version: "1.0" } },
@@ -147,42 +137,7 @@ async function main() {
     });
   }
 
-  for (const requirement of complianceRequirements) {
-    await prisma.complianceRequirement.upsert({
-      where: { key: requirement.key },
-      update: requirement,
-      create: requirement,
-    });
-  }
-
-  const requirementRows = await prisma.complianceRequirement.findMany();
-  const requirementByKey = new Map(requirementRows.map((row) => [row.key, row.id]));
-  const documentRules: { key: string; documentType: string; appliesTo: string }[] = [
-    { key: "hipaa", documentType: "HIPAA_TRAINING", appliesTo: "ALL" },
-    { key: "bloodborne_pathogens", documentType: "BLOODBORNE_PATHOGENS", appliesTo: "ALL" },
-    { key: "driver_qualification", documentType: "DRIVERS_LICENSE", appliesTo: "DRIVER" },
-    { key: "insurance", documentType: "AUTO_INSURANCE", appliesTo: "DRIVER" },
-    { key: "vehicle_registration", documentType: "VEHICLE_REGISTRATION", appliesTo: "DRIVER" },
-  ];
-  for (const rule of documentRules) {
-    const requirementId = requirementByKey.get(rule.key);
-    if (!requirementId) continue;
-    await prisma.documentRequirementRule.upsert({
-      where: {
-        requirementId_documentType_appliesTo: {
-          requirementId,
-          documentType: rule.documentType,
-          appliesTo: rule.appliesTo,
-        },
-      },
-      update: {},
-      create: {
-        requirementId,
-        documentType: rule.documentType,
-        appliesTo: rule.appliesTo,
-      },
-    });
-  }
+  await seedPhase1Requirements();
 
   await seedLegal("eeo", "Equal Employment Opportunity", DEFAULT_EEO_STATEMENT);
   await seedLegal("applicant-privacy", "Applicant Privacy Notice", DEFAULT_APPLICANT_PRIVACY);

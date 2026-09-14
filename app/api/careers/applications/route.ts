@@ -216,6 +216,17 @@ export async function POST(request: Request) {
 }
 
 export async function GET(request: Request) {
+  const ip = await clientIp();
+  const recentLookups = await prisma.application.count({
+    where: {
+      ipAddress: ip,
+      updatedAt: { gte: new Date(Date.now() - 15 * 60 * 1000) },
+    },
+  });
+  if (recentLookups >= 30) {
+    return NextResponse.json({ error: "Too many status lookups from this network. Try again later." }, { status: 429 });
+  }
+
   const { searchParams } = new URL(request.url);
   const trackingNumber = searchParams.get("tracking")?.trim();
   const email = searchParams.get("email")?.trim().toLowerCase();

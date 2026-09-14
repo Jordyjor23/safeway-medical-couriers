@@ -34,3 +34,20 @@ npx prisma db seed
 ```
 
 Owner account: visit `/setup` with `OWNER_SETUP_SECRET`. Never commit passwords.
+
+## 20260914010000_phase1_applicant_compliance
+
+Additive Phase 1 upgrade for applicant accounts, server-side application drafts, document review metadata, HR/compliance policy domains, requirement assignments, applicant→employee conversion records, and e-signature stub tables.
+
+- Adds `Applicant.userId`, `Application.draftPayload`, `ApplicationNote.visibleToApplicant`
+- Adds application statuses `INTERVIEW`, `DOCUMENTS_REQUIRED`, `COMPLIANCE_REVIEW`, `REJECTED`
+- Adds document categories `HR`, `APPLICANT`, `DELIVERY`, `CUSTOMER`, `PHI_OPERATIONAL` and `DocumentPolicyDomain`
+- Adds review metadata columns on `ManagedDocument` (no drops)
+- Adds `RequirementAssignment`, `ApplicantEmployeeConversion`, `SignatureRequest`, `SignatureSigner`, `SignatureEvent`
+- No table/column drops, no reset, no truncate
+
+```bash
+npx prisma migrate deploy
+npx prisma db seed
+```
+

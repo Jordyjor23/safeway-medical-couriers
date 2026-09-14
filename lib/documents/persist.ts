@@ -7,6 +7,7 @@ import {
   supersedeManagedDocument,
 } from "@/lib/documents/operations";
 import { isExtractionEnabled } from "@/lib/documents/extraction/provider";
+import { policyDomainFor, resolveStoredOwner } from "@/lib/documents/policy";
 import { prisma } from "@/lib/db";
 
 export async function persistManagedDocument(args: {
@@ -24,14 +25,24 @@ export async function persistManagedDocument(args: {
   documentType?: string | null;
   effectiveDate?: Date | null;
   expirationDate?: Date | null;
+  issueDate?: Date | null;
   notes?: string | null;
   isSensitive?: boolean;
   employeeId?: string;
+  applicantId?: string;
+  applicationId?: string;
   customerId?: string;
   contractId?: string;
   deliveryId?: string;
   supersedesId?: string;
 }) {
+  const owner = resolveStoredOwner({
+    employeeId: args.employeeId,
+    applicantId: args.applicantId,
+    customerId: args.customerId,
+    deliveryId: args.deliveryId,
+    contractId: args.contractId,
+  });
   const document = await prisma.managedDocument.create({
     data: {
       name: args.name.trim() || args.stored.originalFileName,
@@ -45,9 +56,14 @@ export async function persistManagedDocument(args: {
       contentSha256: args.stored.contentSha256,
       effectiveDate: args.effectiveDate ?? null,
       expirationDate: args.expirationDate ?? null,
+      issueDate: args.issueDate ?? args.effectiveDate ?? null,
       notes: args.notes || null,
-      isSensitive: args.isSensitive ?? false,
+      isSensitive: args.isSensitive ?? Boolean(args.applicantId || args.employeeId),
       uploadedBy: args.actor.user.id,
+      uploadedAt: new Date(),
+      ownerEntity: owner.ownerEntity,
+      ownerId: owner.ownerId,
+      policyDomain: policyDomainFor(args.category, args.documentType),
       lifecycleStatus: "UPLOADED",
       verificationStatus: "UNVERIFIED",
       extractionStatus: isExtractionEnabled() ? "PENDING" : "OCR_DISABLED",
@@ -58,6 +74,8 @@ export async function persistManagedDocument(args: {
     documentId: document.id,
     actor: args.actor,
     employeeId: args.employeeId,
+    applicantId: args.applicantId,
+    applicationId: args.applicationId,
     customerId: args.customerId,
     contractId: args.contractId,
     deliveryId: args.deliveryId,
@@ -69,7 +87,7 @@ export async function persistManagedDocument(args: {
   if (args.supersedesId) {
     const previous = await prisma.managedDocument.findUnique({
       where: { id: args.supersedesId },
-      include: { employeeLinks: true, customerLinks: true, contractLinks: true, deliveryLinks: true },
+      include: { employeeLinks: true, customerLinks: true, contractLinks: true, deliveryLinks: true, applicantLinks: true },
     });
     const access = await loadManagedDocumentForAccess(args.supersedesId);
     if (!previous || !access || !canAccessManagedDocument(args.actor, access, "view")) {
@@ -93,6 +111,11 @@ export async function persistManagedDocument(args: {
     if (!args.deliveryId && previous.deliveryLinks[0]) {
       await prisma.deliveryDocument.create({
         data: { deliveryId: previous.deliveryLinks[0].deliveryId, documentId: document.id },
+      });
+    }
+    if (!args.applicationId && previous.applicantLinks[0]) {
+      await prisma.applicantDocument.create({
+        data: { applicationId: previous.applicantLinks[0].applicationId, documentId: document.id },
       });
     }
     await supersedeManagedDocument({

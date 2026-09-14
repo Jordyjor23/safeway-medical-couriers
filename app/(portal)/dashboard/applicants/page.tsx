@@ -32,7 +32,7 @@ export default async function ApplicantsPage({
         <input name="location" placeholder="Location" defaultValue={params.location} className="rounded-lg border border-line px-3 py-2 text-sm" />
         <select name="status" defaultValue={params.status ?? ""} className="rounded-lg border border-line px-3 py-2 text-sm">
           <option value="">All statuses</option>
-          {["SUBMITTED", "UNDER_REVIEW", "INTERVIEW_REQUESTED", "INTERVIEW_SCHEDULED", "CONDITIONAL_OFFER", "BACKGROUND_SCREENING", "ONBOARDING", "HIRED", "NOT_SELECTED"].map((status) => (
+          {["SUBMITTED", "UNDER_REVIEW", "INTERVIEW", "CONDITIONAL_OFFER", "DOCUMENTS_REQUIRED", "COMPLIANCE_REVIEW", "BACKGROUND_SCREENING", "ONBOARDING", "HIRED", "REJECTED", "NOT_SELECTED"].map((status) => (
             <option key={status} value={status}>{status.replaceAll("_", " ")}</option>
           ))}
         </select>
