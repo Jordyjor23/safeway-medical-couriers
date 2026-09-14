@@ -18,6 +18,7 @@ type ListedDocument = {
   isSensitive: boolean;
   createdAt: Date;
   rejectionReason?: string | null;
+  applicantLinks?: { application: { trackingNumber: string; applicant: { legalFirstName: string; legalLastName: string } } }[];
   employeeLinks: { employee: { legalFirstName: string; legalLastName: string } }[];
   customerLinks: { customer: { legalName: string } }[];
   contractLinks: { contract: { contractNumber: string; customer: { legalName: string } } }[];

@@ -23,12 +23,17 @@ export function formatPersonName(first: string, last: string) {
 }
 
 export function associatedWithLabel(document: {
+  applicantLinks?: { application: { trackingNumber: string; applicant: { legalFirstName: string; legalLastName: string } } }[];
   employeeLinks: { employee: { legalFirstName: string; legalLastName: string } }[];
   customerLinks: { customer: { legalName: string } }[];
   contractLinks: { contract: { contractNumber: string; customer: { legalName: string } } }[];
   deliveryLinks: { delivery: { deliveryNumber: string; customer: { legalName: string } } }[];
 }) {
   const parts = [
+    ...(document.applicantLinks ?? []).map(
+      (link) =>
+        `${formatPersonName(link.application.applicant.legalFirstName, link.application.applicant.legalLastName)} · ${link.application.trackingNumber}`,
+    ),
     ...document.employeeLinks.map((link) => formatPersonName(link.employee.legalFirstName, link.employee.legalLastName)),
     ...document.customerLinks.map((link) => link.customer.legalName),
     ...document.contractLinks.map((link) => `${link.contract.contractNumber} · ${link.contract.customer.legalName}`),

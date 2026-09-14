@@ -57,6 +57,9 @@ export type DocumentExtractionInput = {
   mimeType: string | null;
   filename?: string | null;
   bytes?: Uint8Array;
+  isSensitive?: boolean;
+  documentType?: string | null;
+  category?: string | null;
 };
 
 export interface DocumentExtractionProvider {

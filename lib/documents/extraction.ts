@@ -3,3 +3,4 @@
 export type { DocumentExtractionResult, DocumentExtractionService, ExtractedFieldDraft } from "@/lib/documents/extraction/types";
 export { documentExtractionService, isExtractionEnabled, resolveExtractionProvider } from "@/lib/documents/extraction/provider";
 export { NoopDocumentExtractionService } from "@/lib/documents/extraction/noop";
+export { blocksExternalDocumentExtraction, isExternalExtractionAllowed } from "@/lib/documents/extraction/egress";

@@ -8,6 +8,7 @@ export type DocumentActor = {
 };
 
 export const DOCUMENT_ACCESS_INCLUDE = {
+  applicantLinks: { select: { applicationId: true } },
   employeeLinks: { select: { employeeId: true } },
   customerLinks: { select: { customerId: true } },
   contractLinks: { select: { contract: { select: { customerId: true } } } },
@@ -19,10 +20,27 @@ export const DOCUMENT_ACCESS_INCLUDE = {
 export type DocumentAccessRecord = {
   id: string;
   isSensitive: boolean;
+  applicantLinks: { applicationId: string }[];
   employeeLinks: { employeeId: string }[];
   customerLinks: { customerId: string }[];
   contractLinks: { contract: { customerId: string } }[];
   deliveryLinks: { delivery: { customerId: string; driverEmployeeId: string | null } }[];
+};
+
+export type AssociationPickerKinds = {
+  employee: boolean;
+  customer: boolean;
+  contract: boolean;
+  delivery: boolean;
+  applicant: boolean;
+};
+
+export const NO_ASSOCIATION_PICKERS: AssociationPickerKinds = {
+  employee: false,
+  customer: false,
+  contract: false,
+  delivery: false,
+  applicant: false,
 };
 
 export type DocumentAccessAction = "view" | "download" | "edit" | "verify" | "archive";
@@ -64,6 +82,8 @@ const DELIVERY_DOC_ROLES = new Set([
   "COMPLIANCE_ADMIN",
 ]);
 
+const APPLICANT_DOC_ROLES = new Set(["OWNER", "ADMIN", "HR_RECRUITER", "COMPLIANCE_ADMIN"]);
+
 export function hasPermission(ctx: DocumentActor, permission: string) {
   return isOwnerRole(ctx.roles) || ctx.permissions.has(permission);
 }
@@ -86,11 +106,18 @@ function associatedCustomerIds(document: DocumentAccessRecord) {
 
 function isUnlinked(document: DocumentAccessRecord) {
   return (
+    document.applicantLinks.length === 0 &&
     document.employeeLinks.length === 0 &&
     document.customerLinks.length === 0 &&
     document.contractLinks.length === 0 &&
     document.deliveryLinks.length === 0
   );
+}
+
+export function canViewApplicantDocuments(ctx: DocumentActor) {
+  if (!hasRole(ctx, APPLICANT_DOC_ROLES)) return false;
+  if (hasPermission(ctx, "applicants.view") || hasPermission(ctx, "applicants.screening.view")) return true;
+  return ctx.roles.includes("COMPLIANCE_ADMIN") && hasPermission(ctx, "documents.viewSensitive");
 }
 
 function linkedToOwnEmployee(ctx: DocumentActor, document: DocumentAccessRecord) {
@@ -163,6 +190,9 @@ export function canAccessManagedDocument(
   if (document.deliveryLinks.length && hasRole(ctx, DELIVERY_DOC_ROLES) && hasPermission(ctx, "delivery.view")) {
     return true;
   }
+  if (document.applicantLinks.length && canViewApplicantDocuments(ctx)) {
+    return true;
+  }
   return false;
 }
 
@@ -216,6 +246,7 @@ export function documentsListWhere(ctx: DocumentActor): Prisma.ManagedDocumentWh
     if (hasRole(ctx, UNLINKED_DOC_ROLES)) {
       clauses.push({
         AND: [
+          { applicantLinks: { none: {} } },
           { employeeLinks: { none: {} } },
           { customerLinks: { none: {} } },
           { contractLinks: { none: {} } },
@@ -231,6 +262,9 @@ export function documentsListWhere(ctx: DocumentActor): Prisma.ManagedDocumentWh
     }
     if (hasRole(ctx, DELIVERY_DOC_ROLES) && hasPermission(ctx, "delivery.view")) {
       clauses.push({ deliveryLinks: { some: {} } });
+    }
+    if (canViewApplicantDocuments(ctx)) {
+      clauses.push({ applicantLinks: { some: {} } });
     }
   }
 
@@ -288,10 +322,17 @@ export function canAssociateDelivery(
   return hasRole(ctx, DELIVERY_DOC_ROLES) && hasPermission(ctx, "delivery.view");
 }
 
-export function associationPickerKinds(ctx: DocumentActor) {
+export function canAssociateApplicant(ctx: DocumentActor, _applicationId: string) {
+  if (!hasPermission(ctx, "documents.upload") && !hasPermission(ctx, "documents.editMetadata")) return false;
+  if (isOwnerRole(ctx.roles)) return true;
+  if (ctx.roles.includes("CUSTOMER") || ctx.roles.includes("DRIVER") || ctx.roles.includes("EMPLOYEE")) return false;
+  return canViewApplicantDocuments(ctx);
+}
+
+export function associationPickerKinds(ctx: DocumentActor): AssociationPickerKinds {
   const canWrite = hasPermission(ctx, "documents.upload") || hasPermission(ctx, "documents.editMetadata");
   if (!canWrite) {
-    return { employee: false, customer: false, contract: false, delivery: false };
+    return { ...NO_ASSOCIATION_PICKERS };
   }
   const owner = isOwnerRole(ctx.roles);
   return {
@@ -311,5 +352,6 @@ export function associationPickerKinds(ctx: DocumentActor) {
       owner ||
       (hasRole(ctx, DELIVERY_DOC_ROLES) && hasPermission(ctx, "delivery.view")) ||
       ((ctx.roles.includes("DRIVER") || ctx.roles.includes("EMPLOYEE")) && Boolean(ctx.user.employeeId)),
+    applicant: owner || canViewApplicantDocuments(ctx),
   };
 }

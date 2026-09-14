@@ -3,6 +3,7 @@ import { writeAuditLog } from "@/lib/audit";
 import {
   DOCUMENT_ACCESS_INCLUDE,
   canAccessManagedDocument,
+  canAssociateApplicant,
   canAssociateContract,
   canAssociateCustomer,
   canAssociateDelivery,
@@ -213,6 +214,7 @@ export async function associateManagedDocument(args: {
   customerId?: string;
   contractId?: string;
   deliveryId?: string;
+  applicationId?: string;
 }) {
   const document = await loadManagedDocumentForAccess(args.documentId);
   if (!document) return { error: "Not found." };
@@ -249,6 +251,16 @@ export async function associateManagedDocument(args: {
       data: { deliveryId: args.deliveryId, documentId: document.id },
     });
   }
+  if (args.applicationId) {
+    const application = await prisma.application.findUnique({
+      where: { id: args.applicationId },
+      select: { id: true },
+    });
+    if (!application || !canAssociateApplicant(args.actor, application.id)) return { error: "Not found." };
+    await prisma.applicantDocument.create({
+      data: { applicationId: application.id, documentId: document.id },
+    });
+  }
 
   await writeAuditLog({
     actorId: args.actor.user.id,
@@ -260,6 +272,7 @@ export async function associateManagedDocument(args: {
       customerId: args.customerId ?? null,
       contractId: args.contractId ?? null,
       deliveryId: args.deliveryId ?? null,
+      applicationId: args.applicationId ?? null,
     },
   });
   return { ok: true as const };

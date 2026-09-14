@@ -1,3 +1,4 @@
+import { blocksExternalDocumentExtraction, disabledExtractionResult, isExternalExtractionAllowed } from "@/lib/documents/extraction/egress";
 import { MANUAL_EXTRACTION_MESSAGE, isExtractionUnsupportedFormat } from "@/lib/documents/extraction/unsupported";
 import { mapProviderDocumentType } from "@/lib/documents/extraction/map-type";
 import { prepareExtractedField } from "@/lib/documents/extraction/fields";
@@ -23,23 +24,18 @@ export function azureExtractionReady() {
 
 /**
  * Azure AI Document Intelligence (formerly Form Recognizer).
- * Called only when DOCUMENT_EXTRACTION_PROVIDER=azure and both endpoint + key are set.
- * Documents are sent to Azure for analysis; do not enable until the customer accepts that transfer.
+ * Requires DOCUMENT_EXTRACTION_PROVIDER=azure, endpoint + key, AND DOCUMENT_EXTRACTION_ALLOW_EXTERNAL=true.
+ * Sensitive, identity, PHI, and applicant documents are never posted to Azure.
  */
 export class AzureDocumentExtractionService implements DocumentExtractionProvider {
   readonly id = "azure";
 
   async extract(input: DocumentExtractionInput): Promise<DocumentExtractionResult> {
-    if (!azureConfigured()) {
-      return {
-        status: "OCR_DISABLED",
-        provider: "noop",
-        extractedText: "",
-        detectedDocumentType: null,
-        typeConfidence: 0,
-        fields: [],
-        extractedAt: new Date(),
-      };
+    if (!azureConfigured() || !isExternalExtractionAllowed()) {
+      return disabledExtractionResult();
+    }
+    if (blocksExternalDocumentExtraction(input)) {
+      return disabledExtractionResult();
     }
     const mime = (input.mimeType ?? "").toLowerCase();
     if (isExtractionUnsupportedFormat(input.mimeType, input.filename) || !AZURE_SUPPORTED.has(mime)) {

@@ -16,6 +16,7 @@ export type DocumentLibraryFilters = {
   customerId?: string;
   contractId?: string;
   deliveryId?: string;
+  applicationId?: string;
   verification?: string;
   archived?: string;
   expiresFrom?: string;
@@ -55,6 +56,7 @@ export function documentLibraryWhere(
   if (filters.customerId) extra.push({ customerLinks: { some: { customerId: filters.customerId } } });
   if (filters.contractId) extra.push({ contractLinks: { some: { contractId: filters.contractId } } });
   if (filters.deliveryId) extra.push({ deliveryLinks: { some: { deliveryId: filters.deliveryId } } });
+  if (filters.applicationId) extra.push({ applicantLinks: { some: { applicationId: filters.applicationId } } });
   const employeeName = filters.employee?.trim();
   if (employeeName) {
     extra.push({
@@ -162,6 +164,17 @@ export function documentLibraryWhere(
 }
 
 export const DOCUMENT_LIST_INCLUDE = {
+  applicantLinks: {
+    include: {
+      application: {
+        select: {
+          id: true,
+          trackingNumber: true,
+          applicant: { select: { legalFirstName: true, legalLastName: true } },
+        },
+      },
+    },
+  },
   employeeLinks: {
     include: { employee: { select: { id: true, legalFirstName: true, legalLastName: true, employeeNumber: true } } },
   },

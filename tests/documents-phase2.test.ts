@@ -22,6 +22,7 @@ function document(overrides: Partial<DocumentAccessRecord> = {}): DocumentAccess
   return {
     id: "doc-1",
     isSensitive: false,
+    applicantLinks: [],
     employeeLinks: [],
     customerLinks: [],
     contractLinks: [],
@@ -132,6 +133,72 @@ describe("document row-level access", () => {
     expect(canAccessManagedDocument(viewer, file, "view")).toBe(true);
     expect(canAccessManagedDocument(viewer, file, "download")).toBe(false);
   });
+
+  it("treats applicant-only files as linked, not unlinked", () => {
+    const applicantFile = document({ applicantLinks: [{ applicationId: "app-1" }] });
+    const ops = actor({
+      roles: ["OPERATIONS_MANAGER"],
+      permissions: ["documents.view", "documents.download", "employees.view", "delivery.view"],
+    });
+    const dispatcher = actor({
+      roles: ["DISPATCHER"],
+      permissions: ["documents.view", "documents.download", "delivery.view"],
+    });
+    const sales = actor({
+      roles: ["SALES_ACCOUNT_MANAGER"],
+      permissions: ["documents.view", "documents.download", "customers.view"],
+    });
+    expect(canAccessManagedDocument(ops, applicantFile)).toBe(false);
+    expect(canAccessManagedDocument(ops, applicantFile, "download")).toBe(false);
+    expect(canAccessManagedDocument(ops, applicantFile, "archive")).toBe(false);
+    expect(canAccessManagedDocument(dispatcher, applicantFile)).toBe(false);
+    expect(canAccessManagedDocument(sales, applicantFile)).toBe(false);
+    expect(canAccessManagedDocument(ops, document())).toBe(true);
+  });
+
+  it("limits applicant files to recruiting and compliance staff", () => {
+    const applicantFile = document({ applicantLinks: [{ applicationId: "app-1" }] });
+    const hr = actor({
+      roles: ["HR_RECRUITER"],
+      permissions: ["documents.view", "documents.download", "documents.viewSensitive", "applicants.view"],
+    });
+    const admin = actor({
+      roles: ["ADMIN"],
+      permissions: ["documents.view", "documents.download", "applicants.view"],
+    });
+    const compliance = actor({
+      roles: ["COMPLIANCE_ADMIN"],
+      permissions: ["documents.view", "documents.download", "documents.viewSensitive"],
+    });
+    const hrWithoutApplicantPerm = actor({
+      roles: ["HR_RECRUITER"],
+      permissions: ["documents.view", "documents.download", "employees.view"],
+    });
+    const owner = actor({ roles: ["OWNER"], permissions: ["documents.view"] });
+    expect(canAccessManagedDocument(hr, applicantFile)).toBe(true);
+    expect(canAccessManagedDocument(hr, applicantFile, "download")).toBe(true);
+    expect(canAccessManagedDocument(admin, applicantFile)).toBe(true);
+    expect(canAccessManagedDocument(compliance, applicantFile)).toBe(true);
+    expect(canAccessManagedDocument(hrWithoutApplicantPerm, applicantFile)).toBe(false);
+    expect(canAccessManagedDocument(owner, applicantFile)).toBe(true);
+  });
+
+  it("excludes applicant-only rows from unlinked list queries", () => {
+    const ops = actor({
+      roles: ["OPERATIONS_MANAGER"],
+      permissions: ["documents.view", "employees.view", "delivery.view"],
+    });
+    const hr = actor({
+      roles: ["HR_RECRUITER"],
+      permissions: ["documents.view", "applicants.view", "employees.view"],
+    });
+    const opsWhere = JSON.stringify(documentsListWhere(ops));
+    expect(opsWhere).toContain("applicantLinks");
+    expect(opsWhere).toContain('"none":{}');
+    const hrWhere = JSON.stringify(documentsListWhere(hr));
+    expect(hrWhere).toContain("applicantLinks");
+    expect(hrWhere).toContain('"some":{}');
+  });
 });
 
 describe("file validation", () => {
@@ -216,11 +283,19 @@ describe("lifecycle derivation", () => {
 
 describe("ocr phase 2 safety", () => {
   it("never enables an extraction vendor", async () => {
+    const fetchSpy = vi.fn();
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = fetchSpy as typeof fetch;
     process.env.DOCUMENT_EXTRACTION_PROVIDER = "azure";
-    const result = await documentExtractionService().extract({ blobKey: "private/x/file.pdf", mimeType: "application/pdf" });
-    expect(result.status).toBe("OCR_DISABLED");
-    expect(result.provider).toBe("noop");
-    expect(result.fields).toEqual([]);
+    try {
+      const result = await documentExtractionService().extract({ blobKey: "private/x/file.pdf", mimeType: "application/pdf" });
+      expect(result.status).toBe("OCR_DISABLED");
+      expect(result.provider).toBe("noop");
+      expect(result.fields).toEqual([]);
+      expect(fetchSpy).not.toHaveBeenCalled();
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
   });
 });
 

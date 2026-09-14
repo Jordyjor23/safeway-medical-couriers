@@ -45,6 +45,8 @@ import {
   reviewExtractedField,
 } from "@/lib/documents/extraction/review";
 import { documentExtractionService, isExtractionEnabled, resolveExtractionProvider } from "@/lib/documents/extraction/provider";
+import { AzureDocumentExtractionService } from "@/lib/documents/extraction/azure";
+import { blocksExternalDocumentExtraction, isExternalExtractionAllowed } from "@/lib/documents/extraction/egress";
 import { prepareExtractedField } from "@/lib/documents/extraction/fields";
 import { mapProviderDocumentType } from "@/lib/documents/extraction/map-type";
 import { confidenceBand, normalizeProposedDate, normalizeVin } from "@/lib/documents/extraction/normalize";
@@ -69,6 +71,7 @@ function access(overrides: Partial<DocumentAccessRecord> = {}): DocumentAccessRe
   return {
     id: "doc-1",
     isSensitive: false,
+    applicantLinks: [],
     employeeLinks: [],
     customerLinks: [],
     contractLinks: [],
@@ -91,11 +94,14 @@ function zipWith(contents: string) {
 const originalProvider = process.env.DOCUMENT_EXTRACTION_PROVIDER;
 const originalAzureEndpoint = process.env.AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT;
 const originalAzureKey = process.env.AZURE_DOCUMENT_INTELLIGENCE_KEY;
+const originalAllowExternal = process.env.DOCUMENT_EXTRACTION_ALLOW_EXTERNAL;
 
 afterEach(() => {
   process.env.DOCUMENT_EXTRACTION_PROVIDER = originalProvider;
   process.env.AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT = originalAzureEndpoint;
   process.env.AZURE_DOCUMENT_INTELLIGENCE_KEY = originalAzureKey;
+  if (originalAllowExternal === undefined) delete process.env.DOCUMENT_EXTRACTION_ALLOW_EXTERNAL;
+  else process.env.DOCUMENT_EXTRACTION_ALLOW_EXTERNAL = originalAllowExternal;
   vi.clearAllMocks();
 });
 
@@ -133,6 +139,137 @@ describe("phase 4 provider selection", () => {
     const result = await documentExtractionService().extract({ blobKey: "private/x.pdf", mimeType: "application/pdf" });
     expect(result.status).toBe("OCR_DISABLED");
     expect(result.provider).toBe("noop");
+  });
+
+  it("does not enable azure without DOCUMENT_EXTRACTION_ALLOW_EXTERNAL=true", async () => {
+    const fetchSpy = vi.fn();
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = fetchSpy as typeof fetch;
+    process.env.DOCUMENT_EXTRACTION_PROVIDER = "azure";
+    process.env.AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT = "https://example.cognitiveservices.azure.com";
+    process.env.AZURE_DOCUMENT_INTELLIGENCE_KEY = "test-key";
+    delete process.env.DOCUMENT_EXTRACTION_ALLOW_EXTERNAL;
+    try {
+      expect(isExternalExtractionAllowed()).toBe(false);
+      expect(isExtractionEnabled()).toBe(false);
+      expect(resolveExtractionProvider().id).toBe("noop");
+      const viaFacade = await documentExtractionService().extract({
+        blobKey: "private/x.pdf",
+        mimeType: "application/pdf",
+        bytes: new Uint8Array([1, 2, 3]),
+      });
+      expect(viaFacade.status).toBe("OCR_DISABLED");
+      const viaAzure = await new AzureDocumentExtractionService().extract({
+        blobKey: "private/x.pdf",
+        mimeType: "application/pdf",
+        filename: "policy.pdf",
+        bytes: new Uint8Array([1, 2, 3]),
+        isSensitive: false,
+        documentType: "SIGNED_POLICY",
+        category: "POLICIES",
+      });
+      expect(viaAzure.status).toBe("OCR_DISABLED");
+      expect(viaAzure.provider).toBe("noop");
+      expect(fetchSpy).not.toHaveBeenCalled();
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("does not POST sensitive, identity, PHI, or applicant files to Azure even when the external gate is on", async () => {
+    const fetchSpy = vi.fn();
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = fetchSpy as typeof fetch;
+    process.env.DOCUMENT_EXTRACTION_PROVIDER = "azure";
+    process.env.AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT = "https://example.cognitiveservices.azure.com";
+    process.env.AZURE_DOCUMENT_INTELLIGENCE_KEY = "test-key";
+    process.env.DOCUMENT_EXTRACTION_ALLOW_EXTERNAL = "true";
+    const azure = new AzureDocumentExtractionService();
+    const bytes = new Uint8Array([0x25, 0x50, 0x44, 0x46]);
+    try {
+      expect(isExtractionEnabled()).toBe(true);
+      const sensitive = await azure.extract({
+        blobKey: "private/id.pdf",
+        mimeType: "application/pdf",
+        filename: "license.pdf",
+        bytes,
+        isSensitive: true,
+        documentType: "SIGNED_POLICY",
+        category: "POLICIES",
+      });
+      const identity = await azure.extract({
+        blobKey: "private/id.pdf",
+        mimeType: "application/pdf",
+        filename: "license.pdf",
+        bytes,
+        isSensitive: false,
+        documentType: "DRIVERS_LICENSE",
+        category: "DRIVER_DOCUMENTS",
+      });
+      const phi = await azure.extract({
+        blobKey: "private/specimen.pdf",
+        mimeType: "application/pdf",
+        filename: "specimen.pdf",
+        bytes,
+        isSensitive: false,
+        documentType: "SPECIMEN_DOCUMENTATION",
+        category: "COMPLIANCE",
+      });
+      const applicant = await azure.extract({
+        blobKey: "private/resume.pdf",
+        mimeType: "application/pdf",
+        filename: "resume.pdf",
+        bytes,
+        isSensitive: false,
+        documentType: "OTHER",
+        category: "APPLICANT_DOCUMENTS",
+      });
+      expect(sensitive.status).toBe("OCR_DISABLED");
+      expect(identity.status).toBe("OCR_DISABLED");
+      expect(phi.status).toBe("OCR_DISABLED");
+      expect(applicant.status).toBe("OCR_DISABLED");
+      expect(fetchSpy).not.toHaveBeenCalled();
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("may call Azure for a non-sensitive corporate file only when the allow-external gate is true", async () => {
+    const fetchSpy = vi.fn(async () => new Response(null, { status: 400 }));
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = fetchSpy as typeof fetch;
+    process.env.DOCUMENT_EXTRACTION_PROVIDER = "azure";
+    process.env.AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT = "https://example.cognitiveservices.azure.com";
+    process.env.AZURE_DOCUMENT_INTELLIGENCE_KEY = "test-key";
+    process.env.DOCUMENT_EXTRACTION_ALLOW_EXTERNAL = "true";
+    try {
+      const result = await new AzureDocumentExtractionService().extract({
+        blobKey: "private/policy.pdf",
+        mimeType: "application/pdf",
+        filename: "policy.pdf",
+        bytes: new Uint8Array([0x25, 0x50, 0x44, 0x46]),
+        isSensitive: false,
+        documentType: "SIGNED_POLICY",
+        category: "POLICIES",
+      });
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      expect(String(fetchSpy.mock.calls[0]?.[0])).toContain("documentintelligence");
+      expect(result.provider).toBe("azure");
+      expect(result.status).toBe("FAILED");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("classifies sensitive, identity, and applicant files as local-only", () => {
+    expect(blocksExternalDocumentExtraction({ isSensitive: true })).toBe(true);
+    expect(blocksExternalDocumentExtraction({ documentType: "DRIVERS_LICENSE" })).toBe(true);
+    expect(blocksExternalDocumentExtraction({ documentType: "BAA" })).toBe(true);
+    expect(blocksExternalDocumentExtraction({ category: "APPLICANT_DOCUMENTS" })).toBe(true);
+    expect(blocksExternalDocumentExtraction({ documentType: "SIGNED_POLICY", category: "POLICIES", isSensitive: false })).toBe(false);
+    const upload = readFileSync(path.join(process.cwd(), "lib/documents/upload.ts"), "utf8");
+    expect(upload).toContain("applicationId");
+    expect(upload).toContain("!blocksExternalDocumentExtraction({ isSensitive, documentType, category })");
   });
 
   it("does not enable the test provider in production", () => {
@@ -174,6 +311,18 @@ describe("phase 4 unauthorized extraction", () => {
     });
     const result = await startDocumentExtraction({ documentId: "doc-1", actor: driver });
     expect(result).toEqual({ error: "Not found." });
+  });
+
+  it("does not let operations extract an applicant-only file", async () => {
+    loadManagedDocumentForAccess.mockResolvedValue(access({ applicantLinks: [{ applicationId: "app-1" }] }));
+    const ops = actor({
+      roles: ["OPERATIONS_MANAGER"],
+      permissions: ["documents.view", "documents.upload", "employees.view"],
+    });
+    expect(canAccessManagedDocument(ops, access({ applicantLinks: [{ applicationId: "app-1" }] }))).toBe(false);
+    const result = await startDocumentExtraction({ documentId: "doc-1", actor: ops });
+    expect(result).toEqual({ error: "Not found." });
+    expect(prisma.managedDocument.updateMany).not.toHaveBeenCalled();
   });
 });
 
@@ -303,6 +452,30 @@ describe("phase 4 extraction run", () => {
     const result = await startDocumentExtraction({ documentId: "doc-1", actor: owner, retry: true });
     expect(result.status).toBe("COMPLETED");
     expect(writeAuditLog).toHaveBeenCalledWith(expect.objectContaining({ action: "document.extraction.retried" }));
+  });
+
+  it("keeps sensitive documents OCR_DISABLED and does not read file bytes", async () => {
+    prisma.managedDocument.findUnique.mockResolvedValue({
+      id: "doc-1",
+      blobKey: "private/id.pdf",
+      mimeType: "application/pdf",
+      originalFileName: "license.pdf",
+      isSensitive: true,
+      documentType: "DRIVERS_LICENSE",
+      category: "EMPLOYEE_DOCUMENTS",
+      extractionStatus: "PENDING",
+      extractionStartedAt: null,
+      lifecycleStatus: "UPLOADED",
+      verificationStatus: "UNVERIFIED",
+    });
+    const result = await startDocumentExtraction({ documentId: "doc-1", actor: owner });
+    expect(result.status).toBe("OCR_DISABLED");
+    expect(prisma.managedDocument.updateMany).not.toHaveBeenCalled();
+    expect(prisma.managedDocument.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ extractionStatus: "OCR_DISABLED", extractionProvider: "noop" }),
+      }),
+    );
   });
 });
 
