@@ -25,17 +25,15 @@ Unit tests must keep working without `DATABASE_URL`. Do not add Vitest cases tha
 
 ### `E2E smoke` — `.github/workflows/e2e-smoke.yml`
 
-Read-only Playwright smoke against an **already deployed** URL. No local Next boot. Never invoke `npm run build` here.
+Read-only Playwright smoke against an **already deployed** URL. **Opt-in only** (`workflow_dispatch`). There is no `schedule` and no `pull_request` trigger, so production is never hit automatically.
 
 | Trigger | URL source |
 | --- | --- |
-| `workflow_dispatch` | Required input `base_url` (preview or `https://www.safewaycouriers.com`) |
-| `schedule` (daily) | Repo secret `PLAYWRIGHT_BASE_URL` — skipped if the secret is unset |
-| `pull_request` to `main` | Same secret, only if `PLAYWRIGHT_BASE_URL` is set; otherwise the job is skipped |
+| `workflow_dispatch` | Input `base_url` (preview or `https://www.safewaycouriers.com`), or repo secret `PLAYWRIGHT_BASE_URL` if the input is empty |
 
-Smoke does not log in, does not submit quotes/applications, and does not need secrets other than the optional target URL.
+Smoke does not log in, does not submit quotes/applications, and does not write data. The only extra secret is the optional target URL.
 
-`E2E smoke / smoke` is **not** a required merge check. Preview or production must already be reachable.
+`E2E smoke / smoke` is **not** a required merge check.
 
 ## Local commands
 
@@ -78,7 +76,7 @@ Require these **exact status check names** before merge to `main`:
 1. `quality`
 2. `playwright-config`
 
-In the GitHub UI they may appear as `CI / quality` and `CI / playwright-config`. Use the names GitHub lists under the `CI` workflow. Do **not** require `E2E smoke` / `smoke` until a stable `PLAYWRIGHT_BASE_URL` secret (or dispatch-only process) is in place — a skipped optional job can confuse protection rules.
+In the GitHub UI they may appear as `CI / quality` and `CI / playwright-config`. Use the names GitHub lists under the `CI` workflow. Do **not** require `E2E smoke` / `smoke` — that workflow is opt-in `workflow_dispatch` only.
 
 ### Checklist (Pinky)
 
@@ -87,16 +85,21 @@ In the GitHub UI they may appear as `CI / quality` and `CI / playwright-config`.
 - [ ] Require status checks to pass: `quality` and `playwright-config`
 - [ ] Require branches to be up to date before merging (optional but recommended)
 - [ ] Do not allow the tests agent to merge
-- [ ] Optional: add repository secret `PLAYWRIGHT_BASE_URL` = `https://www.safewaycouriers.com` (or a stable preview) for scheduled/PR live smoke
+- [ ] Optional: add repository secret `PLAYWRIGHT_BASE_URL` as a dispatch fallback URL (never used unless someone runs **E2E smoke**)
 - [ ] Confirm Production deploys still happen only from `main` via Vercel, not from this workflow
+- [ ] Merge order (do not skip): PR #4 → Preview-isolation (DB) → Auth hardening → this Tests/CI PR → then PR #3 after Preview DB isolation is confirmed
 
-## Production / preview smoke
+## Production / preview smoke (opt-in)
 
 1. Actions → **E2E smoke** → Run workflow
-2. Set `base_url` to a preview URL or `https://www.safewaycouriers.com`
-3. Run. Specs visit marketing pages and confirm unauthenticated `/dashboard` redirects to `/login`
+2. Set `base_url` to a preview URL or `https://www.safewaycouriers.com` (or rely on secret `PLAYWRIGHT_BASE_URL`)
+3. Run. Specs visit marketing pages and confirm unauthenticated `/dashboard` redirects to `/login`. No logins, no form posts.
 
 Portal hostname: `https://portal.safewaycouriers.com`. On the marketing host, portal paths redirect to the portal host (`proxy.ts`); smoke follows that redirect and still expects sign-in.
+
+## Soft conflict: package-lock
+
+This branch adds `@playwright/test` and Playwright scripts to `package.json` / `package-lock.json`. Security & Auth may later bump Better Auth for 2FA on the same files. This PR is based on current `main`. If Auth lands a `package.json` change first, **rebase this branch onto `main` and re-run `npm install`** so the lockfiles do not fight. Do not merge lockfile conflicts blindly.
 
 ## Scope reminder
 

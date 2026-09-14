@@ -1,17 +1,14 @@
 name: E2E smoke
 
+# Opt-in only. Pinky: no schedule, no pull_request auto-run against production.
 on:
   workflow_dispatch:
     inputs:
       base_url:
-        description: Read-only smoke target (preview or https://www.safewaycouriers.com)
-        required: true
+        description: Read-only smoke target (preview or https://www.safewaycouriers.com). Falls back to secret PLAYWRIGHT_BASE_URL if left empty.
+        required: false
         default: https://www.safewaycouriers.com
         type: string
-  schedule:
-    - cron: "17 13 * * *"
-  pull_request:
-    branches: [main]
 
 concurrency:
   group: e2e-smoke-${{ github.event.inputs.base_url || github.ref }}
@@ -23,7 +20,6 @@ permissions:
 jobs:
   smoke:
     name: smoke
-    if: ${{ github.event_name == 'workflow_dispatch' || secrets.PLAYWRIGHT_BASE_URL != '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
@@ -42,11 +38,11 @@ jobs:
       - name: Require smoke URL
         run: |
           if [ -z "$PLAYWRIGHT_BASE_URL" ]; then
-            echo "PLAYWRIGHT_BASE_URL is required (workflow_dispatch input or repo secret)."
+            echo "Set workflow input base_url or repo secret PLAYWRIGHT_BASE_URL."
             exit 1
           fi
           echo "Smoke target: $PLAYWRIGHT_BASE_URL"
-          echo "This job is read-only. It does not log in or submit forms."
+          echo "This job is read-only. It does not log in, submit forms, or write data."
 
       - name: Install dependencies
         run: npm ci
