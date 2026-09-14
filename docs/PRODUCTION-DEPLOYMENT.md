@@ -26,7 +26,7 @@ The public marketing site remains `https://www.safewaycouriers.com`. It is not r
 
 ## Environment variables to set in Vercel
 
-Set these on the **Production** environment (and Preview if you use preview logins):
+Set these on the **Production** environment. Preview must use a **separate** Neon database or branch — never Production `DATABASE_URL`. See `docs/PREVIEW-DATABASE.md`.
 
 | Variable | Production value |
 | --- | --- |
@@ -43,7 +43,7 @@ Set these on the **Production** environment (and Preview if you use preview logi
 | `BLOB_READ_WRITE_TOKEN` | Vercel Blob token |
 | `RESEND_API_KEY` | Resend API key |
 | `EMAIL_FROM` | `Safeway Couriers <noreply@safewaycouriers.com>` |
-| `CRON_SECRET` | Long random string |
+| `CRON_SECRET` | **Required in Production.** Long random string. `GET /api/cron/alerts` rejects requests that are not `Authorization: Bearer $CRON_SECRET`. |
 | `AUTH_TRUSTED_ORIGINS` | Optional, comma-separated extra origins |
 
 Never commit real values. Local `.env.local` keeps `http://localhost:3000` and the local `DATABASE_URL`.
@@ -62,7 +62,7 @@ Never commit real values. Local `.env.local` keeps `http://localhost:3000` and t
 2. **Settings → Environment Variables** and add the production values above. Mark `NEXT_PUBLIC_*` for Production (they are inlined at build time).
 3. **Settings → Domains** → Add `portal.safewaycouriers.com`.
 4. Keep `www.safewaycouriers.com` and `safewaycouriers.com` as they are (apex already redirects to www).
-5. Framework preset: **Next.js**. Build command: `npm run build` → `node scripts/vercel-build.mjs`. That runs `prisma generate`, then `prisma migrate deploy`, then `next build`. Output: default. Install: `npm install`.
+5. Framework preset: **Next.js**. Build command: `npm run build` → `node scripts/vercel-build.mjs`. That always runs `prisma generate` and `next build`. `prisma migrate deploy` and `ensure-rbac` run only when `VERCEL_ENV=production` (Production deploys) or `RUN_MIGRATE_ON_BUILD=1` (isolated Preview DB opt-in). Output: default. Install: `npm install`.
 6. Deploy Production from `main` (push or Deploy). `DATABASE_URL` must be available at **build time**.
 7. Do **not** run `prisma db seed` on production if it already has live data. Seed is not part of the deploy script.
 
@@ -80,13 +80,16 @@ Wait until the domain shows **Valid** in Vercel. HTTPS certificates are issued b
 
 ## Database migration steps
 
-`npm run build` on Vercel runs:
+`npm run build` on Vercel Production (`VERCEL_ENV=production`) runs:
 
 ```bash
 npx prisma generate
-npx prisma migrate deploy
+npx prisma migrate deploy   # Production only, or RUN_MIGRATE_ON_BUILD=1
+npx tsx scripts/ensure-rbac.ts
 npx next build
 ```
+
+Preview/Development builds still run `prisma generate` and `next build`, but they **skip** `migrate deploy` and `ensure-rbac` unless `RUN_MIGRATE_ON_BUILD=1`. On Vercel Hobby, that gate is what stops Preview from mutating Production when Preview has no separate database. Details: `docs/PREVIEW-DATABASE.md`.
 
 `migrate deploy` applies pending folders under `prisma/migrations/` only. It does not reset the database, drop existing tables of applied migrations, or seed.
 
@@ -116,9 +119,9 @@ If you later add Google/Microsoft OAuth, register the callback:
 
 ## What you must do manually before the portal is public
 
-1. Add the Vercel env vars (especially `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `DATABASE_URL`, `RESEND_API_KEY`).
+1. Add the Vercel env vars (especially `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `DATABASE_URL`, `RESEND_API_KEY`, `CRON_SECRET`).
 2. Add the `portal.safewaycouriers.com` domain in Vercel and create the DNS CNAME.
-3. Point `DATABASE_URL` at hosted Postgres (build-time). Migrations run automatically on deploy.
+3. Point Production `DATABASE_URL` at hosted Postgres (build-time). Migrations run automatically on **Production** deploys (`VERCEL_ENV=production`). Preview must not share that URL.
 4. Confirm Resend can send from `EMAIL_FROM`.
 5. Sign in as Owner at `https://portal.safewaycouriers.com/login`. If no Owner exists, use `/setup` with `OWNER_SETUP_SECRET` once.
 6. Change the Owner password if it is still a temporary local value.
