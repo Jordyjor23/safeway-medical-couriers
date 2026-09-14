@@ -1,4 +1,5 @@
 import { AzureDocumentExtractionService, azureExtractionReady } from "@/lib/documents/extraction/azure";
+import { isExternalExtractionAllowed } from "@/lib/documents/extraction/egress";
 import { NoopDocumentExtractionService } from "@/lib/documents/extraction/noop";
 import { TestDocumentExtractionService } from "@/lib/documents/extraction/test-provider";
 import type { DocumentExtractionProvider, DocumentExtractionService } from "@/lib/documents/extraction/types";
@@ -11,7 +12,7 @@ export function isExtractionEnabled() {
   const id = configuredExtractionProviderId();
   if (!id || id === "noop" || id === "disabled") return false;
   if (id === "test") return process.env.NODE_ENV !== "production";
-  if (id === "azure") return azureExtractionReady();
+  if (id === "azure") return azureExtractionReady() && isExternalExtractionAllowed();
   return false;
 }
 
@@ -24,7 +25,7 @@ export function resolveExtractionProvider(): DocumentExtractionProvider {
   if (id === "test" && process.env.NODE_ENV !== "production") {
     return new TestDocumentExtractionService();
   }
-  if (id === "azure" && azureExtractionReady()) {
+  if (id === "azure" && azureExtractionReady() && isExternalExtractionAllowed()) {
     return new AzureDocumentExtractionService();
   }
   return new NoopDocumentExtractionService();

@@ -28,6 +28,8 @@ type Preset = {
   contractLabel?: string;
   deliveryId?: string;
   deliveryLabel?: string;
+  applicationId?: string;
+  applicationLabel?: string;
   supersedesId?: string;
   category?: DocumentCategory;
 };
@@ -41,7 +43,7 @@ export function DocumentUploader({
   triggerLabel = "Upload Document",
   detailBasePath = "/dashboard/documents",
 }: {
-  associations: { employee: boolean; customer: boolean; contract: boolean; delivery: boolean };
+  associations: { employee: boolean; customer: boolean; contract: boolean; delivery: boolean; applicant?: boolean };
   preset?: Preset;
   triggerLabel?: string;
   detailBasePath?: string;
@@ -62,6 +64,7 @@ export function DocumentUploader({
   const [customerId, setCustomerId] = useState(preset?.customerId ?? "");
   const [contractId, setContractId] = useState(preset?.contractId ?? "");
   const [deliveryId, setDeliveryId] = useState(preset?.deliveryId ?? "");
+  const [applicationId, setApplicationId] = useState(preset?.applicationId ?? "");
   const [status, setStatus] = useState<"idle" | "uploading" | "success" | "error">("idle");
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -92,6 +95,7 @@ export function DocumentUploader({
     setCustomerId(preset?.customerId ?? "");
     setContractId(preset?.contractId ?? "");
     setDeliveryId(preset?.deliveryId ?? "");
+    setApplicationId(preset?.applicationId ?? "");
     setScanOpen(false);
     if (fileRef.current) fileRef.current.value = "";
     if (photoRef.current) photoRef.current.value = "";
@@ -135,6 +139,7 @@ export function DocumentUploader({
     if (customerId) body.set("customerId", customerId);
     if (contractId) body.set("contractId", contractId);
     if (deliveryId) body.set("deliveryId", deliveryId);
+    if (applicationId) body.set("applicationId", applicationId);
     if (preset?.supersedesId) body.set("supersedesId", preset.supersedesId);
     if (allowDuplicate) body.set("allowDuplicate", "1");
 
@@ -329,6 +334,7 @@ export function DocumentUploader({
             {preset?.customerLabel ? <p className="text-sm text-navy">Customer: {preset.customerLabel}</p> : null}
             {preset?.contractLabel ? <p className="text-sm text-navy">Contract: {preset.contractLabel}</p> : null}
             {preset?.deliveryLabel ? <p className="text-sm text-navy">Delivery: {preset.deliveryLabel}</p> : null}
+            {preset?.applicationLabel ? <p className="text-sm text-navy">Applicant: {preset.applicationLabel}</p> : null}
             {associations.employee && !preset?.employeeId ? (
               <AssociationSearch kind="employee" label="Employee" value={employeeId} onChange={setEmployeeId} />
             ) : null}
@@ -341,7 +347,15 @@ export function DocumentUploader({
             {associations.delivery && !preset?.deliveryId ? (
               <AssociationSearch kind="delivery" label="Delivery" value={deliveryId} onChange={setDeliveryId} />
             ) : null}
-            {!associations.employee && !associations.customer && !associations.contract && !associations.delivery && !preset ? (
+            {associations.applicant && !preset?.applicationId ? (
+              <AssociationSearch kind="applicant" label="Applicant" value={applicationId} onChange={setApplicationId} />
+            ) : null}
+            {!associations.employee &&
+            !associations.customer &&
+            !associations.contract &&
+            !associations.delivery &&
+            !associations.applicant &&
+            !preset ? (
               <p className="text-sm text-muted">This upload will be stored as a company document.</p>
             ) : null}
           </div>
@@ -453,7 +467,7 @@ function AssociationSearch({
   value,
   onChange,
 }: {
-  kind: "employee" | "customer" | "contract" | "delivery";
+  kind: "employee" | "customer" | "contract" | "delivery" | "applicant";
   label: string;
   value: string;
   onChange: (value: string) => void;

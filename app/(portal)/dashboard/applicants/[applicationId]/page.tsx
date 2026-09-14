@@ -6,7 +6,13 @@ import {
   updateApplicationStatus,
   updateInterview,
 } from "@/app/(portal)/dashboard/applicants/actions";
+import { documentUploadCapabilities } from "@/app/(portal)/dashboard/documents/actions";
+import { DocumentUploader } from "@/components/portal/DocumentUploader";
+import { EntityDocumentsSection } from "@/components/portal/EntityDocumentsSection";
 import { prisma } from "@/lib/db";
+import { canAssociateApplicant } from "@/lib/documents/access";
+import { formatPersonName } from "@/lib/documents/display";
+import { DOCUMENT_LIST_INCLUDE, documentLibraryWhere } from "@/lib/documents/query";
 import { hasPermission, requirePermission } from "@/lib/rbac";
 import type { ApplicationStatus } from "@prisma/client";
 
@@ -52,6 +58,17 @@ export default async function ApplicantProfilePage({
   const canEdit = hasPermission(ctx, "applicants.edit");
   const canNotes = hasPermission(ctx, "applicants.notes.view");
   const canScreen = hasPermission(ctx, "applicants.screening.view");
+  const canViewDocs = hasPermission(ctx, "documents.view");
+  const [documents, capabilities] = canViewDocs
+    ? await Promise.all([
+        prisma.managedDocument.findMany({
+          where: documentLibraryWhere(ctx, { applicationId, archived: "all" }),
+          include: DOCUMENT_LIST_INCLUDE,
+          orderBy: { createdAt: "desc" },
+        }),
+        documentUploadCapabilities(),
+      ])
+    : [[], null];
 
   return (
     <div className="space-y-8">
@@ -152,6 +169,33 @@ export default async function ApplicantProfilePage({
             ))}
           </ul>
         </section>
+      ) : null}
+
+      {canViewDocs ? (
+        <EntityDocumentsSection
+          title="Documents"
+          documents={documents}
+          canDownload={hasPermission(ctx, "documents.download")}
+          canUpload={Boolean(capabilities?.canUpload && canAssociateApplicant(ctx, application.id))}
+          emptyBody="No documents are linked to this application."
+        >
+          <DocumentUploader
+            associations={
+              capabilities?.associations ?? {
+                employee: false,
+                customer: false,
+                contract: false,
+                delivery: false,
+                applicant: false,
+              }
+            }
+            preset={{
+              applicationId: application.id,
+              applicationLabel: `${formatPersonName(application.applicant.legalFirstName, application.applicant.legalLastName)} · ${application.trackingNumber}`,
+              category: "APPLICANT_DOCUMENTS",
+            }}
+          />
+        </EntityDocumentsSection>
       ) : null}
 
       <section className="rounded-2xl border border-line bg-paper p-5">

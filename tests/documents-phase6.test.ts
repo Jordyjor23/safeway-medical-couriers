@@ -308,6 +308,7 @@ describe("phase 6 DocumentUploader integration", () => {
     expect(uploader).toContain('body.set("customerId", customerId)');
     expect(uploader).toContain('body.set("contractId", contractId)');
     expect(uploader).toContain('body.set("deliveryId", deliveryId)');
+    expect(uploader).toContain('body.set("applicationId", applicationId)');
     expect(uploader).toContain("preset?.supersedesId");
     expect(uploader).toContain("Upload replacement");
     expect(uploader).not.toMatch(/onComplete=\{\(next\) => \{[\s\S]{0,400}setEmployeeId/);

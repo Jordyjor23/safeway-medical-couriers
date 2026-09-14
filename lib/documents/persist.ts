@@ -7,6 +7,7 @@ import {
   supersedeManagedDocument,
 } from "@/lib/documents/operations";
 import { isExtractionEnabled } from "@/lib/documents/extraction/provider";
+import { blocksExternalDocumentExtraction } from "@/lib/documents/extraction/egress";
 import { prisma } from "@/lib/db";
 
 export async function persistManagedDocument(args: {
@@ -30,6 +31,7 @@ export async function persistManagedDocument(args: {
   customerId?: string;
   contractId?: string;
   deliveryId?: string;
+  applicationId?: string;
   supersedesId?: string;
 }) {
   const document = await prisma.managedDocument.create({
@@ -50,7 +52,15 @@ export async function persistManagedDocument(args: {
       uploadedBy: args.actor.user.id,
       lifecycleStatus: "UPLOADED",
       verificationStatus: "UNVERIFIED",
-      extractionStatus: isExtractionEnabled() ? "PENDING" : "OCR_DISABLED",
+      extractionStatus:
+        isExtractionEnabled() &&
+        !blocksExternalDocumentExtraction({
+          isSensitive: args.isSensitive ?? false,
+          documentType: args.documentType ?? null,
+          category: args.category,
+        })
+          ? "PENDING"
+          : "OCR_DISABLED",
     },
   });
 
@@ -61,6 +71,7 @@ export async function persistManagedDocument(args: {
     customerId: args.customerId,
     contractId: args.contractId,
     deliveryId: args.deliveryId,
+    applicationId: args.applicationId,
   });
   if (linked && "error" in linked && linked.error) {
     return { error: "Not found." };
@@ -69,7 +80,7 @@ export async function persistManagedDocument(args: {
   if (args.supersedesId) {
     const previous = await prisma.managedDocument.findUnique({
       where: { id: args.supersedesId },
-      include: { employeeLinks: true, customerLinks: true, contractLinks: true, deliveryLinks: true },
+      include: { applicantLinks: true, employeeLinks: true, customerLinks: true, contractLinks: true, deliveryLinks: true },
     });
     const access = await loadManagedDocumentForAccess(args.supersedesId);
     if (!previous || !access || !canAccessManagedDocument(args.actor, access, "view")) {
@@ -93,6 +104,11 @@ export async function persistManagedDocument(args: {
     if (!args.deliveryId && previous.deliveryLinks[0]) {
       await prisma.deliveryDocument.create({
         data: { deliveryId: previous.deliveryLinks[0].deliveryId, documentId: document.id },
+      });
+    }
+    if (!args.applicationId && previous.applicantLinks[0]) {
+      await prisma.applicantDocument.create({
+        data: { applicationId: previous.applicantLinks[0].applicationId, documentId: document.id },
       });
     }
     await supersedeManagedDocument({

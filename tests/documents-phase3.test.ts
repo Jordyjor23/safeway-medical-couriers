@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   associationPickerKinds,
   canAccessManagedDocument,
+  canAssociateApplicant,
   canAssociateContract,
   canAssociateCustomer,
   canAssociateDelivery,
@@ -17,7 +18,7 @@ import {
   DOCUMENT_CAPTURE,
   DUPLICATE_FILE_WARNING,
 } from "@/lib/documents/catalog";
-import { expirationLabel } from "@/lib/documents/display";
+import { associatedWithLabel, expirationLabel } from "@/lib/documents/display";
 import { CONTRACT_DOCUMENT_GROUPS, CUSTOMER_DOCUMENT_GROUPS, DELIVERY_DOCUMENT_GROUPS, groupDocumentsByType } from "@/lib/documents/groups";
 import { documentLibraryWhere } from "@/lib/documents/query";
 import { ALLOWED_DOCUMENT_EXTENSIONS } from "@/lib/documents/types";
@@ -36,6 +37,7 @@ function document(overrides: Partial<DocumentAccessRecord> = {}): DocumentAccess
   return {
     id: "doc-1",
     isSensitive: false,
+    applicantLinks: [],
     employeeLinks: [],
     customerLinks: [],
     contractLinks: [],
@@ -127,7 +129,42 @@ describe("phase 3 association ACL", () => {
       customer: true,
       contract: true,
       delivery: true,
+      applicant: false,
     });
+  });
+
+  it("lets HR associate applicant documents and keeps operations off that picker", () => {
+    const hr = actor({
+      roles: ["HR_RECRUITER"],
+      permissions: ["documents.upload", "documents.view", "applicants.view", "employees.view"],
+    });
+    const ops = actor({
+      roles: ["OPERATIONS_MANAGER"],
+      permissions: ["documents.upload", "documents.view", "employees.view", "delivery.view"],
+    });
+    expect(canAssociateApplicant(hr, "app-1")).toBe(true);
+    expect(canAssociateApplicant(ops, "app-1")).toBe(false);
+    expect(associationPickerKinds(hr).applicant).toBe(true);
+    expect(associationPickerKinds(ops).applicant).toBe(false);
+  });
+
+  it("labels applicant associations instead of treating them as company files", () => {
+    expect(
+      associatedWithLabel({
+        applicantLinks: [
+          {
+            application: {
+              trackingNumber: "SW-1A2B3C",
+              applicant: { legalFirstName: "Ada", legalLastName: "Lovelace" },
+            },
+          },
+        ],
+        employeeLinks: [],
+        customerLinks: [],
+        contractLinks: [],
+        deliveryLinks: [],
+      }),
+    ).toBe("Ada Lovelace · SW-1A2B3C");
   });
 
   it("blocks a customer from associating another organization's records", () => {
@@ -165,6 +202,7 @@ describe("phase 3 association ACL", () => {
       customer: false,
       contract: false,
       delivery: false,
+      applicant: false,
     });
   });
 });
@@ -209,12 +247,15 @@ describe("phase 3 profile grouping", () => {
 
   it("splits employee files into uploaded, expiring, expired, and archived buckets", () => {
     const now = new Date("2026-08-28T00:00:00Z");
-    const buckets = employeeDocumentBuckets([
-      { documentType: "W9", lifecycleStatus: "UPLOADED", verificationStatus: "UNVERIFIED", expirationDate: new Date("2027-01-01"), archivedAt: null },
-      { documentType: "DRIVERS_LICENSE", lifecycleStatus: "VERIFIED", verificationStatus: "VERIFIED", expirationDate: new Date("2026-09-01"), archivedAt: null },
-      { documentType: "HIPAA_TRAINING", lifecycleStatus: "VERIFIED", verificationStatus: "VERIFIED", expirationDate: new Date("2026-01-01"), archivedAt: null },
-      { documentType: "OTHER", lifecycleStatus: "ARCHIVED", verificationStatus: "UNVERIFIED", expirationDate: null, archivedAt: now },
-    ]);
+    const buckets = employeeDocumentBuckets(
+      [
+        { documentType: "W9", lifecycleStatus: "UPLOADED", verificationStatus: "UNVERIFIED", expirationDate: new Date("2027-01-01"), archivedAt: null },
+        { documentType: "DRIVERS_LICENSE", lifecycleStatus: "VERIFIED", verificationStatus: "VERIFIED", expirationDate: new Date("2026-09-01"), archivedAt: null },
+        { documentType: "HIPAA_TRAINING", lifecycleStatus: "VERIFIED", verificationStatus: "VERIFIED", expirationDate: new Date("2026-01-01"), archivedAt: null },
+        { documentType: "OTHER", lifecycleStatus: "ARCHIVED", verificationStatus: "UNVERIFIED", expirationDate: null, archivedAt: now },
+      ],
+      now,
+    );
     expect(buckets.uploaded).toHaveLength(1);
     expect(buckets.expiringSoon).toHaveLength(1);
     expect(buckets.expired).toHaveLength(1);

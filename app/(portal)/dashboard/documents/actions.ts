@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import type { DocumentCategory } from "@prisma/client";
 import {
   associationPickerKinds,
+  canAssociateApplicant,
   canAssociateContract,
   canAssociateCustomer,
   canAssociateDelivery,
@@ -55,6 +56,7 @@ export async function uploadBusinessDocument(formData: FormData) {
     const customerId = optionalId(formData.get("customerId"));
     const contractId = optionalId(formData.get("contractId"));
     const deliveryId = optionalId(formData.get("deliveryId"));
+    const applicationId = optionalId(formData.get("applicationId"));
     if (employeeId) revalidatePath(`/dashboard/employees/${employeeId}`);
     if (customerId) revalidatePath(`/dashboard/customers/${customerId}`);
     if (contractId) revalidatePath(`/dashboard/contracts/${contractId}`);
@@ -62,6 +64,7 @@ export async function uploadBusinessDocument(formData: FormData) {
       revalidatePath(`/dashboard/deliveries/${deliveryId}`);
       revalidatePath(`/dispatch/deliveries/${deliveryId}`);
     }
+    if (applicationId) revalidatePath(`/dashboard/applicants/${applicationId}`);
   }
   return result;
 }
@@ -123,7 +126,10 @@ export async function updateDocumentMetadataAction(formData: FormData) {
   return { ok: true as const };
 }
 
-export async function searchDocumentAssociations(kind: "employee" | "customer" | "contract" | "delivery", query: string) {
+export async function searchDocumentAssociations(
+  kind: "employee" | "customer" | "contract" | "delivery" | "applicant",
+  query: string,
+) {
   const ctx = await requirePermission("documents.view");
   const q = query.trim();
   const pickers = associationPickerKinds(ctx);
@@ -191,6 +197,37 @@ export async function searchDocumentAssociations(kind: "employee" | "customer" |
     return contracts
       .filter((contract) => canAssociateContract(ctx, contract.customerId))
       .map((contract) => ({ id: contract.id, label: `${contract.contractNumber} · ${contract.customer.legalName}` }));
+  }
+
+  if (kind === "applicant") {
+    const applications = await prisma.application.findMany({
+      where: {
+        status: { not: "DRAFT" },
+        ...(q
+          ? {
+              OR: [
+                { trackingNumber: { contains: q, mode: "insensitive" as const } },
+                { applicant: { legalFirstName: { contains: q, mode: "insensitive" as const } } },
+                { applicant: { legalLastName: { contains: q, mode: "insensitive" as const } } },
+              ],
+            }
+          : {}),
+      },
+      take: 20,
+      orderBy: { submittedAt: "desc" },
+      select: {
+        id: true,
+        trackingNumber: true,
+        applicant: { select: { legalFirstName: true, legalLastName: true } },
+        jobOpening: { select: { title: true } },
+      },
+    });
+    return applications
+      .filter((application) => canAssociateApplicant(ctx, application.id))
+      .map((application) => ({
+        id: application.id,
+        label: `${application.applicant.legalFirstName} ${application.applicant.legalLastName} · ${application.trackingNumber} · ${application.jobOpening.title}`,
+      }));
   }
 
   const deliveries = await prisma.delivery.findMany({
