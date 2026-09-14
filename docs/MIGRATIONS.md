@@ -18,7 +18,9 @@ Apply on Vercel after attaching hosted Postgres (never localhost):
 
 - Set `DATABASE_URL` (Neon pooled, for app runtime). For migrate, set optional `DIRECT_URL` or rely on Neon’s `DATABASE_URL_UNPOOLED`. Also set `BETTER_AUTH_URL=https://portal.safewaycouriers.com` and the other secrets listed in `.env.example`
 - Build command: `node scripts/vercel-build.mjs` (via `npm run build`)
-- That script runs `npx prisma generate` then **`npx prisma migrate deploy`** then `next build`
+- That script **always** runs `npx prisma generate` then `next build`
+- It runs **`npx prisma migrate deploy`** and `ensure-rbac` **only** when `VERCEL_ENV=production` **or** `RUN_MIGRATE_ON_BUILD=1`
+- Preview/Development builds skip those DB writes by default so they cannot mutate Production. See `docs/PREVIEW-DATABASE.md`
 - `migrate deploy` applies pending migrations only. It does **not** run `migrate dev`, `migrate reset`, or seed.
 - See `docs/PRODUCTION-DEPLOYMENT.md` for DNS and domain steps.
 
