@@ -30,8 +30,9 @@ Set these on the **Production** environment (and Preview if you use preview logi
 
 | Variable | Production value |
 | --- | --- |
-| `DATABASE_URL` | Hosted Postgres connection string (Neon / Vercel Postgres / RDS). **Not** localhost. Must be available at **build time**. |
-| `DIRECT_URL` | Optional non-pooling URL for `prisma migrate deploy` when `DATABASE_URL` is pooled. |
+| `DATABASE_URL` | Neon **pooled** URL for app runtime (also the migrate fallback). **Not** localhost. Must be available at **build time**. Must start with `postgresql://` or `postgres://` (no wrapping quotes). |
+| `DIRECT_URL` | Optional unpooled URL for `prisma migrate deploy`. On Neon, set this to the non-pooling string, or omit it and use `DATABASE_URL_UNPOOLED`. |
+| `DATABASE_URL_UNPOOLED` | Provided by the Vercel Neon integration. Used for migrate when `DIRECT_URL` is unset. App runtime still uses `DATABASE_URL`. |
 | `BETTER_AUTH_SECRET` | `openssl rand -base64 32` |
 | `BETTER_AUTH_URL` | `https://portal.safewaycouriers.com` |
 | `NEXT_PUBLIC_APP_URL` | `https://portal.safewaycouriers.com` |
@@ -89,13 +90,13 @@ npx next build
 
 `migrate deploy` applies pending folders under `prisma/migrations/` only. It does not reset the database, drop existing tables of applied migrations, or seed.
 
-- `DATABASE_URL` (and optional `DIRECT_URL` for Neon/Vercel pooled connections) must be set for Production **and available at build time**.
+- `DATABASE_URL` must be set for Production **and available at build time**. App runtime uses this pooled Neon URL.
 - Later deploys apply only new migration folders.
 - **Do not** run `prisma migrate reset`, `prisma migrate dev`, `prisma db push --force-reset`, or `prisma db seed` against production if it already has the Owner account and business data.
 
 The checked-in migrations contain no `DROP TABLE`, `TRUNCATE`, or `DROP DATABASE`. The RBAC upgrade adds columns/tables and converts the role key to text; it does not delete users, employees, or operational history.
 
-If `migrate deploy` fails through a connection pooler, set `DIRECT_URL` to the non-pooling connection string. The deploy script uses `DIRECT_URL` for migrations when it is present, while the app continues to use `DATABASE_URL` at runtime.
+If `migrate deploy` fails through a connection pooler, set `DIRECT_URL` to the unpooled connection string, **or** rely on Neon’s `DATABASE_URL_UNPOOLED` from the Vercel integration. The deploy script resolves migrate URLs as `DIRECT_URL` → `DATABASE_URL_UNPOOLED` → `DATABASE_URL`. It never prints the URL value. The app continues to use `DATABASE_URL` at runtime. Never commit real credentials.
 
 ## Authentication callback URLs
 

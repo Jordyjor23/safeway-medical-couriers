@@ -16,7 +16,7 @@ npx prisma db seed
 
 Apply on Vercel after attaching hosted Postgres (never localhost):
 
-- Set `DATABASE_URL` (and optional `DIRECT_URL` for pooled hosts), `BETTER_AUTH_URL=https://portal.safewaycouriers.com`, and the other secrets listed in `.env.example`
+- Set `DATABASE_URL` (Neon pooled, for app runtime). For migrate, set optional `DIRECT_URL` or rely on Neon’s `DATABASE_URL_UNPOOLED`. Also set `BETTER_AUTH_URL=https://portal.safewaycouriers.com` and the other secrets listed in `.env.example`
 - Build command: `node scripts/vercel-build.mjs` (via `npm run build`)
 - That script runs `npx prisma generate` then **`npx prisma migrate deploy`** then `next build`
 - `migrate deploy` applies pending migrations only. It does **not** run `migrate dev`, `migrate reset`, or seed.
