@@ -100,7 +100,7 @@ export default async function ControlledDocumentDetailPage({
               Open shared master file
             </Link>
           ) : (
-            <p className="text-sm text-muted">No ManagedDocument yet. Upload SC-MCM-001 on the library page.</p>
+            <p className="text-sm text-muted">No ManagedDocument yet. Upload the official source file from the library checklist (master DOCX, Emergency DOCX, or Forms PDF).</p>
           )}
           {canManage && row.sourceManagedDocumentId && row.status !== "ACTIVE" ? (
             <form action={activateControlledDocumentAction}>

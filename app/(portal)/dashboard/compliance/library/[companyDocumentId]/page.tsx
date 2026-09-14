@@ -13,6 +13,7 @@ import {
   COMPANY_ASSIGNMENT_ACTIONS,
   COMPANY_ASSIGNMENT_AUDIENCES,
 } from "@/lib/compliance/library-catalog";
+import { identifyOfficialSourcePackage, OFFICIAL_SOURCE_PACKAGES, officialSourceHashMatches } from "@/lib/compliance/register-catalog";
 import { canManageCompanyLibrary, canViewCompanyLibraryAdmin } from "@/lib/compliance/library-access";
 import { prisma } from "@/lib/db";
 import { SYSTEM_ROLE_KEYS } from "@/lib/permissions";
@@ -47,6 +48,14 @@ export default async function CompanyDocumentDetailPage({
     orderBy: { createdAt: "desc" },
   });
   const canManage = canManageCompanyLibrary(ctx.roles);
+  const matchedPackage = identifyOfficialSourcePackage({
+    documentNumber: row.documentNumber,
+    filename: row.document.originalFileName,
+    sha256: row.document.contentSha256,
+  });
+  const hashMatch = matchedPackage
+    ? officialSourceHashMatches(row.document.contentSha256, matchedPackage.expectedSha256)
+    : null;
 
   return (
     <div className="space-y-8">
@@ -62,6 +71,9 @@ export default async function CompanyDocumentDetailPage({
         <p className="mt-2 max-w-3xl text-sm text-muted">{row.description || "No description provided."}</p>
         <p className="mt-2 text-xs text-muted">
           SHA-256 {row.document.contentSha256 ?? "n/a"} · uploaded {row.document.uploadedAt.toLocaleString()}
+          {matchedPackage
+            ? ` · official ${matchedPackage.documentNumber} hash ${hashMatch ? "matches Rev 1.0" : "does not match expected Rev 1.0"}`
+            : ""}
         </p>
         <div className="mt-4 flex flex-wrap gap-3">
           <Link
@@ -83,10 +95,18 @@ export default async function CompanyDocumentDetailPage({
             </form>
           ) : null}
           {canManage ? (
-            <form action={attachMasterSourceAction}>
+            <form action={attachMasterSourceAction} className="flex flex-wrap items-center gap-2">
               <input type="hidden" name="companyDocumentId" value={row.id} />
+              <select name="sourcePackageKey" defaultValue={matchedPackage?.key ?? ""} className="rounded-lg border border-line px-3 py-2 text-sm">
+                <option value="">Auto-detect official source</option>
+                {OFFICIAL_SOURCE_PACKAGES.map((source) => (
+                  <option key={source.key} value={source.key}>
+                    Attach as {source.documentNumber}
+                  </option>
+                ))}
+              </select>
               <button className="rounded-full border border-line px-4 py-2 text-sm font-semibold text-navy">
-                Attach as SC-MCM-001 master source
+                Link to controlled register
               </button>
             </form>
           ) : null}

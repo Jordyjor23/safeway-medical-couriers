@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ComplianceLibraryNav } from "@/components/portal/ComplianceLibraryNav";
+import { OfficialSourceChecklist } from "@/components/portal/OfficialSourceChecklist";
 import { canViewCompanyLibraryAdmin } from "@/lib/compliance/library-access";
 import { prisma } from "@/lib/db";
 import { requireAuth } from "@/lib/rbac";
@@ -27,12 +28,13 @@ export default async function ControlledRegisterPage() {
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-medical">Compliance</p>
         <h1 className="mt-2 text-3xl font-semibold text-navy">Controlled document register</h1>
         <p className="mt-2 max-w-3xl text-sm text-muted">
-          SC-MCM-001 package templates. Records stay pending-source and inactive until the owner
-          uploads the master file. Multiple controlled IDs share that one ManagedDocument — no
-          duplicate Blob objects are created for sections.
+          SC-MCM-001 incorporated sections share the master DOCX. SC-ERP-001 prefers the standalone
+          Emergency DOCX. SC-FRM-001 through SC-FRM-020 share the Forms PDF. Records stay
+          pending-source and inactive until those official files are uploaded and the owner approves.
         </p>
         <ComplianceLibraryNav current="/dashboard/compliance/register" />
       </div>
+      <OfficialSourceChecklist />
       <div className="overflow-x-auto rounded-2xl border border-line bg-paper">
         <table className="min-w-full text-left text-sm">
           <thead className="border-b border-line bg-ice text-xs uppercase tracking-wide text-muted">

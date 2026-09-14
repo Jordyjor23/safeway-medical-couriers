@@ -5,7 +5,7 @@ import type { CompanyAssignmentAction, CompanyAssignmentAudience } from "@prisma
 import {
   activateControlledDocument,
   assignControlledDocument,
-  attachMasterSourceToPackage,
+  attachOfficialSourceToPackage,
   completeImplementationTask,
 } from "@/lib/compliance/register";
 import { requireAuth } from "@/lib/rbac";
@@ -23,7 +23,11 @@ function revalidateRegister(id?: string) {
 export async function attachMasterSourceAction(formData: FormData): Promise<void> {
   const ctx = await requireAuth();
   const companyDocumentId = String(formData.get("companyDocumentId") ?? "");
-  const result = await attachMasterSourceToPackage({ actor: ctx, companyDocumentId });
+  const result = await attachOfficialSourceToPackage({
+    actor: ctx,
+    companyDocumentId,
+    sourcePackageKey: String(formData.get("sourcePackageKey") ?? "") || null,
+  });
   if ("error" in result) return;
   revalidateRegister();
 }

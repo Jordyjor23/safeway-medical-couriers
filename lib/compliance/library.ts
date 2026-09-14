@@ -15,8 +15,8 @@ import {
   type CompanyAssignmentRecord,
   type CompanyLibraryActor,
 } from "@/lib/compliance/library-access";
-import { attachMasterSourceToPackage } from "@/lib/compliance/register";
-import { SC_MCM_MASTER_ID } from "@/lib/compliance/register-catalog";
+import { attachOfficialSourceToPackage } from "@/lib/compliance/register";
+import { identifyOfficialSourcePackage } from "@/lib/compliance/register-catalog";
 import { prisma } from "@/lib/db";
 import { isDocumentType } from "@/lib/documents/catalog";
 import { persistManagedDocument } from "@/lib/documents/persist";
@@ -86,8 +86,14 @@ export async function uploadCompanyLibraryDocument(args: {
     return { error: "The file could not be accepted." };
   }
 
-  const purpose = String(args.formData.get("purpose") ?? "REFERENCE") as CompanyDocumentPurpose;
-  const libraryCategory = String(args.formData.get("libraryCategory") ?? "GENERAL_COMPLIANCE") as CompanyLibraryCategory;
+  const identifiedPackage = identifyOfficialSourcePackage({
+    sourcePackageKey: String(args.formData.get("sourcePackageKey") ?? "") || null,
+    documentNumber: String(args.formData.get("documentNumber") ?? "") || null,
+    filename: file.name,
+    sha256: validation.contentSha256,
+  });
+  const purpose = String(args.formData.get("purpose") ?? identifiedPackage?.purpose ?? "REFERENCE") as CompanyDocumentPurpose;
+  const libraryCategory = String(args.formData.get("libraryCategory") ?? identifiedPackage?.libraryCategory ?? "GENERAL_COMPLIANCE") as CompanyLibraryCategory;
   const supersedesId = String(args.formData.get("supersedesId") ?? "").trim();
   let familyKey = String(args.formData.get("familyKey") ?? "").trim() || randomUUID();
   let revision = String(args.formData.get("revision") ?? "").trim() || "1.0";
@@ -136,10 +142,11 @@ export async function uploadCompanyLibraryDocument(args: {
       data: {
         documentId: persisted.document.id,
         familyKey,
-        title: String(args.formData.get("title") ?? stored.originalFileName).trim(),
-        description: String(args.formData.get("description") ?? "").trim() || null,
-        documentNumber: String(args.formData.get("documentNumber") ?? "").trim() || null,
-        revision,
+        title: String(args.formData.get("title") ?? identifiedPackage?.title ?? stored.originalFileName).trim(),
+        description: String(args.formData.get("description") ?? identifiedPackage?.notes ?? "").trim() || null,
+        documentNumber:
+          String(args.formData.get("documentNumber") ?? "").trim() || identifiedPackage?.documentNumber || null,
+        revision: String(args.formData.get("revision") ?? "").trim() || identifiedPackage?.revision || revision,
         purpose,
         libraryCategory,
         publicationStatus: "DRAFT",
@@ -165,11 +172,30 @@ export async function uploadCompanyLibraryDocument(args: {
       metadata: { familyKey, documentId: persisted.document.id, revision, purpose, libraryCategory },
     });
 
-    if (companyDocument.documentNumber === SC_MCM_MASTER_ID) {
-      await attachMasterSourceToPackage({ actor: args.actor, companyDocumentId: companyDocument.id });
+    const sourcePackage =
+      identifiedPackage ??
+      identifyOfficialSourcePackage({
+        sourcePackageKey: String(args.formData.get("sourcePackageKey") ?? "") || null,
+        documentNumber: companyDocument.documentNumber,
+        filename: stored.originalFileName,
+        sha256: persisted.document.contentSha256,
+      });
+    if (sourcePackage) {
+      await attachOfficialSourceToPackage({
+        actor: args.actor,
+        companyDocumentId: companyDocument.id,
+        sourcePackageKey: sourcePackage.key,
+      });
     }
 
-    return { ok: true as const, companyDocumentId: companyDocument.id, documentId: persisted.document.id };
+    return {
+      ok: true as const,
+      companyDocumentId: companyDocument.id,
+      documentId: persisted.document.id,
+      hashMatch: sourcePackage
+        ? sourcePackage.expectedSha256 === (persisted.document.contentSha256 ?? "").toLowerCase()
+        : null,
+    };
   } catch (error) {
     if (error instanceof DocumentStorageError) return { error: error.message };
     return { error: "The document could not be uploaded. Try again." };

@@ -5,7 +5,11 @@ import {
   APPROVED_SERVICE_MATRIX,
   CONTROLLED_REGISTER_SEEDS,
   IMPLEMENTATION_TASK_SEEDS,
-  SC_MCM_PACKAGE_KEY,
+  identifyOfficialSourcePackage,
+  officialSourceHashMatches,
+  officialSourcePackageByKey,
+  sourcePackageKeyForControlledId,
+  type OfficialSourcePackageKey,
   controlledDocumentVisibleToAssignees,
 } from "@/lib/compliance/register-catalog";
 import { prisma } from "@/lib/db";
@@ -24,13 +28,15 @@ export async function seedComplianceRegister() {
         ownerRole: row.ownerRole,
         approvalAuthority: row.approvalAuthority,
         sectionReference: row.sectionReference ?? row.controlledDocumentId,
-        packageKey: SC_MCM_PACKAGE_KEY,
+        packageKey: sourcePackageKeyForControlledId(row.controlledDocumentId),
         status: "PENDING_SOURCE",
         active: false,
         revision: "1.0",
         metadata: {
           awaitingMaster: true,
-          packageKey: SC_MCM_PACKAGE_KEY,
+          packageKey: sourcePackageKeyForControlledId(row.controlledDocumentId),
+          expectedSha256:
+            officialSourcePackageByKey(sourcePackageKeyForControlledId(row.controlledDocumentId))?.expectedSha256 ?? null,
         },
       },
       update: {
@@ -41,7 +47,7 @@ export async function seedComplianceRegister() {
         ownerRole: row.ownerRole,
         approvalAuthority: row.approvalAuthority,
         sectionReference: row.sectionReference ?? row.controlledDocumentId,
-        packageKey: SC_MCM_PACKAGE_KEY,
+        packageKey: sourcePackageKeyForControlledId(row.controlledDocumentId),
       },
     });
   }
@@ -109,9 +115,10 @@ export async function seedComplianceRegister() {
   return { ok: true as const, registerCount: CONTROLLED_REGISTER_SEEDS.length };
 }
 
-export async function attachMasterSourceToPackage(args: {
+export async function attachOfficialSourceToPackage(args: {
   actor: DocumentActor;
   companyDocumentId: string;
+  sourcePackageKey?: string | null;
 }) {
   if (!canManageCompanyLibrary(args.actor.roles)) return { error: "Not found." };
   const companyDocument = await prisma.companyDocument.findUnique({
@@ -120,41 +127,76 @@ export async function attachMasterSourceToPackage(args: {
   });
   if (!companyDocument) return { error: "Not found." };
 
-  const pending = await prisma.controlledDocument.findMany({
+  const sourcePackage = identifyOfficialSourcePackage({
+    sourcePackageKey: args.sourcePackageKey,
+    documentNumber: companyDocument.documentNumber,
+    filename: companyDocument.document.originalFileName,
+    sha256: companyDocument.document.contentSha256,
+  });
+  if (!sourcePackage) return { error: "Choose which official source package this file belongs to." };
+
+  const hashMatch = officialSourceHashMatches(companyDocument.document.contentSha256, sourcePackage.expectedSha256);
+  const targets = await prisma.controlledDocument.findMany({
     where: {
-      packageKey: SC_MCM_PACKAGE_KEY,
-      OR: [{ sourceManagedDocumentId: null }, { parentCompanyDocumentId: null }],
+      controlledDocumentId: { in: [...sourcePackage.controlledDocumentIds] },
+      status: { in: ["PENDING_SOURCE", "DRAFT"] },
     },
   });
 
-  await prisma.controlledDocument.updateMany({
-    where: { id: { in: pending.map((row) => row.id) } },
-    data: {
-      parentCompanyDocumentId: companyDocument.id,
-      sourceManagedDocumentId: companyDocument.documentId,
-      status: "DRAFT",
-      active: false,
-    },
-  });
+  for (const row of targets) {
+    const alreadyHasPreferredSource = Boolean(row.sourceManagedDocumentId) && sourcePackage.key !== "SC-ERP-001" && sourcePackage.key !== "SC-FRM-PACKAGE";
+    if (alreadyHasPreferredSource) continue;
+    await prisma.controlledDocument.update({
+      where: { id: row.id },
+      data: {
+        parentCompanyDocumentId: companyDocument.id,
+        sourceManagedDocumentId: companyDocument.documentId,
+        status: "DRAFT",
+        active: false,
+        metadata: {
+          awaitingMaster: false,
+          packageKey: sourcePackage.key,
+          officialSourceKey: sourcePackage.key,
+          expectedSha256: sourcePackage.expectedSha256,
+          uploadedSha256: companyDocument.document.contentSha256,
+          hashMatch,
+        },
+      },
+    });
+  }
 
   await writeAuditLog({
     actorId: args.actor.user.id,
-    action: "controlled_document.master_attached",
+    action: "controlled_document.official_source_attached",
     targetType: "company_document",
     targetId: companyDocument.id,
     metadata: {
-      packageKey: SC_MCM_PACKAGE_KEY,
+      packageKey: sourcePackage.key,
       managedDocumentId: companyDocument.documentId,
-      updatedCount: pending.length,
+      expectedSha256: sourcePackage.expectedSha256,
+      uploadedSha256: companyDocument.document.contentSha256,
+      hashMatch,
+      updatedCount: targets.length,
       stillInactive: true,
+      notActivated: true,
     },
   });
 
   return {
     ok: true as const,
+    packageKey: sourcePackage.key as OfficialSourcePackageKey,
     managedDocumentId: companyDocument.documentId,
-    updatedCount: pending.length,
+    hashMatch,
+    updatedCount: targets.length,
   };
+}
+
+/** @deprecated Use attachOfficialSourceToPackage. Kept for the master-only attach path. */
+export async function attachMasterSourceToPackage(args: {
+  actor: DocumentActor;
+  companyDocumentId: string;
+}) {
+  return attachOfficialSourceToPackage({ ...args, sourcePackageKey: "SC-MCM-001" });
 }
 
 export async function completeImplementationTask(args: {

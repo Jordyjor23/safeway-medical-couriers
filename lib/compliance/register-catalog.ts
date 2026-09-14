@@ -1,7 +1,142 @@
-import type { CompanyLibraryCategory, ControlledDocumentType, ServiceAuthorizationStatus } from "@prisma/client";
+import type { CompanyDocumentPurpose, CompanyLibraryCategory, ControlledDocumentType, ServiceAuthorizationStatus } from "@prisma/client";
 
 export const SC_MCM_PACKAGE_KEY = "SC-MCM-001";
 export const SC_MCM_MASTER_ID = "SC-MCM-001";
+export const SC_ERP_PACKAGE_KEY = "SC-ERP-001";
+export const SC_FRM_PACKAGE_KEY = "SC-FRM-PACKAGE";
+
+export const SC_FRM_IDS = Array.from({ length: 20 }, (_, index) => `SC-FRM-${String(index + 1).padStart(3, "0")}`);
+
+/** Master-incorporated controlled IDs. SC-ERP-001 and SC-FRM-* use standalone files. */
+export const SC_MCM_INCORPORATED_IDS = [
+  "SC-MCM-001",
+  "SC-ECP-001",
+  "SC-HIP-001",
+  "SC-BAA-001",
+  "SC-HMR-001",
+  "SC-UN3373-001",
+  "SC-OPS-001",
+  "SC-SPEC-001",
+] as const;
+
+export type OfficialSourcePackageKey = typeof SC_MCM_PACKAGE_KEY | typeof SC_ERP_PACKAGE_KEY | typeof SC_FRM_PACKAGE_KEY;
+
+export type OfficialSourcePackage = {
+  key: OfficialSourcePackageKey;
+  title: string;
+  filename: string;
+  expectedSha256: string;
+  expectedBytes: number;
+  documentNumber: string;
+  revision: string;
+  purpose: CompanyDocumentPurpose;
+  libraryCategory: CompanyLibraryCategory;
+  suggestedAssignment: "READ_AND_ACKNOWLEDGE" | null;
+  controlledDocumentIds: readonly string[];
+  notes: string;
+};
+
+/**
+ * Official Rev 1.0 source files from Jordan's compliance ZIP.
+ * Binaries are never committed. These hashes are the upload-integrity check.
+ *
+ * SHA-256:
+ * - Master DOCX  3f2950685ef3fa9f38731620d081795d34b20a0c88d1d4728bf70689aa9cceb7 (168806 bytes)
+ * - Emergency    aef57209062a65ea90caf7f6f495a9a02c567a7078fa03025436d206a2eb11cc (50245 bytes)
+ * - Forms PDF    0c7303fa05c8265c9f2b45bce1b3f2857cc08ef37b90a2a7704c3bd6edb4b622 (614649 bytes)
+ */
+export const OFFICIAL_SOURCE_PACKAGES: OfficialSourcePackage[] = [
+  {
+    key: SC_MCM_PACKAGE_KEY,
+    title: "Master Compliance & Operations Manual",
+    filename: "Safeway_Couriers_MASTER_Compliance_Operations_Manual_SC-MCM-001_Rev1.0_FINAL_QA.docx",
+    expectedSha256: "3f2950685ef3fa9f38731620d081795d34b20a0c88d1d4728bf70689aa9cceb7",
+    expectedBytes: 168806,
+    documentNumber: "SC-MCM-001",
+    revision: "1.0",
+    purpose: "REFERENCE",
+    libraryCategory: "GENERAL_COMPLIANCE",
+    suggestedAssignment: null,
+    controlledDocumentIds: SC_MCM_INCORPORATED_IDS,
+    notes: "Upload as REFERENCE (or POLICY) / GENERAL_COMPLIANCE. Keep DRAFT until owner approval and effective-date review. Incorporated sections share this one ManagedDocument. Do not use this file for SC-ERP-001 or SC-FRM-001…020.",
+  },
+  {
+    key: SC_ERP_PACKAGE_KEY,
+    title: "Emergency / Incident Program",
+    filename: "Safeway_Couriers_Emergency_Incident_Program.docx",
+    expectedSha256: "aef57209062a65ea90caf7f6f495a9a02c567a7078fa03025436d206a2eb11cc",
+    expectedBytes: 50245,
+    documentNumber: "SC-ERP-001",
+    revision: "1.0",
+    purpose: "SOP",
+    libraryCategory: "EMERGENCY",
+    suggestedAssignment: "READ_AND_ACKNOWLEDGE",
+    controlledDocumentIds: ["SC-ERP-001"],
+    notes: "Standalone source for SC-ERP-001 (preferred over the master DOCX). Upload as SOP/POLICY / EMERGENCY. READ_AND_ACKNOWLEDGE only after owner approval. Acknowledgments are not e-signatures.",
+  },
+  {
+    key: SC_FRM_PACKAGE_KEY,
+    title: "Forms and Records Package",
+    filename: "Safeway_Couriers_Forms_and_Records_Package.pdf",
+    expectedSha256: "0c7303fa05c8265c9f2b45bce1b3f2857cc08ef37b90a2a7704c3bd6edb4b622",
+    expectedBytes: 614649,
+    documentNumber: "SC-FRM-PACKAGE",
+    revision: "1.0",
+    purpose: "FORM",
+    libraryCategory: "FORMS_RECORDS",
+    suggestedAssignment: null,
+    controlledDocumentIds: SC_FRM_IDS,
+    notes: "SC-FRM-001 through SC-FRM-020 share this one PDF ManagedDocument. Upload as FORM/TEMPLATE / FORMS_RECORDS. Keep private; do not activate until owner approval fields are complete.",
+  },
+];
+
+export function sourcePackageKeyForControlledId(controlledDocumentId: string): OfficialSourcePackageKey {
+  if (controlledDocumentId === SC_ERP_PACKAGE_KEY) return SC_ERP_PACKAGE_KEY;
+  if (controlledDocumentId.startsWith("SC-FRM-")) return SC_FRM_PACKAGE_KEY;
+  return SC_MCM_PACKAGE_KEY;
+}
+
+export function officialSourcePackageByKey(key: string | null | undefined) {
+  return OFFICIAL_SOURCE_PACKAGES.find((row) => row.key === key) ?? null;
+}
+
+function normalizeHash(value: string | null | undefined) {
+  return (value ?? "").trim().toLowerCase();
+}
+
+function normalizeFilename(value: string | null | undefined) {
+  return (value ?? "").trim().toLowerCase();
+}
+
+export function identifyOfficialSourcePackage(args: {
+  sha256?: string | null;
+  filename?: string | null;
+  documentNumber?: string | null;
+  sourcePackageKey?: string | null;
+}) {
+  const explicit = officialSourcePackageByKey(args.sourcePackageKey);
+  if (explicit) return explicit;
+  const hash = normalizeHash(args.sha256);
+  const byHash = OFFICIAL_SOURCE_PACKAGES.find((row) => row.expectedSha256 === hash);
+  if (byHash) return byHash;
+  const documentNumber = (args.documentNumber ?? "").trim().toUpperCase();
+  if (documentNumber) {
+    const byNumber = OFFICIAL_SOURCE_PACKAGES.find(
+      (row) => row.documentNumber === documentNumber || row.controlledDocumentIds.includes(documentNumber),
+    );
+    if (byNumber) return byNumber;
+  }
+  const filename = normalizeFilename(args.filename);
+  if (filename) {
+    const byName = OFFICIAL_SOURCE_PACKAGES.find((row) => filename.includes(normalizeFilename(row.filename)) || filename.includes(row.key.toLowerCase()));
+    if (byName) return byName;
+  }
+  return null;
+}
+
+export function officialSourceHashMatches(sha256: string | null | undefined, expectedSha256: string) {
+  return Boolean(sha256) && normalizeHash(sha256) === expectedSha256;
+}
 
 export type ControlledRegisterSeed = {
   controlledDocumentId: string;
@@ -19,8 +154,8 @@ export const CONTROLLED_REGISTER_SEEDS: ControlledRegisterSeed[] = [
   {
     controlledDocumentId: "SC-MCM-001",
     title: "Master Compliance & Operations Manual",
-    description: "Master source package for Safeway Couriers compliance and operations. Child controlled records share this file after upload — no duplicate Blob objects.",
-    category: "CORPORATE_GOVERNANCE",
+    description: "Master source package for Safeway Couriers compliance and operations. Incorporated sections share the master DOCX ManagedDocument after upload — no duplicate Blob objects. SC-ERP-001 and SC-FRM-001…020 use standalone files.",
+    category: "GENERAL_COMPLIANCE",
     documentType: "MANUAL",
     ownerRole: "OWNER",
     approvalAuthority: "Owner / Managing Member",
@@ -99,9 +234,9 @@ export const CONTROLLED_REGISTER_SEEDS: ControlledRegisterSeed[] = [
   {
     controlledDocumentId: "SC-ERP-001",
     title: "Emergency / Incident Program",
-    description: "Emergency and incident response program section of the master package.",
+    description: "Standalone Emergency / Incident Program. Prefers Safeway_Couriers_Emergency_Incident_Program.docx as sourceManagedDocument when uploaded.",
     category: "EMERGENCY",
-    documentType: "PROGRAM",
+    documentType: "SOP",
     ownerRole: "COMPLIANCE_ADMIN",
     approvalAuthority: "Owner / Managing Member",
     sectionReference: "SC-ERP-001",

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ComplianceLibraryNav } from "@/components/portal/ComplianceLibraryNav";
+import { OfficialSourceChecklist } from "@/components/portal/OfficialSourceChecklist";
 import { canViewCompanyLibraryAdmin } from "@/lib/compliance/library-access";
 import { prisma } from "@/lib/db";
 import { requireAuth } from "@/lib/rbac";
@@ -27,11 +28,12 @@ export default async function FormsLibraryPage() {
       <div>
         <h1 className="text-3xl font-semibold text-navy">Forms and records register</h1>
         <p className="mt-2 max-w-3xl text-sm text-muted">
-          SC-FRM-001 through SC-FRM-020 are controlled templates only. This is not a dynamic form
-          builder. Uploaded fillable files appear below after Owner/Admin upload.
+          SC-FRM-001 through SC-FRM-020 are controlled templates only. They share the official Forms
+          PDF ManagedDocument after upload. This is not a dynamic form builder.
         </p>
         <ComplianceLibraryNav current="/dashboard/compliance/forms" />
       </div>
+      <OfficialSourceChecklist />
       <section className="rounded-2xl border border-line bg-paper p-5">
         <h2 className="font-semibold text-navy">Controlled forms register</h2>
         <ul className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
@@ -48,7 +50,7 @@ export default async function FormsLibraryPage() {
       <section className="rounded-2xl border border-line bg-paper p-5">
         <h2 className="font-semibold text-navy">Uploaded form files</h2>
         {uploaded.length === 0 ? (
-          <p className="mt-2 text-sm text-muted">No separate form files uploaded yet. Sections share the master ManagedDocument after SC-MCM-001 upload.</p>
+          <p className="mt-2 text-sm text-muted">No separate form files uploaded yet. SC-FRM-001…020 share the official Forms PDF after that upload.</p>
         ) : (
           <ul className="mt-3 space-y-2 text-sm">
             {uploaded.map((form) => (

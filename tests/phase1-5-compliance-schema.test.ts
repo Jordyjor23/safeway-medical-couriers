@@ -12,8 +12,17 @@ import {
   APPROVED_SERVICE_MATRIX,
   CONTROLLED_REGISTER_SEEDS,
   IMPLEMENTATION_TASK_SEEDS,
+  OFFICIAL_SOURCE_PACKAGES,
+  SC_ERP_PACKAGE_KEY,
+  SC_FRM_IDS,
+  SC_FRM_PACKAGE_KEY,
+  SC_MCM_INCORPORATED_IDS,
   SC_MCM_MASTER_ID,
+  SC_MCM_PACKAGE_KEY,
   controlledDocumentVisibleToAssignees,
+  identifyOfficialSourcePackage,
+  officialSourceHashMatches,
+  sourcePackageKeyForControlledId,
   serviceIsGenerallyAvailable,
 } from "@/lib/compliance/register-catalog";
 import { pendingSourceRegisterReady, sharedMasterSource } from "@/lib/compliance/register";
@@ -67,7 +76,7 @@ describe("Phase 1.5 compliance schema extension", () => {
         { sourceManagedDocumentId: "md-1" },
       ]),
     ).toBe(true);
-    expect(librarySource).toContain("attachMasterSourceToPackage");
+    expect(librarySource).toContain("attachOfficialSourceToPackage");
     expect(registerSource).not.toContain("storePrivateFile");
     expect(registerSource).toContain("sourceManagedDocumentId: companyDocument.documentId");
   });
@@ -164,5 +173,47 @@ describe("Phase 1.5 compliance schema extension", () => {
       "not an electronic signature",
     );
     expect(IMPLEMENTATION_TASK_SEEDS.some((task) => task.key === "obtain_owner_controlled_approval_signature")).toBe(true);
+  });
+
+  it("maps the three official source files by SHA-256 without putting binaries in Git", () => {
+    expect(OFFICIAL_SOURCE_PACKAGES).toHaveLength(3);
+    expect(OFFICIAL_SOURCE_PACKAGES[0]).toMatchObject({
+      key: SC_MCM_PACKAGE_KEY,
+      expectedSha256: "3f2950685ef3fa9f38731620d081795d34b20a0c88d1d4728bf70689aa9cceb7",
+      expectedBytes: 168806,
+      purpose: "REFERENCE",
+      libraryCategory: "GENERAL_COMPLIANCE",
+    });
+    expect(OFFICIAL_SOURCE_PACKAGES[1]).toMatchObject({
+      key: SC_ERP_PACKAGE_KEY,
+      expectedSha256: "aef57209062a65ea90caf7f6f495a9a02c567a7078fa03025436d206a2eb11cc",
+      expectedBytes: 50245,
+      libraryCategory: "EMERGENCY",
+    });
+    expect(OFFICIAL_SOURCE_PACKAGES[2]).toMatchObject({
+      key: SC_FRM_PACKAGE_KEY,
+      expectedSha256: "0c7303fa05c8265c9f2b45bce1b3f2857cc08ef37b90a2a7704c3bd6edb4b622",
+      expectedBytes: 614649,
+      purpose: "FORM",
+      libraryCategory: "FORMS_RECORDS",
+    });
+    expect(identifyOfficialSourcePackage({ sha256: "3F2950685EF3FA9F38731620D081795D34B20A0C88D1D4728BF70689AA9CCEB7" })?.key).toBe(
+      SC_MCM_PACKAGE_KEY,
+    );
+    expect(
+      identifyOfficialSourcePackage({ filename: "Safeway_Couriers_Emergency_Incident_Program.docx" })?.key,
+    ).toBe(SC_ERP_PACKAGE_KEY);
+    expect(officialSourceHashMatches("0c7303fa05c8265c9f2b45bce1b3f2857cc08ef37b90a2a7704c3bd6edb4b622", OFFICIAL_SOURCE_PACKAGES[2].expectedSha256)).toBe(true);
+    expect(SC_MCM_INCORPORATED_IDS).not.toContain("SC-ERP-001");
+    expect(SC_MCM_INCORPORATED_IDS.some((id) => id.startsWith("SC-FRM-"))).toBe(false);
+    expect(sourcePackageKeyForControlledId("SC-OPS-001")).toBe(SC_MCM_PACKAGE_KEY);
+    expect(sourcePackageKeyForControlledId("SC-ERP-001")).toBe(SC_ERP_PACKAGE_KEY);
+    expect(sourcePackageKeyForControlledId("SC-FRM-014")).toBe(SC_FRM_PACKAGE_KEY);
+    expect(SC_FRM_IDS).toHaveLength(20);
+    expect(OFFICIAL_SOURCE_PACKAGES[2].controlledDocumentIds).toEqual(SC_FRM_IDS);
+    const gitignore = readFileSync(path.join(process.cwd(), ".gitignore"), "utf8");
+    expect(gitignore).toContain("*.docx");
+    expect(gitignore).toContain("Safeway_Couriers_*.pdf");
+    expect(librarySource).not.toContain("storePrivateFile(file);\n    // upload official zip");
   });
 });

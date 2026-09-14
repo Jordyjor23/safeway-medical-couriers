@@ -2,11 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { uploadCompanyLibraryAction } from "@/app/(portal)/dashboard/compliance/library/actions";
 import { ComplianceLibraryNav } from "@/components/portal/ComplianceLibraryNav";
+import { OfficialSourceChecklist } from "@/components/portal/OfficialSourceChecklist";
 import {
   COMPANY_DOCUMENT_PURPOSES,
   COMPANY_LIBRARY_CATEGORIES,
   COMPANY_PUBLICATION_STATUSES,
 } from "@/lib/compliance/library-catalog";
+import { OFFICIAL_SOURCE_PACKAGES } from "@/lib/compliance/register-catalog";
 import { canManageCompanyLibrary, canViewCompanyLibraryAdmin } from "@/lib/compliance/library-access";
 import { prisma } from "@/lib/db";
 import { requireAuth } from "@/lib/rbac";
@@ -40,8 +42,9 @@ export default async function ComplianceLibraryPage({
         <h1 className="mt-2 text-3xl font-semibold text-navy">Company document library</h1>
         <p className="mt-2 max-w-3xl text-sm text-muted">
           Upload Safeway-approved policies, SOPs, forms, and templates into private storage. Files are
-          never placed in the public website directory. Controlled register records stay pending-source
-          until this master file is uploaded — no placeholder manuals are stored in the application.
+          never placed in the public website directory. Official Rev 1.0 sources are the three files in
+          the owner checklist below. Register records stay pending-source / DRAFT until those uploads
+          and owner approval are complete.
         </p>
         <div className="mt-4 flex flex-wrap gap-3 text-sm">
           <Link href="/dashboard/compliance" className="font-semibold text-medical hover:underline">
@@ -50,6 +53,8 @@ export default async function ComplianceLibraryPage({
         </div>
         <ComplianceLibraryNav current="/dashboard/compliance/library" />
       </div>
+
+      <OfficialSourceChecklist />
 
       <form className="grid gap-3 rounded-2xl border border-line bg-paper p-5 sm:grid-cols-4">
         <select name="category" defaultValue={params.category ?? ""} className="rounded-lg border border-line px-3 py-2 text-sm">
@@ -78,7 +83,17 @@ export default async function ComplianceLibraryPage({
           <h2 className="text-lg font-semibold text-navy sm:col-span-2">Upload company document</h2>
           <p className="text-sm text-muted sm:col-span-2">
             Use a new upload to replace a document. The previous version is preserved and marked superseded.
+            Matching SHA-256 against the official Rev 1.0 hashes links the correct controlled register rows.
+            Status stays DRAFT. Do not activate until owner approval fields are complete.
           </p>
+          <select name="sourcePackageKey" className="rounded-lg border border-line px-3 py-2 text-sm sm:col-span-2">
+            <option value="">Auto-detect official source (filename / SHA-256 / document number)</option>
+            {OFFICIAL_SOURCE_PACKAGES.map((source) => (
+              <option key={source.key} value={source.key}>
+                {source.documentNumber} — {source.title}
+              </option>
+            ))}
+          </select>
           <input name="title" required placeholder="Title" className="rounded-lg border border-line px-3 py-2 text-sm" />
           <input name="documentNumber" placeholder="Document number (optional)" className="rounded-lg border border-line px-3 py-2 text-sm" />
           <input name="revision" placeholder="Revision (e.g. 1.0)" className="rounded-lg border border-line px-3 py-2 text-sm" />
