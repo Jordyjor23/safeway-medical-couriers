@@ -116,7 +116,7 @@ describe("phase 3 association ACL", () => {
   it("lets an admin associate from employee, customer, contract, and delivery profiles", () => {
     const admin = actor({
       roles: ["ADMIN"],
-      permissions: ["documents.upload", "documents.view", "employees.view", "customers.view", "contracts.view", "delivery.view"],
+      permissions: ["documents.upload", "documents.view", "employees.view", "customers.view", "contracts.view", "delivery.view", "applicants.view"],
     });
     expect(canAssociateEmployee(admin, "emp-1")).toBe(true);
     expect(canAssociateCustomer(admin, "cust-1")).toBe(true);
@@ -127,6 +127,7 @@ describe("phase 3 association ACL", () => {
       customer: true,
       contract: true,
       delivery: true,
+      applicant: true,
     });
   });
 
@@ -165,6 +166,7 @@ describe("phase 3 association ACL", () => {
       customer: false,
       contract: false,
       delivery: false,
+      applicant: false,
     });
   });
 });

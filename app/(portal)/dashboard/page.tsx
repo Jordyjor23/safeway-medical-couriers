@@ -12,8 +12,10 @@ export const metadata: Metadata = {
 
 export default async function DashboardPage() {
   const ctx = await requireAuth();
-  const stats = await getDashboardOverview();
-  const documentAlerts = await getDocumentAlertStats();
+  const stats = await getDashboardOverview(ctx);
+  const documentAlerts = stats.visibility.documents || stats.visibility.compliance
+    ? await getDocumentAlertStats()
+    : { expiringIn30Days: 0, expired: 0, missingDocuments: 0, needsReview: 0, actionRequired: 0 };
   const owner = isOwnerRole(ctx.roles);
 
   return (
@@ -38,24 +40,25 @@ export default async function DashboardPage() {
       ) : null}
 
       <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Active employees" value={stats.activeEmployees} href="/dashboard/employees" />
-        <StatCard label="Active couriers" value={stats.activeCouriers} href="/dashboard/employees" />
-        <StatCard label="Pending applicants" value={stats.pendingApplicants} href="/dashboard/applicants" />
-        <StatCard label="Applications this month" value={stats.applicationsThisMonth} href="/dashboard/applicants" />
-        <StatCard label="Open positions" value={stats.openPositions} href="/dashboard/jobs" />
-        <StatCard label="Active customers" value={stats.activeCustomers} href="/dashboard/customers" />
-        <StatCard label="Prospective customers" value={stats.prospectiveCustomers} href="/dashboard/customers" />
-        <StatCard label="Active contracts" value={stats.activeContracts} href="/dashboard/contracts" />
-        <StatCard label="Contracts expiring soon" value={stats.contractsExpiringSoon} href="/dashboard/contracts" />
-        <StatCard label="Pending contracts" value={stats.pendingContracts} href="/dashboard/contracts" />
-        <StatCard label="Expiring in 30 days" value={documentAlerts.expiringIn30Days} href="/dashboard/documents/alerts" />
-        <StatCard label="Expired" value={documentAlerts.expired} href="/dashboard/documents/alerts?expirationWindow=expired" />
-        <StatCard label="Missing documents" value={documentAlerts.missingDocuments} href="/dashboard/documents/alerts" />
-        <StatCard label="Needs review" value={documentAlerts.needsReview} href="/dashboard/documents/review" />
-        <StatCard label="Action required" value={documentAlerts.actionRequired} href="/dashboard/documents/alerts" />
-        <StatCard label="Documents expiring soon" value={stats.documentsExpiringSoon} href="/dashboard/documents" />
-        <StatCard label="Compliance alerts" value={stats.complianceAlerts} href="/dashboard/compliance" />
-        <StatCard label="Training expirations" value={stats.upcomingTrainingExpirations} href="/dashboard/compliance" />
+        {stats.visibility.employees ? <StatCard label="Active employees" value={stats.activeEmployees} href="/dashboard/employees" /> : null}
+        {stats.visibility.employees ? <StatCard label="Active couriers" value={stats.activeCouriers} href="/dashboard/employees" /> : null}
+        {stats.visibility.applicants ? <StatCard label="Pending applicants" value={stats.pendingApplicants} href="/dashboard/applicants" /> : null}
+        {stats.visibility.applicants ? <StatCard label="Applications this month" value={stats.applicationsThisMonth} href="/dashboard/applicants" /> : null}
+        {stats.visibility.applicants ? <StatCard label="Applications awaiting review" value={stats.awaitingReview} href="/dashboard/applicants" /> : null}
+        {stats.visibility.jobs ? <StatCard label="Open positions" value={stats.openPositions} href="/dashboard/jobs" /> : null}
+        {stats.visibility.customers ? <StatCard label="Active customers" value={stats.activeCustomers} href="/dashboard/customers" /> : null}
+        {stats.visibility.customers ? <StatCard label="Prospective customers" value={stats.prospectiveCustomers} href="/dashboard/customers" /> : null}
+        {stats.visibility.contracts ? <StatCard label="Active contracts" value={stats.activeContracts} href="/dashboard/contracts" /> : null}
+        {stats.visibility.contracts ? <StatCard label="Contracts expiring soon" value={stats.contractsExpiringSoon} href="/dashboard/contracts" /> : null}
+        {stats.visibility.contracts ? <StatCard label="Pending contracts" value={stats.pendingContracts} href="/dashboard/contracts" /> : null}
+        {stats.visibility.documents ? <StatCard label="Expiring in 30 days" value={documentAlerts.expiringIn30Days} href="/dashboard/documents/alerts" /> : null}
+        {stats.visibility.documents ? <StatCard label="Expired" value={documentAlerts.expired} href="/dashboard/documents/alerts?expirationWindow=expired" /> : null}
+        {stats.visibility.documents ? <StatCard label="Missing documents" value={documentAlerts.missingDocuments} href="/dashboard/documents/alerts" /> : null}
+        {stats.visibility.documents ? <StatCard label="Needs review" value={documentAlerts.needsReview} href="/dashboard/documents/review" /> : null}
+        {stats.visibility.documents ? <StatCard label="Action required" value={documentAlerts.actionRequired} href="/dashboard/documents/alerts" /> : null}
+        {stats.visibility.documents ? <StatCard label="Documents expiring soon" value={stats.documentsExpiringSoon} href="/dashboard/documents" /> : null}
+        {stats.visibility.compliance ? <StatCard label="Compliance alerts" value={stats.complianceAlerts} href="/dashboard/compliance" /> : null}
+        {stats.visibility.compliance ? <StatCard label="Training expirations" value={stats.upcomingTrainingExpirations} href="/dashboard/compliance" /> : null}
       </div>
 
       <section className="mt-10">

@@ -34,3 +34,41 @@ npx prisma db seed
 ```
 
 Owner account: visit `/setup` with `OWNER_SETUP_SECRET`. Never commit passwords.
+
+## 20260914010000_phase1_applicant_compliance
+
+Additive Phase 1 upgrade for applicant accounts, server-side application drafts, document review metadata, HR/compliance policy domains, requirement assignments, applicant→employee conversion records, and e-signature stub tables.
+
+- Adds `Applicant.userId`, `Application.draftPayload`, `ApplicationNote.visibleToApplicant`
+- Adds application statuses `INTERVIEW`, `DOCUMENTS_REQUIRED`, `COMPLIANCE_REVIEW`, `REJECTED`
+- Adds document categories `HR`, `APPLICANT`, `DELIVERY`, `CUSTOMER`, `PHI_OPERATIONAL` and `DocumentPolicyDomain`
+- Adds review metadata columns on `ManagedDocument` (no drops)
+- Adds `RequirementAssignment`, `ApplicantEmployeeConversion`, `SignatureRequest`, `SignatureSigner`, `SignatureEvent`
+- No table/column drops, no reset, no truncate
+
+```bash
+npx prisma migrate deploy
+npx prisma db seed
+```
+
+## 20260914020000_phase1_hardening
+
+Additive Phase 1 hardening (malware scan status, document ACL metadata). No drops.
+
+## 20260914030000_phase1_5_operational_content
+
+Additive company compliance library (`CompanyDocument`, assignments, acknowledgments). No drops.
+
+## 20260914040000_phase1_5_compliance_schema_extension
+
+Additive controlled document register, implementation tasks, service authorization matrix, richer assignment actions, and library categories.
+
+- Adds `ControlledDocument`, `ComplianceImplementationTask`, `ServiceAuthorization`
+- Adds enum values to `CompanyLibraryCategory` and `CompanyAssignmentAction` (no removals)
+- Adds nullable `controlledDocumentId` on assignments and acknowledgments
+- Makes `CompanyDocumentAcknowledgment.companyDocumentId` nullable so section acknowledgments do not collide
+- No table/column drops, no reset, no truncate
+- Seed templates stay `PENDING_SOURCE` / inactive / OPEN until owner action and master upload
+
+Do not run this against production from this agent. Preview environments apply it via the existing `migrate deploy` build path.
+

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { createCustomRole, saveRolePermissions } from "@/app/(portal)/dashboard/roles/actions";
 import { prisma } from "@/lib/db";
-import { PERMISSIONS, roleLabel } from "@/lib/permissions";
+import { canGrantPermissionToRole, PERMISSIONS, roleLabel } from "@/lib/permissions";
 import { requirePermission } from "@/lib/rbac";
 
 export const metadata: Metadata = { title: "Roles & permissions" };
@@ -19,7 +19,8 @@ export default async function RolesPage() {
         <h1 className="text-3xl font-semibold text-navy">Roles & permissions</h1>
         <p className="mt-2 max-w-2xl text-sm text-muted">
           Permission changes are stored in the database and apply on the next request. The Owner role
-          always retains full access.
+          always retains full access. Custom roles cannot be granted Phase 1 applicant, HR document,
+          or sensitive-employee permissions — assign a system HR/admin role instead.
         </p>
       </div>
 
@@ -45,19 +46,28 @@ export default async function RolesPage() {
               <form action={saveRolePermissions} className="mt-4">
                 <input type="hidden" name="roleId" value={role.id} />
                 <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                  {PERMISSIONS.map((permission) => (
-                    <li key={permission}>
-                      <label className="flex items-center gap-2 text-sm">
-                        <input
-                          type="checkbox"
-                          name="permission"
-                          value={permission}
-                          defaultChecked={assigned.has(permission)}
-                        />
-                        {permission}
-                      </label>
-                    </li>
-                  ))}
+                  {PERMISSIONS.map((permission) => {
+                    const allowed = canGrantPermissionToRole({
+                      roleKey: role.key,
+                      system: role.system,
+                      permission,
+                    });
+                    return (
+                      <li key={permission}>
+                        <label className={`flex items-center gap-2 text-sm ${allowed ? "" : "text-muted"}`}>
+                          <input
+                            type="checkbox"
+                            name="permission"
+                            value={permission}
+                            defaultChecked={assigned.has(permission) && allowed}
+                            disabled={!allowed}
+                          />
+                          {permission}
+                          {!allowed ? " (system HR/admin only)" : ""}
+                        </label>
+                      </li>
+                    );
+                  })}
                 </ul>
                 <button className="mt-4 rounded-full bg-navy px-4 py-2 text-sm font-semibold text-white">
                   Save permissions

@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { accountAllowsLogin } from "@/lib/account-status";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { canEditApplications, canReviewApplications } from "@/lib/applications/authorization";
 import {
   canAccessCustomerTenant,
   canAccessOwnEmployeeRecord,
@@ -26,6 +27,7 @@ export type AuthContext = {
     mustChangePassword?: boolean;
     customerId?: string | null;
     employeeId?: string | null;
+    applicantId?: string | null;
   };
   roles: string[];
   permissions: Set<string>;
@@ -42,6 +44,7 @@ export async function getAuthContext(): Promise<AuthContext | null> {
     where: { id: session.user.id },
     include: {
       employee: { select: { id: true } },
+      applicant: { select: { id: true } },
       customerUser: { select: { customerId: true } },
       roles: { include: { role: { include: { permissions: { include: { permission: true } } } } } },
     },
@@ -75,6 +78,7 @@ export async function getAuthContext(): Promise<AuthContext | null> {
       mustChangePassword: dbUser.mustChangePassword,
       customerId: dbUser.customerUser?.customerId ?? null,
       employeeId: dbUser.employee?.id ?? null,
+      applicantId: dbUser.applicant?.id ?? null,
     },
     roles,
     permissions,
@@ -97,6 +101,18 @@ export async function requirePermission(permission: PermissionKey | string) {
   const ctx = await requireActiveAuth();
   if (isOwnerRole(ctx.roles)) return ctx;
   if (!ctx.permissions.has(permission)) forbidden();
+  return ctx;
+}
+
+export async function requireApplicationReview() {
+  const ctx = await requireActiveAuth();
+  if (!canReviewApplications(ctx)) forbidden();
+  return ctx;
+}
+
+export async function requireApplicationEdit() {
+  const ctx = await requireActiveAuth();
+  if (!canEditApplications(ctx)) forbidden();
   return ctx;
 }
 

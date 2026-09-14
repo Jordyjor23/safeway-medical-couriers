@@ -23,11 +23,13 @@ type NavItem = {
   label: string;
   icon: typeof LayoutDashboard;
   permission?: string;
+  hrReview?: boolean;
+  ownerAdmin?: boolean;
 };
 
 const items: NavItem[] = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
-  { href: "/dashboard/applicants", label: "Applicants", permission: "applicants.view", icon: UserRound },
+  { href: "/dashboard/applicants", label: "Applicants", permission: "applicants.view", hrReview: true, icon: UserRound },
   { href: "/dashboard/jobs", label: "Job postings", permission: "jobs.view", icon: Briefcase },
   { href: "/dashboard/employees", label: "Employees", permission: "employees.view", icon: Users },
   { href: "/dashboard/customers", label: "Customers", permission: "customers.view", icon: Building2 },
@@ -35,6 +37,11 @@ const items: NavItem[] = [
   { href: "/dashboard/documents", label: "Documents", permission: "documents.view", icon: ScrollText },
   { href: "/dashboard/documents/alerts", label: "Document alerts", permission: "documents.view", icon: Bell },
   { href: "/dashboard/compliance", label: "Compliance tracking", permission: "compliance.view", icon: ClipboardCheck },
+  { href: "/dashboard/compliance/library", label: "Compliance library", ownerAdmin: true, icon: ScrollText },
+  { href: "/dashboard/compliance/register", label: "Controlled register", ownerAdmin: true, icon: ClipboardCheck },
+  { href: "/dashboard/compliance/forms", label: "Forms register", ownerAdmin: true, icon: FileText },
+  { href: "/dashboard/compliance/tasks", label: "Implementation tasks", ownerAdmin: true, icon: ClipboardCheck },
+  { href: "/dashboard/compliance/matrix", label: "Service matrix", ownerAdmin: true, icon: Shield },
   { href: "/dashboard/notifications", label: "Notifications", icon: Bell },
   { href: "/dashboard/audit", label: "Audit log", permission: "audit.view", icon: Shield },
   { href: "/dashboard/users", label: "Users", permission: "users.manage", icon: Users },
@@ -47,14 +54,22 @@ export function PortalSidebar({
   userName,
   userEmail,
   permissions,
+  roles = [],
 }: {
   userName: string;
   userEmail: string;
   permissions: string[];
+  roles?: string[];
 }) {
   const pathname = usePathname();
   const permissionSet = new Set(permissions);
-  const visible = items.filter((item) => !item.permission || permissionSet.has(item.permission));
+  const hrReview = roles.some((role) => ["OWNER", "ADMIN", "HR_RECRUITER", "COMPLIANCE_ADMIN"].includes(role));
+  const ownerAdmin = roles.includes("OWNER") || roles.includes("ADMIN");
+  const visible = items.filter((item) => {
+    if (item.ownerAdmin) return ownerAdmin;
+    if (item.hrReview) return hrReview;
+    return !item.permission || permissionSet.has(item.permission);
+  });
 
   return (
     <aside className="flex w-full flex-col bg-navy text-white lg:min-h-screen lg:w-64 lg:shrink-0">

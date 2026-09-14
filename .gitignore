@@ -34,6 +34,15 @@ yarn-error.log*
 .env*
 !.env.example
 
+# Official compliance source binaries — hashes live in lib/compliance/register-catalog.ts
+/compliance-source/
+*.docx
+Safeway_Couriers_*.pdf
+Safeway_Couriers_*.zip
+*SC-MCM-001*.docx
+*Forms_and_Records_Package.pdf
+
+
 # vercel
 .vercel
 

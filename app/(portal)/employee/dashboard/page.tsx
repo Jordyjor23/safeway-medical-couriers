@@ -1,6 +1,10 @@
+import Link from "next/link";
 import { createIncident } from "@/app/(portal)/deliveries/actions";
+import { DocumentUploader } from "@/components/portal/DocumentUploader";
 import { EntityDocumentsSection } from "@/components/portal/EntityDocumentsSection";
+import { listAssignedCompanyDocuments, listAssignedControlledDocuments } from "@/lib/compliance/library";
 import { employeeDocumentBuckets, missingRequirementLabels } from "@/lib/documents/buckets";
+import { documentReviewState } from "@/lib/documents/review-status";
 import { DOCUMENT_LIST_INCLUDE, documentLibraryWhere } from "@/lib/documents/query";
 import { prisma } from "@/lib/db";
 import { assertSameEmployee, hasPermission, requirePortal } from "@/lib/rbac";
@@ -42,6 +46,16 @@ export default async function EmployeeDashboardPage() {
     orderBy: { createdAt: "desc" },
     take: 10,
   });
+  const companyDocuments = hasPermission(ctx, "documents.view")
+    ? await listAssignedCompanyDocuments(ctx)
+    : [];
+  const controlledDocuments = hasPermission(ctx, "documents.view")
+    ? await listAssignedControlledDocuments(ctx)
+    : [];
+  const companyPending = companyDocuments.filter((row) => row.canAcknowledge && row.acknowledgments.length === 0);
+  const companyCompleted = companyDocuments.filter((row) => row.acknowledgments.length > 0);
+  const controlledPending = controlledDocuments.filter((row) => row.canAcknowledge && row.acknowledgments.length === 0);
+  const controlledCompleted = controlledDocuments.filter((row) => row.acknowledgments.length > 0);
 
   return (
     <div className="space-y-6">
@@ -62,21 +76,90 @@ export default async function EmployeeDashboardPage() {
         )}
       </section>
       {hasPermission(ctx, "documents.view") ? (
+        <section className="rounded-2xl border border-line bg-paper p-5">
+          <h2 className="font-semibold text-navy">My company documents</h2>
+          <p className="mt-1 text-sm text-muted">
+            Assigned SOPs, policies, training material, and acknowledgments. These are not your personal credentials.
+          </p>
+          {companyDocuments.length === 0 && controlledDocuments.length === 0 ? (
+            <p className="mt-3 text-sm text-muted">No company documents are assigned to you.</p>
+          ) : (
+            <div className="mt-4 grid gap-4 lg:grid-cols-2">
+              <div>
+                <h3 className="text-sm font-semibold text-navy">Required / pending acknowledgment</h3>
+                <ul className="mt-2 space-y-2 text-sm">
+                  {companyPending.map((row) => (
+                    <li key={row.id}>
+                      <Link href={`/employee/company-documents/${row.id}`} className="font-medium text-medical hover:underline">
+                        {row.title} · rev {row.revision}
+                      </Link>
+                    </li>
+                  ))}
+                  {controlledPending.map((row) => (
+                    <li key={row.id}>
+                      <Link href={`/employee/company-documents/controlled/${row.id}`} className="font-medium text-medical hover:underline">
+                        {row.controlledDocumentId} · {row.title} · rev {row.revision}
+                      </Link>
+                    </li>
+                  ))}
+                  {!companyPending.length && !controlledPending.length ? <li className="text-muted">None pending.</li> : null}
+                </ul>
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-navy">Completed acknowledgments</h3>
+                <ul className="mt-2 space-y-2 text-sm">
+                  {companyCompleted.map((row) => (
+                    <li key={row.id}>
+                      <Link href={`/employee/company-documents/${row.id}`} className="font-medium text-navy hover:underline">
+                        {row.title} · rev {row.acknowledgments[0]?.documentRevision}
+                      </Link>
+                    </li>
+                  ))}
+                  {controlledCompleted.map((row) => (
+                    <li key={row.id}>
+                      <Link href={`/employee/company-documents/controlled/${row.id}`} className="font-medium text-navy hover:underline">
+                        {row.controlledDocumentId} · rev {row.acknowledgments[0]?.controlledDocumentRevision}
+                      </Link>
+                    </li>
+                  ))}
+                  {!companyCompleted.length && !controlledCompleted.length ? <li className="text-muted">None yet.</li> : null}
+                </ul>
+              </div>
+            </div>
+          )}
+        </section>
+      ) : null}
+      {hasPermission(ctx, "documents.view") ? (
         <EntityDocumentsSection
-          title="Your documents"
+          title="My credentials"
           documents={documents}
           canDownload={hasPermission(ctx, "documents.download")}
+          canUpload={hasPermission(ctx, "documents.upload")}
           canOpenDetails={false}
           missing={missing}
           sections={[
-            { label: "Your documents", documents: buckets.uploaded, empty: "No current files." },
+            { label: "Required / missing", documents: [], empty: missing.length ? undefined : "No missing requirements." },
+            { label: "Uploaded / pending review", documents: documents.filter((doc) => ["UPLOADED", "PENDING_REVIEW"].includes(documentReviewState(doc))), empty: "None pending." },
+            { label: "Approved", documents: documents.filter((doc) => documentReviewState(doc) === "APPROVED"), empty: "None approved yet." },
+            { label: "Rejected", documents: buckets.rejected, empty: "None." },
             { label: "Expiring soon", documents: buckets.expiringSoon, empty: "None." },
             { label: "Expired", documents: buckets.expired, empty: "None." },
-            { label: "Rejected", documents: buckets.rejected, empty: "None." },
-            { label: "Needs action", documents: buckets.needsAction, empty: "Nothing needs action." },
           ]}
           emptyBody="No assigned handbook, policy, or other files yet."
-        />
+        >
+          {employee && hasPermission(ctx, "documents.upload") ? (
+            <DocumentUploader
+              associations={{ employee: false, customer: false, contract: false, delivery: false }}
+              preset={{
+                employeeId: employee.id,
+                employeeLabel: `${employee.legalFirstName} ${employee.legalLastName}`,
+                category: "HR",
+              }}
+              triggerLabel="Upload compliance document"
+              redirectOnSuccess={false}
+            />
+          ) : null}
+        </EntityDocumentsSection>
       ) : null}
       <section className="rounded-2xl border border-line bg-paper p-5">
         <h2 className="font-semibold text-navy">My training</h2>

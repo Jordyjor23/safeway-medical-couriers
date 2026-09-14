@@ -22,6 +22,8 @@ type AssociationOption = { id: string; label: string };
 type Preset = {
   employeeId?: string;
   employeeLabel?: string;
+  applicantId?: string;
+  applicationId?: string;
   customerId?: string;
   customerLabel?: string;
   contractId?: string;
@@ -40,11 +42,13 @@ export function DocumentUploader({
   preset,
   triggerLabel = "Upload Document",
   detailBasePath = "/dashboard/documents",
+  redirectOnSuccess = true,
 }: {
   associations: { employee: boolean; customer: boolean; contract: boolean; delivery: boolean };
   preset?: Preset;
   triggerLabel?: string;
   detailBasePath?: string;
+  redirectOnSuccess?: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -132,6 +136,8 @@ export function DocumentUploader({
     if (notes) body.set("notes", notes);
     if (isSensitive) body.set("isSensitive", "1");
     if (employeeId) body.set("employeeId", employeeId);
+    if (preset?.applicantId) body.set("applicantId", preset.applicantId);
+    if (preset?.applicationId) body.set("applicationId", preset.applicationId);
     if (customerId) body.set("customerId", customerId);
     if (contractId) body.set("contractId", contractId);
     if (deliveryId) body.set("deliveryId", deliveryId);
@@ -169,7 +175,7 @@ export function DocumentUploader({
           setStatus("success");
           setProgress(100);
           router.refresh();
-          if (payload.documentId) router.push(`${detailBasePath}/${payload.documentId}`);
+          if (redirectOnSuccess && payload.documentId) router.push(`${detailBasePath}/${payload.documentId}`);
         } catch {
           setError("The document could not be uploaded. Try again.");
           setStatus("error");

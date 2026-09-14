@@ -42,49 +42,61 @@ export function ApplicationForm({
   acknowledgement,
   privacyHref,
   accommodationEmail,
+  signedIn = false,
+  serverDraft = null,
 }: {
   job: JobInfo;
   acknowledgement: string;
   privacyHref: string;
   accommodationEmail: string;
+  signedIn?: boolean;
+  serverDraft?: Record<string, unknown> | null;
 }) {
   const router = useRouter();
   const storageKey = useMemo(() => `safeway-application-${job.publicId}`, [job.publicId]);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [employment, setEmployment] = useState<EmploymentRow[]>([emptyEmployment()]);
 
   useEffect(() => {
-    const raw = localStorage.getItem(storageKey);
-    if (!raw) return;
-    try {
-      const parsed = JSON.parse(raw) as { employment?: EmploymentRow[] };
-      // Restore a client-only draft after mount so server HTML stays stable.
-      if (parsed.employment?.length) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage hydrate
-        setEmployment(parsed.employment);
-      }
-      const form = document.getElementById("application-form") as HTMLFormElement | null;
-      if (!form) return;
-      for (const [key, value] of Object.entries(parsed)) {
-        if (key === "employment") continue;
-        const field = form.elements.namedItem(key);
-        if (field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement || field instanceof HTMLSelectElement) {
-          if (field instanceof HTMLInputElement && (field.type === "checkbox" || field.type === "radio")) {
-            if (field.type === "checkbox") field.checked = Boolean(value);
-          } else {
-            field.value = String(value ?? "");
-          }
+    const parsed = (serverDraft ?? null) as { employment?: EmploymentRow[]; employmentHistory?: EmploymentRow[] } | null;
+    if (parsed?.employmentHistory?.length || parsed?.employment?.length) {
+      const rows = parsed.employmentHistory ?? parsed.employment ?? [];
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- server draft hydrate
+      setEmployment(rows.length ? rows : [emptyEmployment()]);
+    }
+    if (!parsed) return;
+    const form = document.getElementById("application-form") as HTMLFormElement | null;
+    if (!form) return;
+    for (const [key, value] of Object.entries(parsed)) {
+      if (key === "employment" || key === "employmentHistory") continue;
+      const field = form.elements.namedItem(key);
+      if (field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement || field instanceof HTMLSelectElement) {
+        if (field instanceof HTMLInputElement && (field.type === "checkbox" || field.type === "radio")) {
+          if (field.type === "checkbox") field.checked = Boolean(value);
+        } else {
+          field.value = String(value ?? "");
         }
       }
-    } catch {
-      localStorage.removeItem(storageKey);
     }
-  }, [storageKey]);
+    try {
+      localStorage.removeItem(storageKey);
+    } catch {
+      // Browser storage is optional; the server draft is the source of truth.
+    }
+  }, [serverDraft, storageKey]);
 
-  function persist(form: HTMLFormElement) {
+  async function persist(form: HTMLFormElement) {
     const data = Object.fromEntries(new FormData(form).entries());
-    localStorage.setItem(storageKey, JSON.stringify({ ...data, employment }));
+    const payload = { ...data, employment, jobPublicId: job.publicId };
+    if (!signedIn) return;
+    await fetch("/api/applicant/applications", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }).catch(() => undefined);
+    setSaved(true);
   }
 
   return (
@@ -161,10 +173,11 @@ export function ApplicationForm({
         };
 
         setPending(true);
-        const response = await fetch("/api/careers/applications", {
+        const endpoint = signedIn ? "/api/applicant/applications" : "/api/careers/applications";
+        const response = await fetch(endpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
+          body: JSON.stringify(signedIn ? { ...payload, submit: true } : payload),
         });
         const result = await response.json().catch(() => null);
         setPending(false);
@@ -172,10 +185,28 @@ export function ApplicationForm({
           setError(result?.error ?? "The application could not be submitted.");
           return;
         }
-        localStorage.removeItem(storageKey);
-        router.push(`/careers/apply/confirmation/${result.application.trackingNumber}?email=${encodeURIComponent(payload.email)}`);
+        router.push(`/careers/apply/confirmation/${result.application.trackingNumber}`);
       }}
     >
+      {!signedIn ? (
+        <section className="rounded-2xl border border-amber-400/40 bg-panel p-6">
+          <h2 className="text-xl font-semibold text-mist">Create an account to manage this application</h2>
+          <p className="mt-2 text-sm text-mist-soft">
+            Status, drafts, and document uploads require an applicant login. Submitting without an
+            account is a one-time send only. If this email already has an account, sign in instead —
+            a second application will not be created.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <Link href="/register" className="mkt-btn mkt-btn-primary">
+              Create an applicant account
+            </Link>
+            <Link href="/login?next=/applicant/dashboard" className="mkt-btn">
+              Sign in
+            </Link>
+          </div>
+        </section>
+      ) : null}
+
       <section className="rounded-2xl border border-white/10 bg-panel p-6">
         <h2 className="text-xl font-semibold text-mist">Applicant information</h2>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -412,19 +443,46 @@ export function ApplicationForm({
         </label>
       </section>
 
+      {signedIn ? (
+        <p className="text-sm text-mist-soft">
+          {saved ? "Progress saved to your account." : "Changes save to your account so you can resume later."}
+        </p>
+      ) : (
+        <p className="text-sm text-mist-soft">
+          <Link href={`/register?next=/careers/apply/${job.publicId}`} className="font-semibold text-medical underline">
+            Create an applicant account
+          </Link>{" "}
+          to save and resume this application on another device.
+        </p>
+      )}
+
       {error ? (
         <p className="text-sm text-red-400" role="alert">
           {error}
         </p>
       ) : null}
 
-      <button
-        type="submit"
-        disabled={pending}
-        className="mkt-btn mkt-btn-primary disabled:opacity-60"
-      >
-        {pending ? "Submitting…" : "Submit application"}
-      </button>
+      <div className="flex flex-wrap gap-3">
+        {signedIn ? (
+          <button
+            type="button"
+            className="mkt-btn"
+            onClick={async () => {
+              const form = document.getElementById("application-form") as HTMLFormElement | null;
+              if (form) await persist(form);
+            }}
+          >
+            Save progress
+          </button>
+        ) : null}
+        <button
+          type="submit"
+          disabled={pending}
+          className="mkt-btn mkt-btn-primary disabled:opacity-60"
+        >
+          {pending ? "Submitting…" : "Submit application"}
+        </button>
+      </div>
     </form>
   );
 

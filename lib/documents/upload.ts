@@ -6,6 +6,9 @@ import { startDocumentExtraction } from "@/lib/documents/extraction/run";
 import { persistManagedDocument } from "@/lib/documents/persist";
 import { documentMaxBytes } from "@/lib/documents/types";
 import { validateDocumentFile } from "@/lib/documents/validate";
+import { canManageCompanyLibrary } from "@/lib/compliance/library-access";
+import { scanUploadedFile, shouldRejectUploadForMalware } from "@/lib/documents/malware";
+import { prisma } from "@/lib/db";
 import { DocumentStorageError, isPrivateStorageConfigured, storePrivateFile } from "@/lib/storage";
 
 function optionalId(value: FormDataEntryValue | null) {
@@ -49,19 +52,47 @@ export async function processDocumentUpload(ctx: DocumentActor, formData: FormDa
         };
       }
     }
+    if (String(formData.get("companyLibrary") ?? "") === "1" && !canManageCompanyLibrary(ctx.roles)) {
+      return { error: "Not found." };
+    }
+    const supersedesId = optionalId(formData.get("supersedesId"));
+    if (supersedesId && !canManageCompanyLibrary(ctx.roles)) {
+      const company = await prisma.companyDocument.findUnique({ where: { documentId: supersedesId } });
+      if (company) return { error: "Not found." };
+    }
+    const scan = await scanUploadedFile({
+      sizeBytes: validation.sizeBytes,
+      mimeType: validation.mimeType,
+      contentSha256: validation.contentSha256,
+    });
+    if (shouldRejectUploadForMalware(scan)) {
+      return { error: "The file could not be accepted." };
+    }
     const stored = await storePrivateFile(file);
     const documentTypeRaw = String(formData.get("documentType") ?? "").trim();
+    const requestedEmployeeId = optionalId(formData.get("employeeId"));
+    const requestedApplicantId = optionalId(formData.get("applicantId"));
+    const requestedApplicationId = optionalId(formData.get("applicationId"));
+    const employeeId =
+      ctx.roles.includes("EMPLOYEE") || ctx.roles.includes("DRIVER")
+        ? ctx.user.employeeId ?? requestedEmployeeId
+        : requestedEmployeeId;
+    const applicantId = ctx.roles.includes("APPLICANT") ? ctx.user.applicantId ?? requestedApplicantId : requestedApplicantId;
     const result = await persistManagedDocument({
       actor: ctx,
+      malwareScan: scan,
       stored,
       name: String(formData.get("name") ?? stored.originalFileName),
       category: String(formData.get("category") ?? "CORPORATE") as DocumentCategory,
       documentType: documentTypeRaw && isDocumentType(documentTypeRaw) ? documentTypeRaw : null,
       effectiveDate: optionalDate(formData.get("effectiveDate")),
       expirationDate: optionalDate(formData.get("expirationDate")),
+      issueDate: optionalDate(formData.get("issueDate")),
       notes: String(formData.get("notes") ?? "") || null,
       isSensitive: String(formData.get("isSensitive") ?? "") === "1",
-      employeeId: optionalId(formData.get("employeeId")),
+      employeeId,
+      applicantId,
+      applicationId: requestedApplicationId,
       customerId: optionalId(formData.get("customerId")),
       contractId: optionalId(formData.get("contractId")),
       deliveryId: optionalId(formData.get("deliveryId")),

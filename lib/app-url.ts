@@ -116,6 +116,8 @@ const PORTAL_PREFIXES = [
   "/driver",
   "/employee",
   "/customer",
+  "/applicant",
+  "/register",
   "/api/auth",
   "/api/portal",
 ];
@@ -135,6 +137,7 @@ export function isProtectedPortalPath(pathname: string) {
     "/driver",
     "/employee",
     "/customer",
+    "/applicant",
     "/set-password",
   ].some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 }

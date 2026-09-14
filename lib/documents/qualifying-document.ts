@@ -10,6 +10,7 @@ export function documentSatisfiesRequirement(
     lifecycleStatus: DocumentLifecycleStatus;
     expirationDate?: Date | null;
     archivedAt?: Date | null;
+    malwareScanStatus?: string | null;
     employeeLinks: unknown[];
     customerLinks: unknown[];
     contractLinks: unknown[];

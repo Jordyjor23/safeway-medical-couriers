@@ -10,7 +10,8 @@ const statuses = ["CURRENT", "EXPIRING_SOON", "EXPIRED", "MISSING", "NOT_REQUIRE
 
 export default async function ComplianceDashboardPage() {
   const ctx = await requirePermission("compliance.view");
-  const [requirements, records, employees] = await Promise.all([
+  const now = new Date();
+  const [requirements, records, employees, library, register, tasks, matrix] = await Promise.all([
     prisma.complianceRequirement.findMany({ orderBy: { sortOrder: "asc" } }),
     prisma.complianceRecord.findMany({
       include: { employee: true, requirement: true },
@@ -19,8 +20,37 @@ export default async function ComplianceDashboardPage() {
     prisma.employee.findMany({
       orderBy: [{ legalLastName: "asc" }, { legalFirstName: "asc" }],
     }),
+    prisma.companyDocument.findMany({
+      include: {
+        assignments: { where: { active: true } },
+        acknowledgments: true,
+        document: { select: { verificationStatus: true, expirationDate: true, lifecycleStatus: true } },
+      },
+    }),
+    prisma.controlledDocument.findMany({ select: { id: true, status: true, active: true, sourceManagedDocumentId: true } }),
+    prisma.complianceImplementationTask.findMany({ select: { id: true, status: true } }),
+    prisma.serviceAuthorization.findMany({ select: { id: true, status: true, active: true } }),
   ]);
   const canEdit = hasPermission(ctx, "compliance.edit");
+  const activeSops = library.filter((row) => row.publicationStatus === "ACTIVE" && (row.purpose === "SOP" || row.purpose === "POLICY"));
+  const awaitingAck = library.filter((row) =>
+    row.publicationStatus === "ACTIVE" &&
+    row.assignments.some((assignment) => assignment.action === "READ_AND_ACKNOWLEDGE" || assignment.action === "SIGN"),
+  );
+  const dueForReview = library.filter((row) => row.reviewDate && row.reviewDate.getTime() <= now.getTime() && row.publicationStatus === "ACTIVE");
+  const recentlySuperseded = library.filter((row) => row.publicationStatus === "SUPERSEDED");
+  const pendingReviewDocs = await prisma.managedDocument.count({
+    where: { verificationStatus: "UNVERIFIED", lifecycleStatus: { in: ["UPLOADED", "NEEDS_REVIEW"] } },
+  });
+  const expiringCerts = await prisma.managedDocument.count({
+    where: {
+      expirationDate: { lte: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000), gte: now },
+      lifecycleStatus: { notIn: ["ARCHIVED", "SUPERSEDED"] },
+    },
+  });
+  const expiredCerts = await prisma.managedDocument.count({
+    where: { expirationDate: { lt: now }, lifecycleStatus: { notIn: ["ARCHIVED", "SUPERSEDED"] } },
+  });
 
   return (
     <div>
@@ -29,6 +59,63 @@ export default async function ComplianceDashboardPage() {
         This is document and training tracking status, not a legal determination that a person is
         compliant.
       </p>
+      <div className="mt-4 flex flex-wrap gap-3 text-sm">
+        <Link href="/dashboard/compliance/library" className="font-semibold text-medical hover:underline">
+          Company document library
+        </Link>
+        <Link href="/dashboard/compliance/register" className="font-semibold text-medical hover:underline">
+          Controlled register
+        </Link>
+        <Link href="/dashboard/compliance/forms" className="font-semibold text-medical hover:underline">
+          Forms register
+        </Link>
+        <Link href="/dashboard/compliance/tasks" className="font-semibold text-medical hover:underline">
+          Implementation tasks
+        </Link>
+        <Link href="/dashboard/compliance/matrix" className="font-semibold text-medical hover:underline">
+          Service authorization
+        </Link>
+      </div>
+      <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <article className="rounded-2xl border border-line bg-paper p-4">
+          <p className="text-xs uppercase tracking-wide text-muted">Active SOPs / policies</p>
+          <p className="mt-1 text-2xl font-semibold text-navy">{activeSops.length}</p>
+        </article>
+        <article className="rounded-2xl border border-line bg-paper p-4">
+          <p className="text-xs uppercase tracking-wide text-muted">Policies awaiting acknowledgment</p>
+          <p className="mt-1 text-2xl font-semibold text-navy">{awaitingAck.length}</p>
+        </article>
+        <article className="rounded-2xl border border-line bg-paper p-4">
+          <p className="text-xs uppercase tracking-wide text-muted">Docs pending review</p>
+          <p className="mt-1 text-2xl font-semibold text-navy">{pendingReviewDocs}</p>
+        </article>
+        <article className="rounded-2xl border border-line bg-paper p-4">
+          <p className="text-xs uppercase tracking-wide text-muted">Expiring / expired credentials</p>
+          <p className="mt-1 text-2xl font-semibold text-navy">{expiringCerts} / {expiredCerts}</p>
+        </article>
+        <article className="rounded-2xl border border-line bg-paper p-4">
+          <p className="text-xs uppercase tracking-wide text-muted">Policies due for review</p>
+          <p className="mt-1 text-2xl font-semibold text-navy">{dueForReview.length}</p>
+        </article>
+        <article className="rounded-2xl border border-line bg-paper p-4">
+          <p className="text-xs uppercase tracking-wide text-muted">Recently superseded</p>
+          <p className="mt-1 text-2xl font-semibold text-navy">{recentlySuperseded.length}</p>
+        </article>
+        <article className="rounded-2xl border border-line bg-paper p-4">
+          <p className="text-xs uppercase tracking-wide text-muted">Controlled register pending source</p>
+          <p className="mt-1 text-2xl font-semibold text-navy">
+            {register.filter((row) => row.status === "PENDING_SOURCE" || !row.sourceManagedDocumentId).length}
+          </p>
+        </article>
+        <article className="rounded-2xl border border-line bg-paper p-4">
+          <p className="text-xs uppercase tracking-wide text-muted">Open implementation tasks</p>
+          <p className="mt-1 text-2xl font-semibold text-navy">{tasks.filter((row) => row.status === "OPEN").length}</p>
+        </article>
+        <article className="rounded-2xl border border-line bg-paper p-4">
+          <p className="text-xs uppercase tracking-wide text-muted">Inactive service matrix rows</p>
+          <p className="mt-1 text-2xl font-semibold text-navy">{matrix.filter((row) => !row.active).length}</p>
+        </article>
+      </div>
       <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {requirements.map((requirement) => {
           const related = records.filter((record) => record.requirementId === requirement.id);

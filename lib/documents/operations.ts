@@ -3,10 +3,13 @@ import { writeAuditLog } from "@/lib/audit";
 import {
   DOCUMENT_ACCESS_INCLUDE,
   canAccessManagedDocument,
+  canAssociateApplicant,
   canAssociateContract,
   canAssociateCustomer,
   canAssociateDelivery,
   canAssociateEmployee,
+  canAttachDocumentToDelivery,
+  canSelfApproveDocument,
   documentsListWhere,
   type DocumentActor,
 } from "@/lib/documents/access";
@@ -20,10 +23,23 @@ function forbidden() {
 }
 
 export async function loadManagedDocumentForAccess(documentId: string) {
-  return prisma.managedDocument.findUnique({
+  const document = await prisma.managedDocument.findUnique({
     where: { id: documentId },
     include: DOCUMENT_ACCESS_INCLUDE,
   });
+  if (!document) return null;
+  const companyAssignments = document.companyLibrary
+    ? await prisma.companyDocumentAssignment.findMany({
+        where: { familyKey: document.companyLibrary.familyKey, active: true },
+      })
+    : [];
+  const controlledIds = (document.controlledSources ?? []).map((row) => row.id);
+  const controlledAssignments = controlledIds.length
+    ? await prisma.companyDocumentAssignment.findMany({
+        where: { controlledDocumentId: { in: controlledIds }, active: true },
+      })
+    : [];
+  return { ...document, companyAssignments, controlledAssignments };
 }
 
 export async function archiveManagedDocument(args: {
@@ -127,17 +143,22 @@ export async function supersedeManagedDocument(args: {
 export async function verifyManagedDocument(args: { documentId: string; actor: DocumentActor }) {
   const document = await loadManagedDocumentForAccess(args.documentId);
   if (!document) return { error: "Document not found." };
-  if (!canAccessManagedDocument(args.actor, document, "verify")) {
+  if (!canSelfApproveDocument(args.actor, document)) {
     throw forbidden();
   }
 
+  const now = new Date();
   const updated = await prisma.managedDocument.update({
     where: { id: document.id },
     data: {
       lifecycleStatus: "VERIFIED",
       verificationStatus: "VERIFIED",
-      verifiedAt: new Date(),
+      verifiedAt: now,
       verifiedBy: args.actor.user.id,
+      reviewedAt: now,
+      reviewedBy: args.actor.user.id,
+      approvedAt: now,
+      verificationDate: now,
       rejectedAt: null,
       rejectedBy: null,
       rejectionReason: null,
@@ -158,6 +179,8 @@ export async function rejectManagedDocument(args: {
   actor: DocumentActor;
   reason?: string;
 }) {
+  const reason = args.reason?.trim() ?? "";
+  if (reason.length < 3) return { error: "A rejection reason is required." };
   const document = await loadManagedDocumentForAccess(args.documentId);
   if (!document) return { error: "Document not found." };
   if (!canAccessManagedDocument(args.actor, document, "verify")) {
@@ -171,7 +194,9 @@ export async function rejectManagedDocument(args: {
       verificationStatus: "REJECTED",
       rejectedAt: new Date(),
       rejectedBy: args.actor.user.id,
-      rejectionReason: args.reason || null,
+      reviewedAt: new Date(),
+      reviewedBy: args.actor.user.id,
+      rejectionReason: reason,
     },
   });
 
@@ -180,7 +205,7 @@ export async function rejectManagedDocument(args: {
     action: "document.rejected",
     targetType: "document",
     targetId: document.id,
-    metadata: { rejectionReason: args.reason || null },
+    metadata: { rejectionReason: reason },
   });
 
   try {
@@ -195,7 +220,7 @@ export async function rejectManagedDocument(args: {
     await notifyDocumentRejected({
       documentId: document.id,
       documentType: document.documentType,
-      rejectionReason: args.reason || null,
+      rejectionReason: reason,
       uploadedBy: document.uploadedBy,
       associatedEmployeeUserIds,
     });
@@ -210,6 +235,8 @@ export async function associateManagedDocument(args: {
   documentId: string;
   actor: DocumentActor;
   employeeId?: string;
+  applicantId?: string;
+  applicationId?: string;
   customerId?: string;
   contractId?: string;
   deliveryId?: string;
@@ -222,9 +249,37 @@ export async function associateManagedDocument(args: {
 
   if (args.employeeId) {
     if (!canAssociateEmployee(args.actor, args.employeeId)) return { error: "Not found." };
-    await prisma.employeeDocument.create({
-      data: { employeeId: args.employeeId, documentId: document.id },
+    const existing = await prisma.employeeDocument.findFirst({
+      where: { employeeId: args.employeeId, documentId: document.id },
     });
+    if (!existing) {
+      await prisma.employeeDocument.create({
+        data: { employeeId: args.employeeId, documentId: document.id },
+      });
+    }
+  }
+  if (args.applicationId || args.applicantId) {
+    const application = args.applicationId
+      ? await prisma.application.findUnique({
+          where: { id: args.applicationId },
+          select: { id: true, applicantId: true },
+        })
+      : await prisma.application.findFirst({
+          where: { applicantId: args.applicantId },
+          orderBy: { createdAt: "desc" },
+          select: { id: true, applicantId: true },
+        });
+    if (!application || !canAssociateApplicant(args.actor, application.applicantId)) {
+      return { error: "Not found." };
+    }
+    const existing = await prisma.applicantDocument.findFirst({
+      where: { applicationId: application.id, documentId: document.id },
+    });
+    if (!existing) {
+      await prisma.applicantDocument.create({
+        data: { applicationId: application.id, documentId: document.id },
+      });
+    }
   }
   if (args.customerId) {
     if (!canAssociateCustomer(args.actor, args.customerId)) return { error: "Not found." };
@@ -240,11 +295,14 @@ export async function associateManagedDocument(args: {
     });
   }
   if (args.deliveryId) {
+    if (!canAttachDocumentToDelivery(document)) {
+      return { error: "This document cannot be attached to a delivery." };
+    }
     const delivery = await prisma.delivery.findUnique({
       where: { id: args.deliveryId },
       select: { customerId: true, driverEmployeeId: true },
     });
-    if (!delivery || !canAssociateDelivery(args.actor, delivery)) return { error: "Not found." };
+    if (!delivery || !canAssociateDelivery(args.actor, delivery, document)) return { error: "Not found." };
     await prisma.deliveryDocument.create({
       data: { deliveryId: args.deliveryId, documentId: document.id },
     });
@@ -257,6 +315,8 @@ export async function associateManagedDocument(args: {
     targetId: document.id,
     metadata: {
       employeeId: args.employeeId ?? null,
+      applicantId: args.applicantId ?? null,
+      applicationId: args.applicationId ?? null,
       customerId: args.customerId ?? null,
       contractId: args.contractId ?? null,
       deliveryId: args.deliveryId ?? null,
@@ -294,10 +354,20 @@ export async function updateManagedDocumentMetadata(args: {
   expirationDate?: Date | null;
   notes?: string | null;
   isSensitive?: boolean;
+  issueDate?: Date | null;
 }) {
   const document = await loadManagedDocumentForAccess(args.documentId);
   if (!document) return { error: "Not found." };
   if (!canAccessManagedDocument(args.actor, document, "edit")) {
+    return { error: "Not found." };
+  }
+  const restrictedSelf =
+    (args.actor.roles.includes("EMPLOYEE") || args.actor.roles.includes("DRIVER") || args.actor.roles.includes("APPLICANT")) &&
+    !args.actor.roles.includes("ADMIN") &&
+    !args.actor.roles.includes("OWNER") &&
+    !args.actor.roles.includes("HR_RECRUITER") &&
+    !args.actor.roles.includes("COMPLIANCE_ADMIN");
+  if (restrictedSelf && (args.expirationDate !== undefined || args.issueDate !== undefined)) {
     return { error: "Not found." };
   }
   const before = {
@@ -316,6 +386,7 @@ export async function updateManagedDocumentMetadata(args: {
       documentType: args.documentType === undefined ? document.documentType : args.documentType,
       effectiveDate: args.effectiveDate === undefined ? document.effectiveDate : args.effectiveDate,
       expirationDate: args.expirationDate === undefined ? document.expirationDate : args.expirationDate,
+      issueDate: args.issueDate === undefined ? document.issueDate : args.issueDate,
       notes: args.notes === undefined ? document.notes : args.notes,
       isSensitive: args.isSensitive ?? document.isSensitive,
     },

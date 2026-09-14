@@ -71,6 +71,80 @@ export const applicationInputSchema = z.object({
 
 export type ApplicationInput = z.infer<typeof applicationInputSchema>;
 
+const optionalString = z.string().max(4000).optional();
+
+export const applicationDraftSchema = z.object({
+  jobPublicId: z.string().min(1),
+  legalFirstName: z.string().max(100).optional(),
+  middleName: z.string().max(100).optional(),
+  legalLastName: z.string().max(100).optional(),
+  preferredName: z.string().max(100).optional(),
+  email: z.string().email().optional().or(z.literal("")),
+  phone: z.string().max(40).optional(),
+  city: z.string().max(100).optional(),
+  state: z.string().max(40).optional(),
+  zip: z.string().max(20).optional(),
+  preferredEmploymentType: z.enum(["FULL_TIME", "PART_TIME", "TEMPORARY", "SEASONAL"]).optional(),
+  availableStartDate: z.string().optional(),
+  generalAvailability: optionalString,
+  preferredShift: z.string().max(200).optional(),
+  fullTimePreference: z.boolean().optional(),
+  serviceAreas: z.string().max(1000).optional(),
+  weekdays: z.boolean().optional(),
+  weekends: z.boolean().optional(),
+  holidays: z.boolean().optional(),
+  earlyMornings: z.boolean().optional(),
+  evenings: z.boolean().optional(),
+  overnight: z.boolean().optional(),
+  onCallStat: z.boolean().optional(),
+  authorizedToWorkUs: z.boolean().optional(),
+  requiresSponsorship: z.boolean().optional(),
+  highestEducation: z.string().max(200).optional(),
+  relevantTraining: optionalString,
+  licenses: z.string().max(2000).optional(),
+  certifications: z.string().max(2000).optional(),
+  courierExperience: optionalString,
+  healthcareLogisticsExperience: optionalString,
+  customerServiceExperience: optionalString,
+  dispatchExperience: optionalString,
+  technologyExperience: optionalString,
+  canPerformEssentialFunctions: z.boolean().optional(),
+  hipaaTraining: z.boolean().optional(),
+  bloodbornePathogensTraining: z.boolean().optional(),
+  hazmatAwarenessTraining: z.boolean().optional(),
+  un3373Training: z.boolean().optional(),
+  chainOfCustodyTraining: z.boolean().optional(),
+  temperatureControlledExperience: z.boolean().optional(),
+  pharmaceuticalDeliveryExperience: z.boolean().optional(),
+  laboratoryCourierExperience: z.boolean().optional(),
+  hasValidDriversLicense: z.boolean().optional(),
+  licenseIssuingState: z.string().max(40).optional(),
+  licenseClass: z.string().max(40).optional(),
+  canMeetDrivingRequirements: z.boolean().optional(),
+  hasPersonalVehicle: z.boolean().optional(),
+  vehicleType: z.string().max(100).optional(),
+  proofOfInsurance: z.boolean().optional(),
+  canUseGpsApps: z.boolean().optional(),
+  relevantCourierDrivingExperience: optionalString,
+  employmentHistory: z
+    .array(
+      z.object({
+        employerName: z.string().max(200).optional(),
+        positionTitle: z.string().max(200).optional(),
+        startDate: z.string().optional(),
+        endDate: z.string().optional(),
+        responsibilities: z.string().max(4000).optional(),
+        reasonForLeaving: z.string().max(500).optional(),
+        permissionToContact: z.boolean().optional(),
+      }),
+    )
+    .max(12)
+    .optional(),
+  answers: z.array(z.object({ questionId: z.string(), answer: z.string().max(4000) })).optional(),
+});
+
+export type ApplicationDraftInput = z.infer<typeof applicationDraftSchema>;
+
 const forbiddenKeys = [
   "ssn",
   "socialSecurity",

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { writeAuditLog } from "@/lib/audit";
 import { prisma } from "@/lib/db";
-import { PERMISSIONS } from "@/lib/permissions";
+import { canGrantPermissionToRole, PERMISSIONS } from "@/lib/permissions";
 import { requirePermission } from "@/lib/rbac";
 
 function slugify(value: string) {
@@ -48,6 +48,13 @@ export async function saveRolePermissions(formData: FormData) {
     formData
       .getAll("permission")
       .map((value) => String(value))
+      .filter((key) =>
+        canGrantPermissionToRole({
+          roleKey: role.key,
+          system: role.system,
+          permission: key,
+        }),
+      )
       .filter((key) => (PERMISSIONS as readonly string[]).includes(key)),
   );
   const permissions = await prisma.permission.findMany({

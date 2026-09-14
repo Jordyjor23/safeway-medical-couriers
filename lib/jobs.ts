@@ -1,4 +1,7 @@
 import { prisma } from "@/lib/db";
+import { jobIsPubliclyVisible } from "@/lib/jobs/options";
+
+export { jobIsPubliclyVisible };
 
 export async function getPublishedJobs() {
   return prisma.jobOpening.findMany({

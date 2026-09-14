@@ -46,13 +46,17 @@ export const PUBLIC_APPLICATION_STATUSES = [
   "UNDER_REVIEW",
   "INTERVIEW_REQUESTED",
   "INTERVIEW_SCHEDULED",
+  "INTERVIEW",
   "CONDITIONAL_OFFER",
+  "DOCUMENTS_REQUIRED",
   "BACKGROUND_SCREENING",
+  "COMPLIANCE_REVIEW",
   "ONBOARDING",
   "HIRED",
   "POSITION_FILLED",
   "WITHDRAWN",
   "NOT_SELECTED",
+  "REJECTED",
 ] as const;
 
 export const PUBLIC_STATUS_LABELS: Record<(typeof PUBLIC_APPLICATION_STATUSES)[number], string> = {
@@ -60,13 +64,17 @@ export const PUBLIC_STATUS_LABELS: Record<(typeof PUBLIC_APPLICATION_STATUSES)[n
   UNDER_REVIEW: "Under Review",
   INTERVIEW_REQUESTED: "Interview Requested",
   INTERVIEW_SCHEDULED: "Interview Scheduled",
+  INTERVIEW: "Interview",
   CONDITIONAL_OFFER: "Conditional Offer",
+  DOCUMENTS_REQUIRED: "Documents Required",
   BACKGROUND_SCREENING: "Background Screening",
+  COMPLIANCE_REVIEW: "Compliance Review",
   ONBOARDING: "Onboarding",
   HIRED: "Hired",
   POSITION_FILLED: "Position Filled",
   WITHDRAWN: "Withdrawn",
   NOT_SELECTED: "Not Selected",
+  REJECTED: "Not Selected",
 };
 
 export function publicStatusLabel(status: string) {

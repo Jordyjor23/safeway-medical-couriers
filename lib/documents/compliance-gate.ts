@@ -4,12 +4,16 @@ export function documentMayCountTowardRequirement(document: {
   documentType: string | null;
   verificationStatus: DocumentVerificationStatus;
   suggestedTypeStatus?: string | null;
+  malwareScanStatus?: string | null;
   employeeLinks: unknown[];
   customerLinks: unknown[];
   contractLinks: unknown[];
   deliveryLinks: unknown[];
   expirationDate?: Date | null;
 }) {
+  if (document.malwareScanStatus === "INFECTED" || document.malwareScanStatus === "ERROR") {
+    return false;
+  }
   const associated =
     document.employeeLinks.length > 0 ||
     document.customerLinks.length > 0 ||
