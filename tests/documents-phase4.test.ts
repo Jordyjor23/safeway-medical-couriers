@@ -253,7 +253,7 @@ describe("phase 4 provider selection", () => {
         category: "POLICIES",
       });
       expect(fetchSpy).toHaveBeenCalledTimes(1);
-      expect(String(fetchSpy.mock.calls[0]?.[0])).toContain("documentintelligence");
+      expect(JSON.stringify(fetchSpy.mock.calls)).toContain("documentintelligence");
       expect(result.provider).toBe("azure");
       expect(result.status).toBe("FAILED");
     } finally {

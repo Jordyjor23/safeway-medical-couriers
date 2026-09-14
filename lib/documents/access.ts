@@ -322,7 +322,8 @@ export function canAssociateDelivery(
   return hasRole(ctx, DELIVERY_DOC_ROLES) && hasPermission(ctx, "delivery.view");
 }
 
-export function canAssociateApplicant(ctx: DocumentActor, _applicationId: string) {
+export function canAssociateApplicant(ctx: DocumentActor, applicationId: string) {
+  if (!applicationId) return false;
   if (!hasPermission(ctx, "documents.upload") && !hasPermission(ctx, "documents.editMetadata")) return false;
   if (isOwnerRole(ctx.roles)) return true;
   if (ctx.roles.includes("CUSTOMER") || ctx.roles.includes("DRIVER") || ctx.roles.includes("EMPLOYEE")) return false;
