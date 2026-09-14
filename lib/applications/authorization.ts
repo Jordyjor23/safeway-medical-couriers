@@ -1,5 +1,5 @@
 import type { Prisma } from "@prisma/client";
-import { isOwnerRole } from "@/lib/permissions";
+import { hasHrEditSystemRole, hasHrReviewSystemRole } from "@/lib/permissions";
 
 export type ApplicationActor = {
   user: { id: string; applicantId?: string | null; employeeId?: string | null };
@@ -7,16 +7,16 @@ export type ApplicationActor = {
   permissions: Set<string>;
 };
 
-function hasPermission(ctx: ApplicationActor, permission: string) {
-  return isOwnerRole(ctx.roles) || ctx.permissions.has(permission);
-}
-
 export function canReviewApplications(ctx: ApplicationActor) {
-  return hasPermission(ctx, "applicants.view");
+  return hasHrReviewSystemRole(ctx.roles);
 }
 
 export function canEditApplications(ctx: ApplicationActor) {
-  return hasPermission(ctx, "applicants.edit");
+  return hasHrEditSystemRole(ctx.roles);
+}
+
+export function canAddApplicationNotes(ctx: ApplicationActor) {
+  return canReviewApplications(ctx);
 }
 
 export function canAccessApplication(

@@ -6,7 +6,7 @@ import { startDocumentExtraction } from "@/lib/documents/extraction/run";
 import { persistManagedDocument } from "@/lib/documents/persist";
 import { documentMaxBytes } from "@/lib/documents/types";
 import { validateDocumentFile } from "@/lib/documents/validate";
-import { scanUploadedFile } from "@/lib/documents/malware";
+import { scanUploadedFile, shouldRejectUploadForMalware } from "@/lib/documents/malware";
 import { DocumentStorageError, isPrivateStorageConfigured, storePrivateFile } from "@/lib/storage";
 
 function optionalId(value: FormDataEntryValue | null) {
@@ -55,7 +55,7 @@ export async function processDocumentUpload(ctx: DocumentActor, formData: FormDa
       mimeType: validation.mimeType,
       contentSha256: validation.contentSha256,
     });
-    if (!scan.clean) {
+    if (shouldRejectUploadForMalware(scan)) {
       return { error: "The file could not be accepted." };
     }
     const stored = await storePrivateFile(file);
@@ -70,6 +70,7 @@ export async function processDocumentUpload(ctx: DocumentActor, formData: FormDa
     const applicantId = ctx.roles.includes("APPLICANT") ? ctx.user.applicantId ?? requestedApplicantId : requestedApplicantId;
     const result = await persistManagedDocument({
       actor: ctx,
+      malwareScan: scan,
       stored,
       name: String(formData.get("name") ?? stored.originalFileName),
       category: String(formData.get("category") ?? "CORPORATE") as DocumentCategory,

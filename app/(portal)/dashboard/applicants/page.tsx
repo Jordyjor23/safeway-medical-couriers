@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
-import { requirePermission } from "@/lib/rbac";
+import { requireApplicationReview } from "@/lib/rbac";
 
 export const metadata: Metadata = { title: "Applicants" };
 
@@ -10,7 +10,7 @@ export default async function ApplicantsPage({
 }: {
   searchParams: Promise<{ status?: string; location?: string }>;
 }) {
-  await requirePermission("applicants.view");
+  await requireApplicationReview();
   const params = await searchParams;
   const applications = await prisma.application.findMany({
     where: {

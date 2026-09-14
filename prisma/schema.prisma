@@ -1037,6 +1037,14 @@ enum DocumentVerificationStatus {
   REJECTED
 }
 
+/// Scanner verdict. UNSCANNED means no production scanner ran — never treat as verified safe.
+enum MalwareScanStatus {
+  UNSCANNED
+  CLEAN
+  INFECTED
+  ERROR
+}
+
 enum DocumentExtractionStatus {
   OCR_DISABLED
   PENDING
@@ -1095,6 +1103,8 @@ model ManagedDocument {
   isSensitive           Boolean                     @default(false)
   lifecycleStatus       DocumentLifecycleStatus      @default(UPLOADED)
   verificationStatus    DocumentVerificationStatus  @default(UNVERIFIED)
+  malwareScanStatus     MalwareScanStatus           @default(UNSCANNED)
+  malwareScanEngine     String?
   verifiedAt            DateTime?
   verifiedBy            String?
   rejectedAt            DateTime?

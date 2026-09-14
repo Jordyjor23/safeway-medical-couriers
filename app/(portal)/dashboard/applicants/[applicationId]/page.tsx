@@ -7,7 +7,7 @@ import {
   updateInterview,
 } from "@/app/(portal)/dashboard/applicants/actions";
 import { prisma } from "@/lib/db";
-import { hasPermission, requirePermission } from "@/lib/rbac";
+import { hasPermission, requireApplicationReview } from "@/lib/rbac";
 import type { ApplicationStatus } from "@prisma/client";
 
 export const metadata: Metadata = { title: "Applicant" };
@@ -35,7 +35,7 @@ export default async function ApplicantProfilePage({
 }: {
   params: Promise<{ applicationId: string }>;
 }) {
-  const ctx = await requirePermission("applicants.view");
+  const ctx = await requireApplicationReview();
   const { applicationId } = await params;
   const application = await prisma.application.findUnique({
     where: { id: applicationId },

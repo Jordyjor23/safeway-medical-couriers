@@ -171,7 +171,7 @@ function canSeeSensitive(ctx: DocumentActor, document: DocumentAccessRecord) {
   if (!document.isSensitive) return true;
   if (isOwnerRole(ctx.roles)) return true;
   if (linkedToOwnEmployee(ctx, document) || linkedToOwnApplicant(ctx, document)) return true;
-  return hasPermission(ctx, "documents.viewSensitive");
+  return hasPermission(ctx, "documents.viewSensitive") && hasRole(ctx, HR_REVIEW_ROLES);
 }
 
 function isRestrictedPortalRole(ctx: DocumentActor) {
@@ -356,7 +356,7 @@ export function documentsListWhere(ctx: DocumentActor): Prisma.ManagedDocumentWh
 }
 
 function canSeeAllSensitive(ctx: DocumentActor) {
-  return isOwnerRole(ctx.roles) || hasPermission(ctx, "documents.viewSensitive");
+  return isOwnerRole(ctx.roles) || (hasPermission(ctx, "documents.viewSensitive") && hasRole(ctx, HR_REVIEW_ROLES));
 }
 
 export function canAssociateEmployee(ctx: DocumentActor, employeeId: string) {

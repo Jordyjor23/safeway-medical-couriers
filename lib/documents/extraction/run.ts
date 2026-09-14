@@ -1,5 +1,6 @@
 import { writeAuditLog } from "@/lib/audit";
 import { canAccessManagedDocument, hasPermission, type DocumentActor } from "@/lib/documents/access";
+import { persistExtractionRawText } from "@/lib/documents/extraction/encryption";
 import { isExtractionEnabled, resolveExtractionProvider } from "@/lib/documents/extraction/provider";
 import { EXTRACTION_RETRY_MS, EXTRACTION_STALE_PROCESSING_MS } from "@/lib/documents/extraction/types";
 import { MANUAL_EXTRACTION_MESSAGE, isExtractionUnsupportedFormat } from "@/lib/documents/extraction/unsupported";
@@ -179,7 +180,7 @@ export async function startDocumentExtraction(args: {
           extractionProvider: result.provider,
           extractionError: result.error ?? null,
           extractionCompletedAt: new Date(),
-          extractionRawText: result.extractedText || null,
+          extractionRawText: persistExtractionRawText(result.extractedText || null),
           suggestedDocumentType: result.detectedDocumentType,
           suggestedTypeConfidence: result.detectedDocumentType ? result.typeConfidence : null,
           suggestedTypeStatus: result.detectedDocumentType ? "PENDING" : null,

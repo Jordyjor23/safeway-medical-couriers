@@ -5,11 +5,11 @@ import { writeAuditLog } from "@/lib/audit";
 import { convertApplicationToEmployee } from "@/lib/applications/conversion";
 import { isApplicationStatus } from "@/lib/applications/status";
 import { prisma } from "@/lib/db";
-import { requirePermission } from "@/lib/rbac";
+import { requireApplicationEdit, requireApplicationReview } from "@/lib/rbac";
 import type { ApplicationStatus, InterviewStatus } from "@prisma/client";
 
 export async function updateApplicationStatus(applicationId: string, status: ApplicationStatus, note?: string) {
-  const ctx = await requirePermission("applicants.edit");
+  const ctx = await requireApplicationEdit();
   if (!isApplicationStatus(status)) return { error: "Not found." };
   const current = await prisma.application.findUnique({
     where: { id: applicationId },
@@ -55,7 +55,7 @@ export async function updateApplicationStatus(applicationId: string, status: App
 }
 
 export async function addApplicationNote(applicationId: string, formData: FormData) {
-  const ctx = await requirePermission("applicants.notes.view");
+  const ctx = await requireApplicationReview();
   const body = String(formData.get("body") ?? "").trim();
   if (!body) return;
   const visibleToApplicant = String(formData.get("visibleToApplicant") ?? "") === "1";
@@ -73,7 +73,7 @@ export async function addApplicationNote(applicationId: string, formData: FormDa
 }
 
 export async function updateInterview(applicationId: string, formData: FormData) {
-  const ctx = await requirePermission("applicants.edit");
+  const ctx = await requireApplicationEdit();
   const scheduledAt = String(formData.get("scheduledAt") ?? "");
   await prisma.interview.create({
     data: {

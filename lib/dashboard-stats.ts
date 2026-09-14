@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { hasHrReviewSystemRole } from "@/lib/permissions";
 import { hasPermission, type AuthContext } from "@/lib/rbac";
 import { getDocumentAlertStats } from "@/lib/documents/alert-stats";
 
@@ -10,7 +11,7 @@ function soon(days: number) {
 
 export async function getDashboardOverview(ctx?: AuthContext) {
   const expiringBefore = soon(30);
-  const canApplicants = !ctx || hasPermission(ctx, "applicants.view");
+  const canApplicants = !ctx || hasHrReviewSystemRole(ctx.roles);
   const canEmployees = !ctx || hasPermission(ctx, "employees.view");
   const canCustomers = !ctx || hasPermission(ctx, "customers.view");
   const canContracts = !ctx || hasPermission(ctx, "contracts.view");

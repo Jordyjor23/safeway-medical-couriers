@@ -17,6 +17,7 @@ export default async function PortalLayout({ children }: { children: React.React
         userName={ctx.user.name}
         userEmail={ctx.user.email}
         permissions={[...ctx.permissions]}
+        roles={ctx.roles}
       />
       <div className="flex-1">
         <div className="border-b border-line bg-paper px-4 py-3 lg:hidden">

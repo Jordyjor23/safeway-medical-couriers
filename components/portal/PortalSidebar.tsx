@@ -23,11 +23,12 @@ type NavItem = {
   label: string;
   icon: typeof LayoutDashboard;
   permission?: string;
+  hrReview?: boolean;
 };
 
 const items: NavItem[] = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
-  { href: "/dashboard/applicants", label: "Applicants", permission: "applicants.view", icon: UserRound },
+  { href: "/dashboard/applicants", label: "Applicants", permission: "applicants.view", hrReview: true, icon: UserRound },
   { href: "/dashboard/jobs", label: "Job postings", permission: "jobs.view", icon: Briefcase },
   { href: "/dashboard/employees", label: "Employees", permission: "employees.view", icon: Users },
   { href: "/dashboard/customers", label: "Customers", permission: "customers.view", icon: Building2 },
@@ -47,14 +48,20 @@ export function PortalSidebar({
   userName,
   userEmail,
   permissions,
+  roles = [],
 }: {
   userName: string;
   userEmail: string;
   permissions: string[];
+  roles?: string[];
 }) {
   const pathname = usePathname();
   const permissionSet = new Set(permissions);
-  const visible = items.filter((item) => !item.permission || permissionSet.has(item.permission));
+  const hrReview = roles.some((role) => ["OWNER", "ADMIN", "HR_RECRUITER", "COMPLIANCE_ADMIN"].includes(role));
+  const visible = items.filter((item) => {
+    if (item.hrReview) return hrReview;
+    return !item.permission || permissionSet.has(item.permission);
+  });
 
   return (
     <aside className="flex w-full flex-col bg-navy text-white lg:min-h-screen lg:w-64 lg:shrink-0">

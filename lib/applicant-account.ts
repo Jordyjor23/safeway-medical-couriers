@@ -1,5 +1,6 @@
 import { hashPassword } from "better-auth/crypto";
 import { writeAuditLog } from "@/lib/audit";
+import { applicantLinkConflicts, shouldGrantApplicantRole } from "@/lib/applications/identity";
 import { prisma } from "@/lib/db";
 import { allocateUsername } from "@/lib/ids";
 import { isStrongPassword, passwordIssues } from "@/lib/password";
@@ -32,6 +33,9 @@ export async function registerApplicantAccount(input: {
   }
 
   const existingApplicant = await prisma.applicant.findUnique({ where: { email } });
+  if (existingApplicant?.userId) {
+    return { error: "An account with that email already exists. Sign in instead." };
+  }
   const role = await prisma.role.findUnique({ where: { key: "APPLICANT" } });
   if (!role) {
     return { error: "Applicant accounts are not configured yet." };
@@ -109,12 +113,30 @@ export async function registerApplicantAccount(input: {
 export async function ensureApplicantProfile(userId: string) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    include: { applicant: true, roles: { include: { role: true } } },
+    include: { applicant: true, employee: true, roles: { include: { role: true } } },
   });
   if (!user) return null;
   if (user.applicant) return user.applicant;
+
+  const roleKeys = user.roles.map((assignment) => assignment.role.key);
+  const byEmail = await prisma.applicant.findUnique({ where: { email: user.email.toLowerCase() } });
+  if (byEmail) {
+    if (applicantLinkConflicts(byEmail, user.id)) return null;
+    if (!byEmail.userId) {
+      return prisma.applicant.update({
+        where: { id: byEmail.id },
+        data: { userId: user.id },
+      });
+    }
+    return byEmail;
+  }
+
+  if (!shouldGrantApplicantRole({ roles: roleKeys, employeeId: user.employee?.id ?? null })) {
+    return null;
+  }
+
   const role = await prisma.role.findUnique({ where: { key: "APPLICANT" } });
-  if (role && !user.roles.some((assignment) => assignment.role.key === "APPLICANT")) {
+  if (role && !roleKeys.includes("APPLICANT")) {
     await prisma.userRole.create({ data: { userId: user.id, roleId: role.id } });
   }
   return prisma.applicant.create({
@@ -122,7 +144,7 @@ export async function ensureApplicantProfile(userId: string) {
       userId: user.id,
       legalFirstName: user.firstName || user.name.split(" ")[0] || "Applicant",
       legalLastName: user.lastName || user.name.split(" ").slice(1).join(" ") || "Account",
-      email: user.email,
+      email: user.email.toLowerCase(),
       phone: user.phone || "",
       city: "",
       state: "",

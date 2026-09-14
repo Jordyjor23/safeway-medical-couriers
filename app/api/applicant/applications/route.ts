@@ -18,7 +18,7 @@ async function clientMeta() {
 export async function GET() {
   const { error, ctx } = await requireApiAuth();
   if (error || !ctx) return error ?? NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!ctx.roles.includes("APPLICANT") && !ctx.permissions.has("applicants.view")) {
+  if (!ctx.roles.includes("APPLICANT")) {
     return NextResponse.json({ error: "Not found." }, { status: 404 });
   }
   if (!ctx.user.applicantId) {
@@ -45,7 +45,7 @@ export async function GET() {
 export async function POST(request: Request) {
   const { error, ctx } = await requireApiAuth();
   if (error || !ctx) return error ?? NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!ctx.roles.includes("APPLICANT") && !ctx.permissions.has("applicants.self.edit")) {
+  if (!ctx.roles.includes("APPLICANT")) {
     return NextResponse.json({ error: "Not found." }, { status: 404 });
   }
   const body = await request.json().catch(() => null);

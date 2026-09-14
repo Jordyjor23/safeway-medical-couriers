@@ -13,7 +13,7 @@ This is a code review of the Phase 1 upgrade. It is not a penetration test.
 - Login, logout, lockout, and password reset are unchanged staff-grade Better Auth flows.
 - Applicants land on `/applicant/dashboard`. `canAccessPortal` denies staff/admin/dispatch/ops/driver/employee/customer shells.
 - `proxy.ts` now treats `/applicant` as a protected portal path (cookie presence only; real auth is server-side).
-- After hire, `EMPLOYEE` is added. Home path prefers employee over applicant when both roles exist.
+- After hire, `EMPLOYEE` is added and the active `APPLICANT` role is **removed**. Home path uses the employee portal. Applicant/application/document/conversion history remains.
 
 ## RBAC
 
@@ -21,7 +21,8 @@ This is a code review of the Phase 1 upgrade. It is not a penetration test.
 - `APPLICANT` may view/download/upload own documents only.
 - `EMPLOYEE` / `DRIVER` gained `documents.upload` for **own** employee association only.
 - Verify still requires `documents.verify` and an HR/admin/compliance role. Employees cannot self-approve.
-- Dashboard statistics are filtered by permission. Sales/account managers no longer receive applicant or compliance volume cards.
+- Dashboard statistics for applicants require a system HR review role (`OWNER`, `ADMIN`, `HR_RECRUITER`, `COMPLIANCE_ADMIN`), not a custom role with `applicants.view`.
+- Custom roles cannot be granted Phase 1 restricted permissions (`applicants.*`, `documents.viewSensitive`, `documents.verify`, `employees.sensitive.view`). Assign a system HR/admin role instead.
 
 ## Ownership
 
@@ -36,7 +37,8 @@ This is a code review of the Phase 1 upgrade. It is not a penetration test.
 - Applicant-only files are no longer treated as unlinked corporate documents.
 - Denied access continues to return **404 "Not found."** so existence is not leaked.
 - Swapping a document id in a URL or signed-token request fails ACL or token document-id binding.
-- Application list/detail helpers (`applicationsListWhere`, `canAccessApplication`) are deny-by-default for applicants.
+- Application list/detail helpers (`applicationsListWhere`, `canAccessApplication`) are deny-by-default for applicants and for custom roles. Staff review requires a system HR role, not `applicants.view` alone.
+- `GET /api/careers/applications` no longer returns application data without a session.
 
 ## Private storage and signed URLs
 
@@ -50,7 +52,7 @@ This is a code review of the Phase 1 upgrade. It is not a penetration test.
 
 - Existing MIME/magic-byte allowlist, extension checks, size cap, and filename sanitization are unchanged.
 - SHA-256 hashing and visible-duplicate warnings remain.
-- `scanUploadedFile` is an integration point; the default engine is `noop` and does not log bytes.
+- `scanUploadedFile` is an adapter boundary. The default engine is **unconfigured**: result is `UNSCANNED`, `verifiedSafe: false`, `clean: null`. Skip/no-op is never treated as clean. Infected verdicts reject the upload. Persisted `malwareScanStatus` defaults to `UNSCANNED`. HR `VERIFIED` is a separate human step and does not imply a scanner ran.
 
 ## Category isolation
 
@@ -87,11 +89,13 @@ Internal reviewer notes are hidden unless `visibleToApplicant` is explicitly set
 
 ## Residual risks
 
-- Public tracking-number GET is still a shared-secret lookup (now rate-limited). Prefer account login for new applicants.
-- App-level WHERE clauses only; no Postgres RLS.
-- OCR `extractionRawText` is still stored in Postgres if extraction is enabled.
-- Custom roles created in the UI do not automatically receive Phase 1 applicant permissions.
+- **Legacy public POST** remains for emails that do not already have a user account. It cannot look up status or documents. Repeat apply for the same job is idempotent. If the email already has `Applicant.userId`, the API returns 409 and tells the user to sign in.
+- Confirmation and `/careers/status` no longer return application PII to anonymous callers. The confirmation URL still displays the tracking number from the path (receipt only).
+- App-level WHERE clauses only; **Postgres RLS is not enabled**. See Phase 1.1 plan in `docs/PHASE1-IMPLEMENTATION-REPORT.md` (exact tables: `Applicant`, `Application`, `ApplicantDocument`, `EmployeeDocument`, `ManagedDocument`, `ApplicationNote`, `ApplicantEmployeeConversion`).
+- Production OCR stays disabled without `DATA_ENCRYPTION_KEY`. If extraction is later enabled with that key, `extractionRawText` is stored encrypted; structured extracted fields are still plaintext review rows.
+- No production malware scanner is configured. Files upload as `UNSCANNED` and must not be described as scan-verified safe.
+- A hired user who is later manually re-assigned `APPLICANT` would regain applicant-portal access; conversion will revoke it again on the next hire path, and `ensureApplicantProfile` will not auto-re-grant it to employees.
 
 ## Tests that prove the controls
 
-See `tests/phase1-security.test.ts` and `tests/phase1-conversion.test.ts`.
+See `tests/phase1-security.test.ts`, `tests/phase1-conversion.test.ts`, and `tests/phase1-hardening.test.ts`.

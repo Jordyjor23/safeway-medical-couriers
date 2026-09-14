@@ -1,4 +1,5 @@
 import { AzureDocumentExtractionService, azureExtractionReady } from "@/lib/documents/extraction/azure";
+import { isExtractionRawTextEncryptionReady } from "@/lib/documents/extraction/encryption";
 import { NoopDocumentExtractionService } from "@/lib/documents/extraction/noop";
 import { TestDocumentExtractionService } from "@/lib/documents/extraction/test-provider";
 import type { DocumentExtractionProvider, DocumentExtractionService } from "@/lib/documents/extraction/types";
@@ -8,6 +9,9 @@ export function configuredExtractionProviderId() {
 }
 
 export function isExtractionEnabled() {
+  if (process.env.NODE_ENV === "production" && !isExtractionRawTextEncryptionReady()) {
+    return false;
+  }
   const id = configuredExtractionProviderId();
   if (!id || id === "noop" || id === "disabled") return false;
   if (id === "test") return process.env.NODE_ENV !== "production";

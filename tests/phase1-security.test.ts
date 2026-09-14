@@ -50,6 +50,7 @@ describe("applicant isolation", () => {
 
   it("keeps a hired applicant+employee on the employee home", () => {
     expect(homePathForRoles(["APPLICANT", "EMPLOYEE"])).toBe("/employee/dashboard");
+    expect(homePathForRoles(["EMPLOYEE"])).toBe("/employee/dashboard");
   });
 
   it("does not let applicant A view applicant B's file", () => {

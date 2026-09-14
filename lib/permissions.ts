@@ -251,6 +251,45 @@ export const OWNER_ONLY_PERMISSIONS: readonly PermissionKey[] = [
   "employees.sensitive.view",
 ];
 
+/** Phase 1 ATS / HR / sensitive-document keys. Custom roles cannot receive these. */
+export const PHASE1_RESTRICTED_PERMISSIONS: readonly PermissionKey[] = [
+  "applicants.view",
+  "applicants.edit",
+  "applicants.notes.view",
+  "applicants.screening.view",
+  "applicants.self.view",
+  "applicants.self.edit",
+  "documents.viewSensitive",
+  "documents.verify",
+  "employees.sensitive.view",
+];
+
+export const HR_REVIEW_SYSTEM_ROLES = ["OWNER", "ADMIN", "HR_RECRUITER", "COMPLIANCE_ADMIN"] as const;
+export const HR_EDIT_SYSTEM_ROLES = ["OWNER", "ADMIN", "HR_RECRUITER"] as const;
+
+export function hasHrReviewSystemRole(roles: string[]) {
+  return roles.some((role) => (HR_REVIEW_SYSTEM_ROLES as readonly string[]).includes(role));
+}
+
+export function hasHrEditSystemRole(roles: string[]) {
+  return roles.some((role) => (HR_EDIT_SYSTEM_ROLES as readonly string[]).includes(role));
+}
+
+export function canGrantPermissionToRole(args: {
+  roleKey: string;
+  system: boolean;
+  permission: string;
+}) {
+  if (args.roleKey === "OWNER") return false;
+  if (!args.system && (OWNER_ONLY_PERMISSIONS as readonly string[]).includes(args.permission)) {
+    return false;
+  }
+  if (!args.system && (PHASE1_RESTRICTED_PERMISSIONS as readonly string[]).includes(args.permission)) {
+    return false;
+  }
+  return (PERMISSIONS as readonly string[]).includes(args.permission);
+}
+
 export function roleHasPermission(role: string, permission: PermissionKey) {
   if (role === "OWNER") return true;
   if (!(role in ROLE_PERMISSIONS)) return false;

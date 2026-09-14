@@ -191,11 +191,15 @@ export default async function CareersPage() {
             <a className="font-semibold text-medical-bright" href={`mailto:${contactEmail}`}>
               {contactEmail}
             </a>
-            . Check status with your tracking number on the{" "}
-            <Link href="/careers/status" className="font-semibold text-medical-bright">
-              application status
+            .{" "}
+            <Link href="/login?next=/applicant/dashboard" className="font-semibold text-medical-bright">
+              Sign in
             </Link>{" "}
-            page.
+            to check application status, or{" "}
+            <Link href="/register" className="font-semibold text-medical-bright">
+              create an applicant account
+            </Link>
+            .
           </p>
           {eeo ? <p className="mt-6 max-w-3xl text-sm leading-relaxed text-mist-soft">{eeo.body}</p> : null}
         </Container>

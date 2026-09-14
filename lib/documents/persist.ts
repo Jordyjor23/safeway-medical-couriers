@@ -7,11 +7,13 @@ import {
   supersedeManagedDocument,
 } from "@/lib/documents/operations";
 import { isExtractionEnabled } from "@/lib/documents/extraction/provider";
+import type { MalwareScanResult } from "@/lib/documents/malware";
 import { policyDomainFor, resolveStoredOwner } from "@/lib/documents/policy";
 import { prisma } from "@/lib/db";
 
 export async function persistManagedDocument(args: {
   actor: DocumentActor;
+  malwareScan?: MalwareScanResult;
   stored: {
     blobKey: string;
     storedFileName: string;
@@ -66,6 +68,8 @@ export async function persistManagedDocument(args: {
       policyDomain: policyDomainFor(args.category, args.documentType),
       lifecycleStatus: "UPLOADED",
       verificationStatus: "UNVERIFIED",
+      malwareScanStatus: args.malwareScan?.status ?? "UNSCANNED",
+      malwareScanEngine: args.malwareScan?.engine ?? "unconfigured",
       extractionStatus: isExtractionEnabled() ? "PENDING" : "OCR_DISABLED",
     },
   });

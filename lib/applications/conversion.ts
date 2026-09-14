@@ -42,6 +42,10 @@ export async function convertApplicationToEmployee(args: {
       applicationId: current.id,
       employeeId: existingConversion.employeeId,
     });
+    await revokeApplicantRoleAfterHire(
+      existingConversion.userId ?? current.applicant.userId ?? current.employee?.userId,
+      args.actorId,
+    );
     return {
       ok: true,
       employeeId: existingConversion.employeeId,
@@ -55,14 +59,16 @@ export async function convertApplicationToEmployee(args: {
       applicationId: current.id,
       employeeId: current.employee.id,
     });
+    const userId = current.employee.userId ?? current.applicant.userId;
     await recordConversion({
       applicationId: current.id,
       applicantId: current.applicantId,
       employeeId: current.employee.id,
-      userId: current.employee.userId ?? current.applicant.userId,
+      userId,
       convertedById: args.actorId,
       documentIds: linked,
     });
+    await revokeApplicantRoleAfterHire(userId, args.actorId);
     return {
       ok: true,
       employeeId: current.employee.id,
@@ -156,6 +162,8 @@ export async function convertApplicationToEmployee(args: {
     documentIds: linkedDocumentIds,
   });
 
+  await revokeApplicantRoleAfterHire(userId, args.actorId);
+
   await writeAuditLog({
     actorId: args.actorId,
     actorEmail: args.actorEmail,
@@ -248,4 +256,21 @@ async function promoteApplicantUserToEmployee(userId: string, actorId: string) {
       data: { userId, roleId: employeeRole.id, createdBy: actorId },
     });
   }
+}
+
+async function revokeApplicantRoleAfterHire(userId: string | null | undefined, actorId: string) {
+  if (!userId) return;
+  const applicantRole = await prisma.role.findUnique({ where: { key: "APPLICANT" } });
+  if (!applicantRole) return;
+  const removed = await prisma.userRole.deleteMany({
+    where: { userId, roleId: applicantRole.id },
+  });
+  if (removed.count === 0) return;
+  await writeAuditLog({
+    actorId,
+    action: "applicant.role.revoked_after_hire",
+    targetType: "user",
+    targetId: userId,
+    metadata: { role: "APPLICANT", reason: "converted_to_employee" },
+  });
 }

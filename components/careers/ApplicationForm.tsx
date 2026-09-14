@@ -185,9 +185,28 @@ export function ApplicationForm({
           setError(result?.error ?? "The application could not be submitted.");
           return;
         }
-        router.push(`/careers/apply/confirmation/${result.application.trackingNumber}?email=${encodeURIComponent(payload.email)}`);
+        router.push(`/careers/apply/confirmation/${result.application.trackingNumber}`);
       }}
     >
+      {!signedIn ? (
+        <section className="rounded-2xl border border-amber-400/40 bg-panel p-6">
+          <h2 className="text-xl font-semibold text-mist">Create an account to manage this application</h2>
+          <p className="mt-2 text-sm text-mist-soft">
+            Status, drafts, and document uploads require an applicant login. Submitting without an
+            account is a one-time send only. If this email already has an account, sign in instead —
+            a second application will not be created.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <Link href="/register" className="mkt-btn mkt-btn-primary">
+              Create an applicant account
+            </Link>
+            <Link href="/login?next=/applicant/dashboard" className="mkt-btn">
+              Sign in
+            </Link>
+          </div>
+        </section>
+      ) : null}
+
       <section className="rounded-2xl border border-white/10 bg-panel p-6">
         <h2 className="text-xl font-semibold text-mist">Applicant information</h2>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">

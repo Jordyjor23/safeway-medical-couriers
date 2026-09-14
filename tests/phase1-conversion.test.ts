@@ -28,6 +28,14 @@ describe("applicant to employee conversion", () => {
     expect(actionSource).not.toContain("prisma.employee.create");
   });
 
+  it("removes the active APPLICANT role after a successful conversion", () => {
+    expect(conversionSource).toContain("revokeApplicantRoleAfterHire");
+    expect(conversionSource).toContain("applicant.role.revoked_after_hire");
+    expect(conversionSource).toContain('where: { key: "APPLICANT" }');
+    expect(conversionSource).toContain("userRole.deleteMany");
+    expect(conversionSource).not.toMatch(/keep.*APPLICANT|retain.*APPLICANT/i);
+  });
+
   it("prepares signature tables without implementing a provider", () => {
     expect(schema).toContain("model SignatureRequest");
     expect(schema).toContain("model SignatureSigner");
