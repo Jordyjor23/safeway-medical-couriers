@@ -15,6 +15,12 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
+## Testing
+
+- Unit tests: `npm test` (Vitest; no database required)
+- Watch: `npm run test:watch`
+- Merge gates, Playwright smoke, and branch protection: [docs/CI-AND-GATES.md](docs/CI-AND-GATES.md)
+
 ## Deploy (Vercel)
 
 Recommended host is Vercel. Project: `safeway-meds/safeway-medical-couriers`.
