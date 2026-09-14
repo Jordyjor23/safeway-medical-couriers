@@ -118,8 +118,10 @@ Dropdowns now always have option data from `lib/jobs/options.ts`: department, em
 
 `ensureMedicalCourierDriverDraft()` creates **Medical Courier Driver** as **DRAFT** if no posting with that title exists.
 
-- No compensation numbers
-- Location / legal employment terms left owner-editable
+- W-2 employee (`workerClassification: EMPLOYEE`)
+- Personal vehicle and current auto insurance are required (`vehicleRequirements` plus the `insurance` job requirement)
+- No compensation numbers (`compensationNotes` unset)
+- Location left as an owner-editable placeholder; Jordan sets pay and location in the dashboard before publishing
 - Job-level requirements prepared: resume, DL, insurance, HIPAA, BBP, SOP acknowledgment, background/MVR auth, HazMat awareness
 - Called from `prisma/seed.ts` after requirement seed
 - **Not published**

@@ -3,6 +3,10 @@ import { createPublicJobId } from "@/lib/ids";
 
 export const MEDICAL_COURIER_DRIVER_TITLE = "Medical Courier Driver";
 
+// Owner decisions for this draft: W-2 employee; personal vehicle + current auto
+// insurance required; pay and location are set in the dashboard before publish.
+// Status stays DRAFT. Do not invent compensation numbers.
+
 const DEFAULT_JOB_REQUIREMENT_KEYS = [
   "resume",
   "driver_qualification",
@@ -52,24 +56,24 @@ export async function ensureMedicalCourierDriverDraft() {
       payType: "HOURLY",
       compensationNotes: null,
       description:
-        "Deliver time-sensitive medical materials for healthcare customers following Safeway Couriers procedures. Owner must complete compensation, location, and legal employment terms before publishing.",
+        "Deliver time-sensitive medical materials for healthcare customers following Safeway Couriers procedures. This role requires a personal vehicle and current auto insurance. Pay and location are set in the dashboard before publishing.",
       essentialDuties:
-        "Complete assigned medical courier routes; protect the chain of custody; follow temperature and specimen-handling instructions when provided; report incidents; complete required company documents and training as assigned.",
+        "Complete assigned medical courier routes using a personal vehicle; protect the chain of custody; follow temperature and specimen-handling instructions when provided; report incidents; complete required company documents and training as assigned.",
       minimumQualifications:
-        "Valid driver's license. Ability to follow written procedures. Required certifications and documents are configured on this posting and assigned at apply time.",
+        "Valid driver's license, a personal vehicle, and current auto insurance. Ability to follow written procedures. Required certifications and documents are configured on this posting and assigned at apply time.",
       preferredQualifications: "Prior medical courier or healthcare logistics experience.",
       schedule: "Owner-configured. Shift options include day, evening, overnight, weekend, rotating, and on-call / STAT.",
       requiredCertifications:
-        "Owner-configured. Typical medical courier tracking includes driver's license, auto insurance when a personal vehicle is used, HIPAA training, bloodborne pathogens training, company SOP acknowledgment, background/MVR authorization, and HazMat awareness where applicable.",
+        "Driver's license, current auto insurance for a personal vehicle, HIPAA training, bloodborne pathogens training, company SOP acknowledgment, background/MVR authorization, and HazMat awareness where applicable.",
       requiresDriversLicense: true,
-      vehicleRequirements: "Personal or company vehicle requirements are set by the owner before publishing.",
+      vehicleRequirements: "A personal vehicle and current auto insurance are required.",
       backgroundCheckRequired: true,
       mvrRequired: true,
       status: "DRAFT",
       questions: {
         create: [
           { prompt: "Do you have a valid driver's license?", required: true, sortOrder: 0 },
-          { prompt: "If you would use a personal vehicle, can you provide current auto insurance?", required: true, sortOrder: 1 },
+          { prompt: "Do you have a personal vehicle and current auto insurance?", required: true, sortOrder: 1 },
           { prompt: "Are you able to complete required company training and document acknowledgments if hired?", required: true, sortOrder: 2 },
         ],
       },

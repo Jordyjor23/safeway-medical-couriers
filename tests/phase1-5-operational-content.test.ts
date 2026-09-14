@@ -170,8 +170,14 @@ describe("Phase 1.5 job posting administration", () => {
       }),
     ).toEqual(["resume"]);
     expect(defaultMedicalCourierRequirementKeys()).toEqual(
-      expect.arrayContaining(["driver_qualification", "hipaa", "bloodborne_pathogens", "sop_acknowledgement"]),
+      expect.arrayContaining(["driver_qualification", "insurance", "hipaa", "bloodborne_pathogens", "sop_acknowledgement"]),
     );
+    const draftSource = readFileSync(path.join(process.cwd(), "lib/jobs/ensure-draft.ts"), "utf8");
+    expect(draftSource).toContain('status: "DRAFT"');
+    expect(draftSource).toContain('workerClassification: "EMPLOYEE"');
+    expect(draftSource).toContain("compensationNotes: null");
+    expect(draftSource).toContain("A personal vehicle and current auto insurance are required.");
+    expect(draftSource).not.toMatch(/Personal or company vehicle requirements are set by the owner/);
   });
 });
 
