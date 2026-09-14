@@ -88,19 +88,25 @@ export async function assignDefaultApplicantRequirements(args: {
 }) {
   const job = await prisma.jobOpening.findUnique({
     where: { id: args.jobOpeningId },
-    include: { category: true },
+    include: { category: true, requirementAssignments: { where: { audience: "JOB", active: true } } },
   });
   const driving = Boolean(job?.requiresDriversLicense || job?.category?.requiresDriving);
+  const jobConfiguredIds = new Set((job?.requirementAssignments ?? []).map((row) => row.requirementId));
+
   const requirements = await prisma.complianceRequirement.findMany({
-    where: { active: true, defaultRequired: true },
+    where: jobConfiguredIds.size
+      ? { id: { in: [...jobConfiguredIds] }, active: true }
+      : { active: true, defaultRequired: true },
     include: { documentRules: true },
   });
 
   for (const requirement of requirements) {
-    const applicantRule = requirement.documentRules.some((rule) => rule.appliesTo === "APPLICANT" || rule.appliesTo === "ALL");
-    const driverOnly = requirement.documentRules.every((rule) => rule.appliesTo === "DRIVER") && requirement.documentRules.length > 0;
-    if (driverOnly && !driving) continue;
-    if (!applicantRule && !driverOnly && requirement.key !== "resume") continue;
+    if (!jobConfiguredIds.size) {
+      const applicantRule = requirement.documentRules.some((rule) => rule.appliesTo === "APPLICANT" || rule.appliesTo === "ALL");
+      const driverOnly = requirement.documentRules.every((rule) => rule.appliesTo === "DRIVER") && requirement.documentRules.length > 0;
+      if (driverOnly && !driving) continue;
+      if (!applicantRule && !driverOnly && requirement.key !== "resume") continue;
+    }
 
     const existing = await prisma.requirementAssignment.findFirst({
       where: {
@@ -121,6 +127,16 @@ export async function assignDefaultApplicantRequirements(args: {
       },
     });
   }
+}
+
+export function applicantRequirementIdsFromJobConfig(args: {
+  jobAssignmentRequirementIds: string[];
+  defaultRequiredIds: string[];
+}) {
+  if (args.jobAssignmentRequirementIds.length) {
+    return [...new Set(args.jobAssignmentRequirementIds)];
+  }
+  return [...new Set(args.defaultRequiredIds)];
 }
 
 export async function assignRequirement(args: {

@@ -23,10 +23,16 @@ function forbidden() {
 }
 
 export async function loadManagedDocumentForAccess(documentId: string) {
-  return prisma.managedDocument.findUnique({
+  const document = await prisma.managedDocument.findUnique({
     where: { id: documentId },
     include: DOCUMENT_ACCESS_INCLUDE,
   });
+  if (!document) return null;
+  if (!document.companyLibrary) return { ...document, companyAssignments: [] };
+  const companyAssignments = await prisma.companyDocumentAssignment.findMany({
+    where: { familyKey: document.companyLibrary.familyKey, active: true },
+  });
+  return { ...document, companyAssignments };
 }
 
 export async function archiveManagedDocument(args: {
@@ -166,6 +172,8 @@ export async function rejectManagedDocument(args: {
   actor: DocumentActor;
   reason?: string;
 }) {
+  const reason = args.reason?.trim() ?? "";
+  if (reason.length < 3) return { error: "A rejection reason is required." };
   const document = await loadManagedDocumentForAccess(args.documentId);
   if (!document) return { error: "Document not found." };
   if (!canAccessManagedDocument(args.actor, document, "verify")) {
@@ -181,7 +189,7 @@ export async function rejectManagedDocument(args: {
       rejectedBy: args.actor.user.id,
       reviewedAt: new Date(),
       reviewedBy: args.actor.user.id,
-      rejectionReason: args.reason || null,
+      rejectionReason: reason,
     },
   });
 
@@ -190,7 +198,7 @@ export async function rejectManagedDocument(args: {
     action: "document.rejected",
     targetType: "document",
     targetId: document.id,
-    metadata: { rejectionReason: args.reason || null },
+    metadata: { rejectionReason: reason },
   });
 
   try {
@@ -205,7 +213,7 @@ export async function rejectManagedDocument(args: {
     await notifyDocumentRejected({
       documentId: document.id,
       documentType: document.documentType,
-      rejectionReason: args.reason || null,
+      rejectionReason: reason,
       uploadedBy: document.uploadedBy,
       associatedEmployeeUserIds,
     });

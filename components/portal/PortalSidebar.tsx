@@ -24,6 +24,7 @@ type NavItem = {
   icon: typeof LayoutDashboard;
   permission?: string;
   hrReview?: boolean;
+  ownerAdmin?: boolean;
 };
 
 const items: NavItem[] = [
@@ -36,6 +37,8 @@ const items: NavItem[] = [
   { href: "/dashboard/documents", label: "Documents", permission: "documents.view", icon: ScrollText },
   { href: "/dashboard/documents/alerts", label: "Document alerts", permission: "documents.view", icon: Bell },
   { href: "/dashboard/compliance", label: "Compliance tracking", permission: "compliance.view", icon: ClipboardCheck },
+  { href: "/dashboard/compliance/library", label: "Compliance library", ownerAdmin: true, icon: ScrollText },
+  { href: "/dashboard/compliance/forms", label: "Forms library", ownerAdmin: true, icon: FileText },
   { href: "/dashboard/notifications", label: "Notifications", icon: Bell },
   { href: "/dashboard/audit", label: "Audit log", permission: "audit.view", icon: Shield },
   { href: "/dashboard/users", label: "Users", permission: "users.manage", icon: Users },
@@ -58,7 +61,9 @@ export function PortalSidebar({
   const pathname = usePathname();
   const permissionSet = new Set(permissions);
   const hrReview = roles.some((role) => ["OWNER", "ADMIN", "HR_RECRUITER", "COMPLIANCE_ADMIN"].includes(role));
+  const ownerAdmin = roles.includes("OWNER") || roles.includes("ADMIN");
   const visible = items.filter((item) => {
+    if (item.ownerAdmin) return ownerAdmin;
     if (item.hrReview) return hrReview;
     return !item.permission || permissionSet.has(item.permission);
   });

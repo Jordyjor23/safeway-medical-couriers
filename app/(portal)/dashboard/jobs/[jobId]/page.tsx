@@ -15,9 +15,16 @@ export default async function EditJobPage({
 }) {
   const ctx = await requirePermission("jobs.view");
   const { jobId } = await params;
-  const [job, categories] = await Promise.all([
-    prisma.jobOpening.findUnique({ where: { id: jobId } }),
+  const [job, categories, requirements] = await Promise.all([
+    prisma.jobOpening.findUnique({
+      where: { id: jobId },
+      include: {
+        questions: { orderBy: { sortOrder: "asc" } },
+        requirementAssignments: { where: { audience: "JOB", active: true } },
+      },
+    }),
     prisma.careerCategory.findMany({ orderBy: { sortOrder: "asc" } }),
+    prisma.complianceRequirement.findMany({ where: { active: true }, orderBy: { sortOrder: "asc" } }),
   ]);
   if (!job) notFound();
 
@@ -33,6 +40,7 @@ export default async function EditJobPage({
         </div>
         {hasPermission(ctx, "jobs.publish") ? (
           <div className="flex flex-wrap gap-2">
+            <StatusButton jobId={job.id} status="DRAFT" label="Unpublish to draft" />
             <StatusButton jobId={job.id} status="PUBLISHED" label="Publish" />
             <StatusButton jobId={job.id} status="PAUSED" label="Pause" />
             <StatusButton jobId={job.id} status="CLOSED" label="Close" />
@@ -40,7 +48,15 @@ export default async function EditJobPage({
           </div>
         ) : null}
       </div>
-      {hasPermission(ctx, "jobs.edit") ? <JobForm job={job} categories={categories} /> : null}
+      {hasPermission(ctx, "jobs.edit") ? (
+        <JobForm
+          job={job}
+          categories={categories}
+          requirements={requirements}
+          selectedRequirementIds={job.requirementAssignments.map((row) => row.requirementId)}
+          questions={job.questions}
+        />
+      ) : null}
     </div>
   );
 }
@@ -51,7 +67,7 @@ function StatusButton({
   label,
 }: {
   jobId: string;
-  status: "PUBLISHED" | "PAUSED" | "CLOSED" | "ARCHIVED";
+  status: "DRAFT" | "PUBLISHED" | "PAUSED" | "CLOSED" | "ARCHIVED";
   label: string;
 }) {
   const action = setJobStatus.bind(null, jobId, status);

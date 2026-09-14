@@ -5,8 +5,64 @@ import { redirect } from "next/navigation";
 import { writeAuditLog } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { createPublicJobId } from "@/lib/ids";
-import { requirePermission } from "@/lib/rbac";
+import { parseJobQuestions } from "@/lib/jobs/options";
+import { hasPermission, requirePermission } from "@/lib/rbac";
 import type { EmploymentType, JobStatus, PayType, WorkArrangement, WorkerClassification } from "@prisma/client";
+
+function jobFieldData(formData: FormData) {
+  const shift = String(formData.get("shift") ?? "").trim();
+  const schedule = String(formData.get("schedule") ?? "").trim();
+  return {
+    title: String(formData.get("title") ?? "").trim(),
+    department: String(formData.get("department") ?? "").trim(),
+    categoryId: String(formData.get("categoryId") ?? "") || null,
+    employmentType: String(formData.get("employmentType") ?? "FULL_TIME") as EmploymentType,
+    workerClassification: String(formData.get("workerClassification") ?? "EMPLOYEE") as WorkerClassification,
+    location: String(formData.get("location") ?? "").trim(),
+    workArrangement: String(formData.get("workArrangement") ?? "ONSITE") as WorkArrangement,
+    payType: String(formData.get("payType") ?? "HOURLY") as PayType,
+    compensationNotes: String(formData.get("compensationNotes") ?? "") || null,
+    compensationMin: formData.get("compensationMin") ? Number(formData.get("compensationMin")) : null,
+    compensationMax: formData.get("compensationMax") ? Number(formData.get("compensationMax")) : null,
+    description: String(formData.get("description") ?? ""),
+    essentialDuties: String(formData.get("essentialDuties") ?? ""),
+    minimumQualifications: String(formData.get("minimumQualifications") ?? ""),
+    preferredQualifications: String(formData.get("preferredQualifications") ?? "") || null,
+    physicalRequirements: String(formData.get("physicalRequirements") ?? "") || null,
+    schedule: [shift, schedule].filter(Boolean).join(" — ") || null,
+    requiredCertifications: String(formData.get("requiredCertifications") ?? "") || null,
+    requiresDriversLicense: formData.get("requiresDriversLicense") === "on",
+    vehicleRequirements: String(formData.get("vehicleRequirements") ?? "") || null,
+    backgroundCheckRequired: formData.get("backgroundCheckRequired") === "on",
+    mvrRequired: formData.get("mvrRequired") === "on",
+  };
+}
+
+async function syncJobConfiguration(jobId: string, formData: FormData, assignedById: string) {
+  const questions = parseJobQuestions(String(formData.get("questions") ?? ""));
+  await prisma.jobQuestion.deleteMany({ where: { jobOpeningId: jobId } });
+  if (questions.length) {
+    await prisma.jobQuestion.createMany({
+      data: questions.map((question) => ({ ...question, jobOpeningId: jobId })),
+    });
+  }
+  const requirementIds = formData
+    .getAll("requirementId")
+    .map((value) => String(value))
+    .filter(Boolean);
+  await prisma.requirementAssignment.deleteMany({ where: { jobOpeningId: jobId, audience: "JOB" } });
+  if (requirementIds.length) {
+    await prisma.requirementAssignment.createMany({
+      data: requirementIds.map((requirementId) => ({
+        requirementId,
+        audience: "JOB" as const,
+        jobOpeningId: jobId,
+        assignedById,
+        active: true,
+      })),
+    });
+  }
+}
 
 export async function createJob(formData: FormData) {
   const ctx = await requirePermission("jobs.create");
@@ -14,33 +70,13 @@ export async function createJob(formData: FormData) {
   const job = await prisma.jobOpening.create({
     data: {
       publicId,
-      title: String(formData.get("title") ?? "").trim(),
-      department: String(formData.get("department") ?? "").trim(),
-      categoryId: String(formData.get("categoryId") ?? "") || null,
-      employmentType: String(formData.get("employmentType") ?? "FULL_TIME") as EmploymentType,
-      workerClassification: String(formData.get("workerClassification") ?? "EMPLOYEE") as WorkerClassification,
-      location: String(formData.get("location") ?? "").trim(),
-      workArrangement: String(formData.get("workArrangement") ?? "ONSITE") as WorkArrangement,
-      payType: String(formData.get("payType") ?? "HOURLY") as PayType,
-      compensationNotes: String(formData.get("compensationNotes") ?? "") || null,
-      compensationMin: formData.get("compensationMin") ? Number(formData.get("compensationMin")) : null,
-      compensationMax: formData.get("compensationMax") ? Number(formData.get("compensationMax")) : null,
-      description: String(formData.get("description") ?? ""),
-      essentialDuties: String(formData.get("essentialDuties") ?? ""),
-      minimumQualifications: String(formData.get("minimumQualifications") ?? ""),
-      preferredQualifications: String(formData.get("preferredQualifications") ?? "") || null,
-      physicalRequirements: String(formData.get("physicalRequirements") ?? "") || null,
-      schedule: String(formData.get("schedule") ?? "") || null,
-      requiredCertifications: String(formData.get("requiredCertifications") ?? "") || null,
-      requiresDriversLicense: formData.get("requiresDriversLicense") === "on",
-      vehicleRequirements: String(formData.get("vehicleRequirements") ?? "") || null,
-      backgroundCheckRequired: formData.get("backgroundCheckRequired") === "on",
-      mvrRequired: formData.get("mvrRequired") === "on",
+      ...jobFieldData(formData),
       status: "DRAFT",
       createdBy: ctx.user.id,
       updatedBy: ctx.user.id,
     },
   });
+  await syncJobConfiguration(job.id, formData, ctx.user.id);
 
   await writeAuditLog({
     actorId: ctx.user.id,
@@ -57,34 +93,24 @@ export async function createJob(formData: FormData) {
 
 export async function updateJob(jobId: string, formData: FormData) {
   const ctx = await requirePermission("jobs.edit");
+  const current = await prisma.jobOpening.findUnique({ where: { id: jobId } });
+  if (!current) return;
+  const requestedStatus = String(formData.get("status") ?? current.status) as JobStatus;
+  const canPublish = hasPermission(ctx, "jobs.publish");
+  const status =
+    requestedStatus === "PUBLISHED" && !canPublish
+      ? current.status
+      : requestedStatus;
   await prisma.jobOpening.update({
     where: { id: jobId },
     data: {
-      title: String(formData.get("title") ?? "").trim(),
-      department: String(formData.get("department") ?? "").trim(),
-      categoryId: String(formData.get("categoryId") ?? "") || null,
-      employmentType: String(formData.get("employmentType") ?? "FULL_TIME") as EmploymentType,
-      workerClassification: String(formData.get("workerClassification") ?? "EMPLOYEE") as WorkerClassification,
-      location: String(formData.get("location") ?? "").trim(),
-      workArrangement: String(formData.get("workArrangement") ?? "ONSITE") as WorkArrangement,
-      payType: String(formData.get("payType") ?? "HOURLY") as PayType,
-      compensationNotes: String(formData.get("compensationNotes") ?? "") || null,
-      compensationMin: formData.get("compensationMin") ? Number(formData.get("compensationMin")) : null,
-      compensationMax: formData.get("compensationMax") ? Number(formData.get("compensationMax")) : null,
-      description: String(formData.get("description") ?? ""),
-      essentialDuties: String(formData.get("essentialDuties") ?? ""),
-      minimumQualifications: String(formData.get("minimumQualifications") ?? ""),
-      preferredQualifications: String(formData.get("preferredQualifications") ?? "") || null,
-      physicalRequirements: String(formData.get("physicalRequirements") ?? "") || null,
-      schedule: String(formData.get("schedule") ?? "") || null,
-      requiredCertifications: String(formData.get("requiredCertifications") ?? "") || null,
-      requiresDriversLicense: formData.get("requiresDriversLicense") === "on",
-      vehicleRequirements: String(formData.get("vehicleRequirements") ?? "") || null,
-      backgroundCheckRequired: formData.get("backgroundCheckRequired") === "on",
-      mvrRequired: formData.get("mvrRequired") === "on",
+      ...jobFieldData(formData),
+      status,
+      postedAt: status === "PUBLISHED" ? current.postedAt ?? new Date() : current.postedAt,
       updatedBy: ctx.user.id,
     },
   });
+  await syncJobConfiguration(jobId, formData, ctx.user.id);
 
   await writeAuditLog({
     actorId: ctx.user.id,

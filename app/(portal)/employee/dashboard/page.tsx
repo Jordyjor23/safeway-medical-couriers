@@ -1,6 +1,8 @@
+import Link from "next/link";
 import { createIncident } from "@/app/(portal)/deliveries/actions";
 import { DocumentUploader } from "@/components/portal/DocumentUploader";
 import { EntityDocumentsSection } from "@/components/portal/EntityDocumentsSection";
+import { listAssignedCompanyDocuments } from "@/lib/compliance/library";
 import { employeeDocumentBuckets, missingRequirementLabels } from "@/lib/documents/buckets";
 import { documentReviewState } from "@/lib/documents/review-status";
 import { DOCUMENT_LIST_INCLUDE, documentLibraryWhere } from "@/lib/documents/query";
@@ -44,6 +46,11 @@ export default async function EmployeeDashboardPage() {
     orderBy: { createdAt: "desc" },
     take: 10,
   });
+  const companyDocuments = hasPermission(ctx, "documents.view")
+    ? await listAssignedCompanyDocuments(ctx)
+    : [];
+  const companyPending = companyDocuments.filter((row) => row.canAcknowledge && row.acknowledgments.length === 0);
+  const companyCompleted = companyDocuments.filter((row) => row.acknowledgments.length > 0);
 
   return (
     <div className="space-y-6">
@@ -64,8 +71,46 @@ export default async function EmployeeDashboardPage() {
         )}
       </section>
       {hasPermission(ctx, "documents.view") ? (
+        <section className="rounded-2xl border border-line bg-paper p-5">
+          <h2 className="font-semibold text-navy">My company documents</h2>
+          <p className="mt-1 text-sm text-muted">
+            Assigned SOPs, policies, training material, and acknowledgments. These are not your personal credentials.
+          </p>
+          {companyDocuments.length === 0 ? (
+            <p className="mt-3 text-sm text-muted">No company documents are assigned to you.</p>
+          ) : (
+            <div className="mt-4 grid gap-4 lg:grid-cols-2">
+              <div>
+                <h3 className="text-sm font-semibold text-navy">Required / pending acknowledgment</h3>
+                <ul className="mt-2 space-y-2 text-sm">
+                  {companyPending.length ? companyPending.map((row) => (
+                    <li key={row.id}>
+                      <Link href={`/employee/company-documents/${row.id}`} className="font-medium text-medical hover:underline">
+                        {row.title} · rev {row.revision}
+                      </Link>
+                    </li>
+                  )) : <li className="text-muted">None pending.</li>}
+                </ul>
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-navy">Completed acknowledgments</h3>
+                <ul className="mt-2 space-y-2 text-sm">
+                  {companyCompleted.length ? companyCompleted.map((row) => (
+                    <li key={row.id}>
+                      <Link href={`/employee/company-documents/${row.id}`} className="font-medium text-navy hover:underline">
+                        {row.title} · rev {row.acknowledgments[0]?.documentRevision}
+                      </Link>
+                    </li>
+                  )) : <li className="text-muted">None yet.</li>}
+                </ul>
+              </div>
+            </div>
+          )}
+        </section>
+      ) : null}
+      {hasPermission(ctx, "documents.view") ? (
         <EntityDocumentsSection
-          title="Your documents"
+          title="My credentials"
           documents={documents}
           canDownload={hasPermission(ctx, "documents.download")}
           canUpload={hasPermission(ctx, "documents.upload")}

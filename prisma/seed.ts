@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import { seedPhase1Requirements } from "../lib/compliance/requirements";
+import { ensureMedicalCourierDriverDraft } from "../lib/jobs/ensure-draft";
 import { ensureSystemRoles } from "../lib/ensure-rbac";
 import {
   DEFAULT_ACCOMMODATION_NOTICE,
@@ -138,6 +139,7 @@ async function main() {
   }
 
   await seedPhase1Requirements();
+  await ensureMedicalCourierDriverDraft();
 
   await seedLegal("eeo", "Equal Employment Opportunity", DEFAULT_EEO_STATEMENT);
   await seedLegal("applicant-privacy", "Applicant Privacy Notice", DEFAULT_APPLICANT_PRIVACY);

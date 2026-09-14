@@ -64,6 +64,8 @@ model User {
   assignedDeliveries Delivery[] @relation("DeliveryAssigner")
   conversions  ApplicantEmployeeConversion[] @relation("ConversionActor")
   requirementAssignments RequirementAssignment[] @relation("RequirementAssigner")
+  companyDocumentAcknowledgments CompanyDocumentAcknowledgment[]
+  companyDocumentAssignments CompanyDocumentAssignment[] @relation("CompanyDocAssigner")
 
   @@map("user")
 }
@@ -308,6 +310,7 @@ model JobOpening {
   questions    JobQuestion[]
   applications Application[]
   requirementAssignments RequirementAssignment[]
+  companyDocumentAssignments CompanyDocumentAssignment[]
 
   @@index([status, postedAt])
   @@index([workerClassification])
@@ -654,6 +657,8 @@ model Employee {
   tasks         EmployeeTask[]
   requirementAssignments RequirementAssignment[]
   conversions   ApplicantEmployeeConversion[]
+  companyDocumentAssignments CompanyDocumentAssignment[]
+  companyDocumentAcknowledgments CompanyDocumentAcknowledgment[]
 
   @@index([managerId])
 }
@@ -1133,6 +1138,7 @@ model ManagedDocument {
   customerLinks  CustomerDocument[]
   contractLinks  ContractDocument[]
   deliveryLinks  DeliveryDocument[]
+  companyLibrary CompanyDocument?
 
   @@index([category, status])
   @@index([expirationDate])
@@ -1205,6 +1211,7 @@ model ComplianceRequirement {
   records         ComplianceRecord[]
   documentRules   DocumentRequirementRule[]
   assignments     RequirementAssignment[]
+  companyDocumentAssignments CompanyDocumentAssignment[]
 }
 
 enum RequirementAudience {
@@ -1526,4 +1533,139 @@ model SignatureEvent {
   metadata        Json?
 
   @@index([requestId, occurredAt])
+}
+
+// ---------------------------------------------------------------------------
+// Phase 1.5 — company compliance library (metadata over ManagedDocument)
+// ---------------------------------------------------------------------------
+
+enum CompanyDocumentPurpose {
+  REFERENCE
+  POLICY
+  SOP
+  TRAINING
+  FORM
+  ACKNOWLEDGMENT
+  CERTIFICATION_REQUIREMENT
+  SIGNATURE_REQUIRED
+  TEMPLATE
+}
+
+enum CompanyLibraryCategory {
+  HIPAA
+  OSHA
+  DOT_HAZMAT
+  BLOODBORNE_PATHOGENS
+  OPERATIONS
+  DRIVER
+  HR
+  SAFETY
+  PHI
+  EMERGENCY
+  ORGAN_TISSUE
+  TEMPERATURE_CONTROL
+  GENERAL_COMPLIANCE
+}
+
+enum CompanyPublicationStatus {
+  DRAFT
+  ACTIVE
+  SUPERSEDED
+  ARCHIVED
+}
+
+enum CompanyAssignmentAction {
+  READ
+  READ_AND_ACKNOWLEDGE
+  UPLOAD_CERTIFICATE
+  COMPLETE_FORM
+  SIGN
+}
+
+enum CompanyAssignmentAudience {
+  ALL_EMPLOYEES
+  ALL_DRIVERS
+  ROLE
+  EMPLOYEE
+  APPLICANTS
+  FUTURE_HIRES
+  JOB
+}
+
+/// Versioned company policy/SOP/form metadata. The file lives on ManagedDocument (private Blob).
+model CompanyDocument {
+  id                 String                    @id @default(uuid())
+  documentId         String                    @unique
+  document           ManagedDocument           @relation(fields: [documentId], references: [id], onDelete: Restrict)
+  familyKey          String
+  title              String
+  description        String?
+  documentNumber     String?
+  revision           String                    @default("1.0")
+  purpose            CompanyDocumentPurpose
+  libraryCategory    CompanyLibraryCategory
+  publicationStatus  CompanyPublicationStatus  @default(DRAFT)
+  effectiveDate      DateTime?
+  reviewDate         DateTime?
+  responsibleRole    String?
+  publishedAt        DateTime?
+  publishedBy        String?
+  createdBy          String?
+  createdAt          DateTime                  @default(now())
+  updatedAt          DateTime                  @updatedAt
+
+  assignments        CompanyDocumentAssignment[]
+  acknowledgments    CompanyDocumentAcknowledgment[]
+
+  @@index([familyKey, publicationStatus])
+  @@index([libraryCategory, purpose])
+  @@index([publicationStatus])
+}
+
+model CompanyDocumentAssignment {
+  id                String                      @id @default(uuid())
+  familyKey         String
+  companyDocumentId String?
+  companyDocument   CompanyDocument?            @relation(fields: [companyDocumentId], references: [id], onDelete: SetNull)
+  action            CompanyAssignmentAction
+  audience          CompanyAssignmentAudience
+  roleKey           String?
+  employeeId        String?
+  employee          Employee?                   @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  jobOpeningId      String?
+  jobOpening        JobOpening?                 @relation(fields: [jobOpeningId], references: [id], onDelete: Cascade)
+  requirementId     String?
+  requirement       ComplianceRequirement?      @relation(fields: [requirementId], references: [id], onDelete: SetNull)
+  active            Boolean                     @default(true)
+  assignedById      String?
+  assignedBy        User?                       @relation("CompanyDocAssigner", fields: [assignedById], references: [id], onDelete: SetNull)
+  createdAt         DateTime                    @default(now())
+
+  @@index([familyKey, active])
+  @@index([employeeId, active])
+  @@index([jobOpeningId, active])
+  @@index([audience, active])
+}
+
+model CompanyDocumentAcknowledgment {
+  id                   String           @id @default(uuid())
+  companyDocumentId    String
+  companyDocument      CompanyDocument  @relation(fields: [companyDocumentId], references: [id], onDelete: Restrict)
+  documentId           String
+  documentRevision     String
+  contentSha256        String
+  userId               String
+  user                 User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  employeeId           String?
+  employee             Employee?        @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  applicantId          String?
+  acknowledgmentText   String
+  ipAddress            String?
+  userAgent            String?
+  createdAt            DateTime         @default(now())
+
+  @@unique([userId, companyDocumentId])
+  @@index([employeeId])
+  @@index([companyDocumentId])
+  @@index([documentId])
 }

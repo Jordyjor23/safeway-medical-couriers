@@ -6,7 +6,9 @@ import { startDocumentExtraction } from "@/lib/documents/extraction/run";
 import { persistManagedDocument } from "@/lib/documents/persist";
 import { documentMaxBytes } from "@/lib/documents/types";
 import { validateDocumentFile } from "@/lib/documents/validate";
+import { canManageCompanyLibrary } from "@/lib/compliance/library-access";
 import { scanUploadedFile, shouldRejectUploadForMalware } from "@/lib/documents/malware";
+import { prisma } from "@/lib/db";
 import { DocumentStorageError, isPrivateStorageConfigured, storePrivateFile } from "@/lib/storage";
 
 function optionalId(value: FormDataEntryValue | null) {
@@ -49,6 +51,14 @@ export async function processDocumentUpload(ctx: DocumentActor, formData: FormDa
           })),
         };
       }
+    }
+    if (String(formData.get("companyLibrary") ?? "") === "1" && !canManageCompanyLibrary(ctx.roles)) {
+      return { error: "Not found." };
+    }
+    const supersedesId = optionalId(formData.get("supersedesId"));
+    if (supersedesId && !canManageCompanyLibrary(ctx.roles)) {
+      const company = await prisma.companyDocument.findUnique({ where: { documentId: supersedesId } });
+      if (company) return { error: "Not found." };
     }
     const scan = await scanUploadedFile({
       sizeBytes: validation.sizeBytes,
