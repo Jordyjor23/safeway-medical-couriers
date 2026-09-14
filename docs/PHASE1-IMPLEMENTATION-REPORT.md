@@ -189,9 +189,9 @@ Existing Vitest files were not weakened. Association picker tests were extended 
 
 ## 16. Lint / typecheck / build
 
-Local verification on this branch:
+Local verification after the hardening pass:
 
-- **Vitest:** 190 passed (18 files)
+- **Vitest:** 201 passed (19 files)
 - **Lint:** pass (0 errors; 4 pre-existing warnings in `DocumentScanner` / `portal-account`)
 - **Typecheck:** pass
 - **Production build:** `npx next build` pass (Next.js 16.3.1). Full `npm run build` was not run against a live database because `vercel-build.mjs` also executes `prisma migrate deploy`.
