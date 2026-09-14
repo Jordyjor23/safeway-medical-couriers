@@ -66,6 +66,8 @@ model User {
   requirementAssignments RequirementAssignment[] @relation("RequirementAssigner")
   companyDocumentAcknowledgments CompanyDocumentAcknowledgment[]
   companyDocumentAssignments CompanyDocumentAssignment[] @relation("CompanyDocAssigner")
+  assignedImplementationTasks ComplianceImplementationTask[] @relation("ImplementationTaskAssignee")
+  completedImplementationTasks ComplianceImplementationTask[] @relation("ImplementationTaskCompleter")
 
   @@map("user")
 }
@@ -1139,6 +1141,8 @@ model ManagedDocument {
   contractLinks  ContractDocument[]
   deliveryLinks  DeliveryDocument[]
   companyLibrary CompanyDocument?
+  controlledSources ControlledDocument[] @relation("ControlledSourceDocument")
+  implementationTaskEvidence ComplianceImplementationTask[]
 
   @@index([category, status])
   @@index([expirationDate])
@@ -1565,6 +1569,11 @@ enum CompanyLibraryCategory {
   ORGAN_TISSUE
   TEMPERATURE_CONTROL
   GENERAL_COMPLIANCE
+  CORPORATE_GOVERNANCE
+  FORMS_RECORDS
+  DOCUMENT_CONTROL
+  UN3373
+  MEDICAL_COURIER_OPERATIONS
 }
 
 enum CompanyPublicationStatus {
@@ -1580,6 +1589,10 @@ enum CompanyAssignmentAction {
   UPLOAD_CERTIFICATE
   COMPLETE_FORM
   SIGN
+  TRAINING_REQUIRED
+  COMPETENCY_REQUIRED
+  ROLE_AUTHORIZATION
+  REFERENCE_ONLY
 }
 
 enum CompanyAssignmentAudience {
@@ -1616,6 +1629,7 @@ model CompanyDocument {
 
   assignments        CompanyDocumentAssignment[]
   acknowledgments    CompanyDocumentAcknowledgment[]
+  controlledChildren ControlledDocument[]
 
   @@index([familyKey, publicationStatus])
   @@index([libraryCategory, purpose])
@@ -1636,6 +1650,8 @@ model CompanyDocumentAssignment {
   jobOpening        JobOpening?                 @relation(fields: [jobOpeningId], references: [id], onDelete: Cascade)
   requirementId     String?
   requirement       ComplianceRequirement?      @relation(fields: [requirementId], references: [id], onDelete: SetNull)
+  controlledDocumentId String?
+  controlledDocument   ControlledDocument?      @relation(fields: [controlledDocumentId], references: [id], onDelete: Cascade)
   active            Boolean                     @default(true)
   assignedById      String?
   assignedBy        User?                       @relation("CompanyDocAssigner", fields: [assignedById], references: [id], onDelete: SetNull)
@@ -1645,12 +1661,13 @@ model CompanyDocumentAssignment {
   @@index([employeeId, active])
   @@index([jobOpeningId, active])
   @@index([audience, active])
+  @@index([controlledDocumentId, active])
 }
 
 model CompanyDocumentAcknowledgment {
   id                   String           @id @default(uuid())
-  companyDocumentId    String
-  companyDocument      CompanyDocument  @relation(fields: [companyDocumentId], references: [id], onDelete: Restrict)
+  companyDocumentId    String?
+  companyDocument      CompanyDocument? @relation(fields: [companyDocumentId], references: [id], onDelete: Restrict)
   documentId           String
   documentRevision     String
   contentSha256        String
@@ -1662,10 +1679,144 @@ model CompanyDocumentAcknowledgment {
   acknowledgmentText   String
   ipAddress            String?
   userAgent            String?
+  controlledDocumentId String?
+  controlledDocument   ControlledDocument? @relation(fields: [controlledDocumentId], references: [id], onDelete: Restrict)
+  controlledDocumentRevision String?
+  controlledDocumentKey String?
   createdAt            DateTime         @default(now())
 
   @@unique([userId, companyDocumentId])
+  @@unique([userId, controlledDocumentId])
   @@index([employeeId])
   @@index([companyDocumentId])
   @@index([documentId])
+  @@index([controlledDocumentId])
+}
+
+// ---------------------------------------------------------------------------
+// Phase 1.5 extension — controlled register, implementation tasks, service matrix
+// Multiple ControlledDocument rows may share one ManagedDocument (the master file).
+// Seed/templates stay PENDING_SOURCE / inactive until the master is uploaded.
+// ---------------------------------------------------------------------------
+
+enum ControlledDocumentStatus {
+  PENDING_SOURCE
+  DRAFT
+  ACTIVE
+  SUPERSEDED
+  ARCHIVED
+}
+
+enum ControlledDocumentType {
+  MANUAL
+  PROGRAM
+  SOP
+  POLICY
+  FORM
+  TEMPLATE
+  PLAN
+}
+
+enum ImplementationTaskStatus {
+  OPEN
+  IN_PROGRESS
+  BLOCKED
+  COMPLETED
+  WAIVED
+  CANCELED
+}
+
+enum ServiceAuthorizationStatus {
+  AUTHORIZED
+  AUTHORIZED_AFTER_ROLE_TRAINING
+  AUTHORIZED_WITH_WRITTEN_CLIENT_PROTOCOL
+  AUTHORIZED_AFTER_APPLICABLE_TRAINING
+  CONDITIONAL
+  DEFERRED
+  PROHIBITED
+  REJECT_HOLD
+}
+
+model ControlledDocument {
+  id                           String                   @id @default(uuid())
+  controlledDocumentId         String                   @unique
+  title                        String
+  description                  String?
+  parentCompanyDocumentId      String?
+  parentCompanyDocument        CompanyDocument?         @relation(fields: [parentCompanyDocumentId], references: [id], onDelete: SetNull)
+  sourceManagedDocumentId      String?
+  sourceManagedDocument        ManagedDocument?         @relation("ControlledSourceDocument", fields: [sourceManagedDocumentId], references: [id], onDelete: SetNull)
+  category                     CompanyLibraryCategory
+  documentType                 ControlledDocumentType
+  revision                     String                   @default("1.0")
+  effectiveDate                DateTime?
+  reviewDate                   DateTime?
+  status                       ControlledDocumentStatus @default(PENDING_SOURCE)
+  sectionReference             String?
+  pageReference                String?
+  ownerRole                    String?
+  approvalAuthority            String?
+  active                       Boolean                  @default(false)
+  supersedesControlledDocumentId String?
+  supersedes                   ControlledDocument?      @relation("ControlledSupersession", fields: [supersedesControlledDocumentId], references: [id], onDelete: SetNull)
+  supersededBy                 ControlledDocument[]     @relation("ControlledSupersession")
+  metadata                     Json?
+  packageKey                   String                   @default("SC-MCM-001")
+  createdAt                    DateTime                 @default(now())
+  updatedAt                    DateTime                 @updatedAt
+
+  assignments           CompanyDocumentAssignment[]
+  acknowledgments       CompanyDocumentAcknowledgment[]
+  implementationTasks   ComplianceImplementationTask[]
+  serviceAuthorizations ServiceAuthorization[]
+
+  @@index([packageKey, status])
+  @@index([status, active])
+  @@index([sourceManagedDocumentId])
+  @@index([parentCompanyDocumentId])
+  @@index([documentType])
+}
+
+model ComplianceImplementationTask {
+  id                         String                   @id @default(uuid())
+  key                        String                   @unique
+  title                      String
+  description                String?
+  category                   String
+  sourceControlledDocumentId String?
+  sourceControlledDocument   ControlledDocument?      @relation(fields: [sourceControlledDocumentId], references: [id], onDelete: SetNull)
+  assignedRole               String?
+  assignedUserId             String?
+  assignedUser               User?                    @relation("ImplementationTaskAssignee", fields: [assignedUserId], references: [id], onDelete: SetNull)
+  dueDate                    DateTime?
+  status                     ImplementationTaskStatus @default(OPEN)
+  completedAt                DateTime?
+  completedBy                String?
+  completedByUser            User?                    @relation("ImplementationTaskCompleter", fields: [completedBy], references: [id], onDelete: SetNull)
+  evidenceManagedDocumentId  String?
+  evidenceManagedDocument    ManagedDocument?         @relation(fields: [evidenceManagedDocumentId], references: [id], onDelete: SetNull)
+  notes                      String?
+  createdAt                  DateTime                 @default(now())
+  updatedAt                  DateTime                 @updatedAt
+
+  @@index([status])
+  @@index([assignedRole, status])
+  @@index([sourceControlledDocumentId])
+}
+
+model ServiceAuthorization {
+  id                         String                      @id @default(uuid())
+  serviceName                String
+  serviceCode                String                      @unique
+  status                     ServiceAuthorizationStatus
+  activationRule             String?
+  sourceControlledDocumentId String?
+  sourceControlledDocument   ControlledDocument?         @relation(fields: [sourceControlledDocumentId], references: [id], onDelete: SetNull)
+  active                     Boolean                     @default(false)
+  notes                      String?
+  createdAt                  DateTime                    @default(now())
+  updatedAt                  DateTime                    @updatedAt
+
+  @@index([status, active])
+  @@index([sourceControlledDocumentId])
 }

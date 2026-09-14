@@ -7,6 +7,8 @@ export type CompanyAssignmentRecord = {
   roleKey?: string | null;
   employeeId?: string | null;
   jobOpeningId?: string | null;
+  controlledDocumentId?: string | null;
+  companyDocumentId?: string | null;
 };
 
 export type CompanyLibraryActor = {
@@ -69,12 +71,38 @@ export function canAccessAssignedCompanyDocument(args: {
   if (args.publicationStatus && args.publicationStatus !== "ACTIVE" && args.publicationStatus !== "SUPERSEDED") {
     return false;
   }
+  const wholeDocumentAssignments = (args.assignments ?? []).filter((assignment) => !assignment.controlledDocumentId);
   if (args.action === "acknowledge") {
-    return actorHasCompanyAssignment(args.assignments, args.actor, ["READ_AND_ACKNOWLEDGE", "SIGN"]);
+    return actorHasCompanyAssignment(wholeDocumentAssignments, args.actor, ["READ_AND_ACKNOWLEDGE", "SIGN"]);
   }
-  return actorHasCompanyAssignment(args.assignments, args.actor);
+  return actorHasCompanyAssignment(wholeDocumentAssignments, args.actor);
+}
+
+export function canAccessAssignedControlledDocument(args: {
+  roles: string[];
+  status?: string | null;
+  active?: boolean;
+  assignments?: CompanyAssignmentRecord[];
+  actor: CompanyLibraryActor;
+  controlledDocumentId: string;
+  action?: "view" | "download" | "acknowledge";
+}) {
+  if (canManageCompanyLibrary(args.roles)) return true;
+  if (args.status && args.status !== "ACTIVE" && args.status !== "SUPERSEDED") return false;
+  if (args.active === false) return false;
+  const sectionAssignments = (args.assignments ?? []).filter(
+    (assignment) => assignment.controlledDocumentId === args.controlledDocumentId,
+  );
+  if (args.action === "acknowledge") {
+    return actorHasCompanyAssignment(sectionAssignments, args.actor, ["READ_AND_ACKNOWLEDGE", "SIGN"]);
+  }
+  return actorHasCompanyAssignment(sectionAssignments, args.actor);
 }
 
 export function employeeCannotManageCompanyLibrary(roles: string[]) {
+  return !canManageCompanyLibrary(roles);
+}
+
+export function employeeCannotEditControlledMetadata(roles: string[]) {
   return !canManageCompanyLibrary(roles);
 }

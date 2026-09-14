@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import {
   canAccessAssignedCompanyDocument,
+  canAccessAssignedControlledDocument,
   canManageCompanyLibrary,
   canViewCompanyLibraryAdmin,
   type CompanyAssignmentRecord,
@@ -37,6 +38,9 @@ export const DOCUMENT_ACCESS_INCLUDE = {
   companyLibrary: {
     select: { id: true, familyKey: true, publicationStatus: true },
   },
+  controlledSources: {
+    select: { id: true, status: true, active: true },
+  },
 } satisfies Prisma.ManagedDocumentInclude;
 
 export type DocumentAccessRecord = {
@@ -52,6 +56,8 @@ export type DocumentAccessRecord = {
   applicantLinks?: { application: { id: string; applicantId: string } }[];
   companyLibrary?: { id: string; familyKey: string; publicationStatus: string } | null;
   companyAssignments?: CompanyAssignmentRecord[];
+  controlledSources?: { id: string; status: string; active: boolean }[];
+  controlledAssignments?: CompanyAssignmentRecord[];
 };
 
 export type DocumentAccessAction = "view" | "download" | "edit" | "verify" | "archive";
@@ -187,6 +193,21 @@ function companyLibraryActor(ctx: DocumentActor) {
   };
 }
 
+function hasAssignedControlledSource(ctx: DocumentActor, document: DocumentAccessRecord) {
+  const sources = document.controlledSources ?? [];
+  if (!sources.length) return false;
+  return sources.some((source) =>
+    canAccessAssignedControlledDocument({
+      roles: ctx.roles,
+      status: source.status,
+      active: source.active,
+      assignments: document.controlledAssignments,
+      actor: companyLibraryActor(ctx),
+      controlledDocumentId: source.id,
+    }),
+  );
+}
+
 function canSeeSensitive(ctx: DocumentActor, document: DocumentAccessRecord) {
   if (!document.isSensitive) return true;
   if (isOwnerRole(ctx.roles)) return true;
@@ -202,6 +223,7 @@ function canSeeSensitive(ctx: DocumentActor, document: DocumentAccessRecord) {
   ) {
     return true;
   }
+  if (hasAssignedControlledSource(ctx, document)) return true;
   return hasPermission(ctx, "documents.viewSensitive") && hasRole(ctx, HR_REVIEW_ROLES);
 }
 
@@ -235,7 +257,11 @@ export function canAccessManagedDocument(
       actor: companyLibraryActor(ctx),
     });
     if (assigned && (action === "view" || action === "download")) return true;
-    if (!canManageCompanyLibrary(ctx.roles) && !assigned) return false;
+    if (!canManageCompanyLibrary(ctx.roles) && !assigned && !hasAssignedControlledSource(ctx, document)) return false;
+  }
+
+  if (hasAssignedControlledSource(ctx, document) && (action === "view" || action === "download")) {
+    return true;
   }
 
   if (ctx.roles.includes("APPLICANT") && !hasPermission(ctx, "applicants.view")) {

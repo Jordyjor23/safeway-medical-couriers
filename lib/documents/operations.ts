@@ -28,11 +28,18 @@ export async function loadManagedDocumentForAccess(documentId: string) {
     include: DOCUMENT_ACCESS_INCLUDE,
   });
   if (!document) return null;
-  if (!document.companyLibrary) return { ...document, companyAssignments: [] };
-  const companyAssignments = await prisma.companyDocumentAssignment.findMany({
-    where: { familyKey: document.companyLibrary.familyKey, active: true },
-  });
-  return { ...document, companyAssignments };
+  const companyAssignments = document.companyLibrary
+    ? await prisma.companyDocumentAssignment.findMany({
+        where: { familyKey: document.companyLibrary.familyKey, active: true },
+      })
+    : [];
+  const controlledIds = (document.controlledSources ?? []).map((row) => row.id);
+  const controlledAssignments = controlledIds.length
+    ? await prisma.companyDocumentAssignment.findMany({
+        where: { controlledDocumentId: { in: controlledIds }, active: true },
+      })
+    : [];
+  return { ...document, companyAssignments, controlledAssignments };
 }
 
 export async function archiveManagedDocument(args: {

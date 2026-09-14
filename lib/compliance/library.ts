@@ -10,10 +10,13 @@ import {
 import {
   actorHasCompanyAssignment,
   canAccessAssignedCompanyDocument,
+  canAccessAssignedControlledDocument,
   canManageCompanyLibrary,
   type CompanyAssignmentRecord,
   type CompanyLibraryActor,
 } from "@/lib/compliance/library-access";
+import { attachMasterSourceToPackage } from "@/lib/compliance/register";
+import { SC_MCM_MASTER_ID } from "@/lib/compliance/register-catalog";
 import { prisma } from "@/lib/db";
 import { isDocumentType } from "@/lib/documents/catalog";
 import { persistManagedDocument } from "@/lib/documents/persist";
@@ -162,6 +165,10 @@ export async function uploadCompanyLibraryDocument(args: {
       metadata: { familyKey, documentId: persisted.document.id, revision, purpose, libraryCategory },
     });
 
+    if (companyDocument.documentNumber === SC_MCM_MASTER_ID) {
+      await attachMasterSourceToPackage({ actor: args.actor, companyDocumentId: companyDocument.id });
+    }
+
     return { ok: true as const, companyDocumentId: companyDocument.id, documentId: persisted.document.id };
   } catch (error) {
     if (error instanceof DocumentStorageError) return { error: error.message };
@@ -212,6 +219,7 @@ export async function assignCompanyDocument(args: {
   actor: DocumentActor;
   familyKey: string;
   companyDocumentId?: string;
+  controlledDocumentId?: string;
   action: CompanyAssignmentAction;
   audience: CompanyAssignmentAudience;
   roleKey?: string;
@@ -224,6 +232,7 @@ export async function assignCompanyDocument(args: {
     data: {
       familyKey: args.familyKey,
       companyDocumentId: args.companyDocumentId ?? null,
+      controlledDocumentId: args.controlledDocumentId ?? null,
       action: args.action,
       audience: args.audience,
       roleKey: args.roleKey || null,
@@ -238,7 +247,12 @@ export async function assignCompanyDocument(args: {
     action: "company_document.assigned",
     targetType: "company_document_assignment",
     targetId: created.id,
-    metadata: { familyKey: args.familyKey, action: args.action, audience: args.audience },
+    metadata: {
+      familyKey: args.familyKey,
+      action: args.action,
+      audience: args.audience,
+      controlledDocumentId: args.controlledDocumentId ?? null,
+    },
   });
   return { ok: true as const, assignmentId: created.id };
 }
@@ -334,10 +348,124 @@ export async function listAssignedCompanyDocuments(actor: DocumentActor) {
     .map((row) => ({
       ...row,
       assignments: byFamily.get(row.familyKey) ?? [],
-      canAcknowledge: actorHasCompanyAssignment(byFamily.get(row.familyKey), libraryActor, [
-        "READ_AND_ACKNOWLEDGE",
-        "SIGN",
-      ]),
+      canAcknowledge: actorHasCompanyAssignment(
+        (byFamily.get(row.familyKey) ?? []).filter((assignment) => !assignment.controlledDocumentId),
+        libraryActor,
+        ["READ_AND_ACKNOWLEDGE", "SIGN"],
+      ),
+    }));
+}
+
+export async function loadControlledAssignments(controlledDocumentId: string) {
+  return prisma.companyDocumentAssignment.findMany({
+    where: { controlledDocumentId, active: true },
+  });
+}
+
+export async function acknowledgeControlledDocument(args: {
+  actor: DocumentActor;
+  controlledDocumentId: string;
+  ipAddress?: string | null;
+  userAgent?: string | null;
+}) {
+  const controlled = await prisma.controlledDocument.findUnique({
+    where: { id: args.controlledDocumentId },
+    include: { sourceManagedDocument: true, parentCompanyDocument: { include: { document: true } } },
+  });
+  if (!controlled) return { error: "Not found." };
+  const assignments = await loadControlledAssignments(controlled.id);
+  const libraryActor = await companyActorFromDocumentActor(args.actor);
+  if (
+    !canAccessAssignedControlledDocument({
+      roles: args.actor.roles,
+      status: controlled.status,
+      active: controlled.active,
+      assignments,
+      actor: libraryActor,
+      controlledDocumentId: controlled.id,
+      action: "acknowledge",
+    })
+  ) {
+    return { error: "Not found." };
+  }
+  const source = controlled.sourceManagedDocument ?? controlled.parentCompanyDocument?.document;
+  if (!source) return { error: "The master source file has not been uploaded yet." };
+
+  const existing = await prisma.companyDocumentAcknowledgment.findFirst({
+    where: { userId: args.actor.user.id, controlledDocumentId: controlled.id },
+  });
+  if (existing) return { ok: true as const, acknowledgmentId: existing.id, reused: true as const };
+
+  const created = await prisma.companyDocumentAcknowledgment.create({
+    data: {
+      companyDocumentId: null,
+      documentId: source.id,
+      documentRevision: controlled.revision,
+      contentSha256: source.contentSha256 ?? "",
+      userId: args.actor.user.id,
+      employeeId: args.actor.user.employeeId ?? null,
+      applicantId: args.actor.user.applicantId ?? null,
+      acknowledgmentText: COMPANY_ACKNOWLEDGMENT_TEXT,
+      ipAddress: args.ipAddress ?? null,
+      userAgent: args.userAgent ?? null,
+      controlledDocumentId: controlled.id,
+      controlledDocumentRevision: controlled.revision,
+      controlledDocumentKey: controlled.controlledDocumentId,
+    },
+  });
+  await writeAuditLog({
+    actorId: args.actor.user.id,
+    action: "controlled_document.acknowledged",
+    targetType: "controlled_document",
+    targetId: controlled.id,
+    metadata: {
+      controlledDocumentId: controlled.controlledDocumentId,
+      revision: controlled.revision,
+      documentId: source.id,
+      contentSha256: source.contentSha256,
+    },
+  });
+  return { ok: true as const, acknowledgmentId: created.id, reused: false as const };
+}
+
+export async function listAssignedControlledDocuments(actor: DocumentActor) {
+  const libraryActor = await companyActorFromDocumentActor(actor);
+  const documents = await prisma.controlledDocument.findMany({
+    where: { status: { in: ["ACTIVE", "SUPERSEDED"] }, active: true },
+    include: {
+      sourceManagedDocument: true,
+      acknowledgments: { where: { userId: actor.user.id } },
+    },
+    orderBy: { controlledDocumentId: "asc" },
+  });
+  const ids = documents.map((row) => row.id);
+  const assignments = ids.length
+    ? await prisma.companyDocumentAssignment.findMany({
+        where: { controlledDocumentId: { in: ids }, active: true },
+      })
+    : [];
+  const byId = new Map<string, CompanyAssignmentRecord[]>();
+  for (const assignment of assignments) {
+    if (!assignment.controlledDocumentId) continue;
+    const list = byId.get(assignment.controlledDocumentId) ?? [];
+    list.push(assignment);
+    byId.set(assignment.controlledDocumentId, list);
+  }
+  return documents
+    .filter((row) =>
+      canAccessAssignedControlledDocument({
+        roles: actor.roles,
+        status: row.status,
+        active: row.active,
+        assignments: byId.get(row.id),
+        actor: libraryActor,
+        controlledDocumentId: row.id,
+      }),
+    )
+    .map((row) => ({
+      ...row,
+      assignments: byId.get(row.id) ?? [],
+      canAcknowledge: actorHasCompanyAssignment(byId.get(row.id), libraryActor, ["READ_AND_ACKNOWLEDGE", "SIGN"]),
     }));
 }
 

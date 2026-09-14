@@ -7,6 +7,7 @@ import {
   publishCompanyDocumentAction,
   uploadCompanyLibraryAction,
 } from "@/app/(portal)/dashboard/compliance/library/actions";
+import { attachMasterSourceAction } from "@/app/(portal)/dashboard/compliance/register/actions";
 import {
   COMPANY_ACKNOWLEDGMENT_DISCLAIMER,
   COMPANY_ASSIGNMENT_ACTIONS,
@@ -79,6 +80,14 @@ export default async function CompanyDocumentDetailPage({
             <form action={archiveCompanyDocumentAction}>
               <input type="hidden" name="companyDocumentId" value={row.id} />
               <button className="rounded-full border border-line px-4 py-2 text-sm font-semibold text-navy">Archive</button>
+            </form>
+          ) : null}
+          {canManage ? (
+            <form action={attachMasterSourceAction}>
+              <input type="hidden" name="companyDocumentId" value={row.id} />
+              <button className="rounded-full border border-line px-4 py-2 text-sm font-semibold text-navy">
+                Attach as SC-MCM-001 master source
+              </button>
             </form>
           ) : null}
         </div>

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { uploadCompanyLibraryAction } from "@/app/(portal)/dashboard/compliance/library/actions";
+import { ComplianceLibraryNav } from "@/components/portal/ComplianceLibraryNav";
 import {
   COMPANY_DOCUMENT_PURPOSES,
   COMPANY_LIBRARY_CATEGORIES,
@@ -39,17 +40,15 @@ export default async function ComplianceLibraryPage({
         <h1 className="mt-2 text-3xl font-semibold text-navy">Company document library</h1>
         <p className="mt-2 max-w-3xl text-sm text-muted">
           Upload Safeway-approved policies, SOPs, forms, and templates into private storage. Files are
-          never placed in the public website directory. This library starts empty until an owner
-          uploads real documents — no placeholder manuals are stored in the application.
+          never placed in the public website directory. Controlled register records stay pending-source
+          until this master file is uploaded — no placeholder manuals are stored in the application.
         </p>
         <div className="mt-4 flex flex-wrap gap-3 text-sm">
           <Link href="/dashboard/compliance" className="font-semibold text-medical hover:underline">
             Compliance dashboard
           </Link>
-          <Link href="/dashboard/compliance/forms" className="font-semibold text-medical hover:underline">
-            Forms library
-          </Link>
         </div>
+        <ComplianceLibraryNav current="/dashboard/compliance/library" />
       </div>
 
       <form className="grid gap-3 rounded-2xl border border-line bg-paper p-5 sm:grid-cols-4">
