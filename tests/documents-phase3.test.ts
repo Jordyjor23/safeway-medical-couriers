@@ -209,12 +209,15 @@ describe("phase 3 profile grouping", () => {
 
   it("splits employee files into uploaded, expiring, expired, and archived buckets", () => {
     const now = new Date("2026-08-28T00:00:00Z");
-    const buckets = employeeDocumentBuckets([
-      { documentType: "W9", lifecycleStatus: "UPLOADED", verificationStatus: "UNVERIFIED", expirationDate: new Date("2027-01-01"), archivedAt: null },
-      { documentType: "DRIVERS_LICENSE", lifecycleStatus: "VERIFIED", verificationStatus: "VERIFIED", expirationDate: new Date("2026-09-01"), archivedAt: null },
-      { documentType: "HIPAA_TRAINING", lifecycleStatus: "VERIFIED", verificationStatus: "VERIFIED", expirationDate: new Date("2026-01-01"), archivedAt: null },
-      { documentType: "OTHER", lifecycleStatus: "ARCHIVED", verificationStatus: "UNVERIFIED", expirationDate: null, archivedAt: now },
-    ]);
+    const buckets = employeeDocumentBuckets(
+      [
+        { documentType: "W9", lifecycleStatus: "UPLOADED", verificationStatus: "UNVERIFIED", expirationDate: new Date("2027-01-01"), archivedAt: null },
+        { documentType: "DRIVERS_LICENSE", lifecycleStatus: "VERIFIED", verificationStatus: "VERIFIED", expirationDate: new Date("2026-09-01"), archivedAt: null },
+        { documentType: "HIPAA_TRAINING", lifecycleStatus: "VERIFIED", verificationStatus: "VERIFIED", expirationDate: new Date("2026-01-01"), archivedAt: null },
+        { documentType: "OTHER", lifecycleStatus: "ARCHIVED", verificationStatus: "UNVERIFIED", expirationDate: null, archivedAt: now },
+      ],
+      now,
+    );
     expect(buckets.uploaded).toHaveLength(1);
     expect(buckets.expiringSoon).toHaveLength(1);
     expect(buckets.expired).toHaveLength(1);
