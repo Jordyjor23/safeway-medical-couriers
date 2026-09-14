@@ -85,13 +85,17 @@ See `tests/phase1-5-compliance-schema.test.ts`.
 
 Covered: shared ManagedDocument, no duplicate Blob on section assign, exact controlled revision on ack, OPEN until explicit complete, matrix statuses preserved, prohibited/deferred not generally available, employees cannot edit metadata, employees only see assigned sections, superseded IDs keep prior ack history.
 
-Verification recorded after this change (see final message for counts).
+- **Vitest:** 221 passed (21 files)
+- **Lint:** 0 errors (4 pre-existing warnings)
+- **Typecheck:** pass
+- **Production `npx next build`:** pass
+- Playwright is not present in this repo
 
 ---
 
 ## 8. Build
 
-`npx prisma generate` then `npx next build` (not `npm run build`, which would run `migrate deploy`). Playwright is not in this repository.
+`npx prisma generate` then `npx next build` (not `npm run build`, which would run `migrate deploy`). Playwright is not in this repository. Production build passed on this revision.
 
 ---
 
