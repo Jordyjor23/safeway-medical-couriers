@@ -56,4 +56,18 @@ describe("application schema employment-law guards", () => {
     expect(schema).toContain("extractionStatus");
     expect(schema).toContain("OCR_DISABLED");
   });
+
+  it("stores contract operating assumptions separately from signed contract terms", () => {
+    const modelBlock = schema.slice(
+      schema.indexOf("model ContractOperatingModel {"),
+      schema.indexOf("model ContractAmendment {"),
+    );
+
+    expect(modelBlock).toContain("annualRevenue");
+    expect(modelBlock).toContain("routeCount");
+    expect(modelBlock).toContain("driverHourlyRate");
+    expect(modelBlock).toContain("accountsReceivableDays");
+    expect(modelBlock).not.toContain("invoice");
+    expect(modelBlock).not.toContain("payrollRecord");
+  });
 });
