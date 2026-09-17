@@ -15,10 +15,22 @@ export default async function ContractsPage() {
 
   return (
     <div>
-      <h1 className="text-3xl font-semibold text-navy">Contracts</h1>
-      <p className="mt-2 text-sm text-muted">
-        E-signature is architected for a future provider. This screen tracks status, dates, and files.
-      </p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-semibold text-navy">Contracts</h1>
+          <p className="mt-2 text-sm text-muted">
+            Track agreements, dates, files, and the operating economics behind each opportunity.
+          </p>
+        </div>
+        {hasPermission(ctx, "finance.view") ? (
+          <Link
+            href="/dashboard/contracts/operating-model"
+            className="rounded-full bg-navy px-4 py-2 text-sm font-semibold text-white hover:bg-medical"
+          >
+            Open $1.1M operating model
+          </Link>
+        ) : null}
+      </div>
       {hasPermission(ctx, "contracts.edit") ? (
         <form action={createContract} className="mt-6 grid gap-3 rounded-2xl border border-line bg-paper p-5 sm:grid-cols-2">
           <select name="customerId" required className="rounded-lg border border-line px-3 py-2 text-sm">

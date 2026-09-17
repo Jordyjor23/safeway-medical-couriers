@@ -64,9 +64,19 @@ export default async function ContractDetailPage({
   return (
     <div className="space-y-6">
       <div>
-        <Link href="/dashboard/contracts" className="text-sm font-semibold text-medical hover:underline">
-          ← Contracts
-        </Link>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <Link href="/dashboard/contracts" className="text-sm font-semibold text-medical hover:underline">
+            ← Contracts
+          </Link>
+          {hasPermission(ctx, "finance.view") ? (
+            <Link
+              href={`/dashboard/contracts/operating-model?new=1&contract=${contract.id}`}
+              className="rounded-full border border-navy px-4 py-2 text-sm font-semibold text-navy hover:bg-navy hover:text-white"
+            >
+              Model this contract
+            </Link>
+          ) : null}
+        </div>
         <h1 className="mt-3 text-3xl font-semibold text-navy">{contract.contractNumber}</h1>
         <p className="text-muted">
           <Link href={`/dashboard/customers/${contract.customerId}`} className="hover:text-medical">
