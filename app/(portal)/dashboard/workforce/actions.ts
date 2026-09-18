@@ -59,6 +59,8 @@ export async function setShiftStatus(shiftId: string, status: ShiftStatus) {
   await writeAuditLog({ actorId: ctx.user.id, actorEmail: ctx.user.email, action: `workforce.shift.${status.toLowerCase()}`, targetType: "employee_shift", targetId: shiftId });
   refreshWorkforceSummary();
   revalidatePath("/dashboard/workforce/schedule");
+  revalidatePath("/employee/schedule");
+  revalidatePath("/employee/dashboard");
 }
 
 export async function deleteDraftShift(shiftId: string) {
@@ -112,6 +114,8 @@ export async function setTimeEntryStatus(entryId: string, status: TimeEntryStatu
   refreshWorkforceSummary();
   revalidatePath("/dashboard/workforce/timecards");
   revalidatePath("/dashboard/payroll");
+  revalidatePath("/employee/timecards");
+  revalidatePath("/employee/dashboard");
 }
 
 export async function createTimeOffForEmployee(formData: FormData) {
@@ -134,6 +138,8 @@ export async function createTimeOffForEmployee(formData: FormData) {
   await writeAuditLog({ actorId: ctx.user.id, actorEmail: ctx.user.email, action: "workforce.timeoff.created", targetType: "time_off_request", targetId: request.id });
   refreshWorkforceSummary();
   revalidatePath("/dashboard/workforce/time-off");
+  revalidatePath("/employee/time-off");
+  revalidatePath("/employee/dashboard");
 }
 
 export async function setTimeOffStatus(requestId: string, status: TimeOffStatus, formData?: FormData) {
