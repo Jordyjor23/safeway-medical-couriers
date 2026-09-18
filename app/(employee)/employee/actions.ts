@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { writeAuditLog } from "@/lib/audit";
 import { prisma } from "@/lib/db";
+import { leaveBankTypeForRequest } from "@/lib/leave";
 import { requirePortal } from "@/lib/rbac";
 import { businessDateKey, parseBusinessDate } from "@/lib/workforce-time";
 
@@ -52,13 +53,18 @@ export async function requestTimeOff(formData: FormData) {
   const endDate = parseBusinessDate(String(formData.get("endDate") ?? ""));
   if (!startDate || !endDate || endDate < startDate) throw new Error("Time-off dates are invalid.");
   const hoursRaw = String(formData.get("hours") ?? "");
+  const requestType = String(formData.get("type") ?? "PTO") as "PTO" | "SICK" | "VACATION" | "UNPAID" | "BEREAVEMENT" | "OTHER";
+  const hours = hoursRaw ? Number(hoursRaw) : 0;
+  if (leaveBankTypeForRequest(requestType) && (!Number.isFinite(hours) || hours <= 0)) {
+    throw new Error("PTO, sick, and vacation requests require the number of hours.");
+  }
   const request = await prisma.timeOffRequest.create({
     data: {
       employeeId,
-      type: String(formData.get("type") ?? "PTO") as "PTO" | "SICK" | "UNPAID" | "BEREAVEMENT" | "OTHER",
+      type: requestType,
       startDate,
       endDate,
-      hours: hoursRaw ? Number(hoursRaw) : null,
+      hours: hoursRaw ? hours : null,
       reason: String(formData.get("reason") ?? "").trim() || null,
     },
   });
