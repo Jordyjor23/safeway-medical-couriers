@@ -32,6 +32,7 @@ export async function createContract(formData: FormData) {
     targetType: "contract",
     targetId: contract.id,
   });
+  revalidatePath("/dashboard");
   revalidatePath("/dashboard/contracts");
   revalidatePath(`/dashboard/customers/${contract.customerId}`);
   redirect(`/dashboard/contracts/${contract.id}`);
@@ -61,6 +62,7 @@ export async function updateContract(contractId: string, formData: FormData) {
     targetType: "contract",
     targetId: contract.id,
   });
+  revalidatePath("/dashboard");
   revalidatePath("/dashboard/contracts");
   revalidatePath(`/dashboard/contracts/${contractId}`);
   revalidatePath(`/dashboard/customers/${contract.customerId}`);
@@ -91,6 +93,7 @@ export async function deleteContract(contractId: string) {
     targetType: "contract",
     targetId: contractId,
   });
+  revalidatePath("/dashboard");
   revalidatePath("/dashboard/contracts");
   revalidatePath(`/dashboard/customers/${contract.customerId}`);
   redirect("/dashboard/contracts");
