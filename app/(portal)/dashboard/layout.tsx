@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { PortalBackNav } from "@/components/portal/PortalBackNav";
 import { PortalSidebar } from "@/components/portal/PortalSidebar";
 import { requirePortal } from "@/lib/rbac";
+import { prisma } from "@/lib/db";
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
@@ -11,6 +12,9 @@ export const metadata: Metadata = {
 
 export default async function PortalLayout({ children }: { children: React.ReactNode }) {
   const ctx = await requirePortal("staff");
+  const unreadNotifications = await prisma.notification.count({
+    where: { userId: ctx.user.id, readAt: null },
+  });
 
   return (
     <div className="min-h-full bg-ice lg:flex">
@@ -18,6 +22,7 @@ export default async function PortalLayout({ children }: { children: React.React
         userName={ctx.user.name}
         userEmail={ctx.user.email}
         permissions={[...ctx.permissions]}
+        unreadNotifications={unreadNotifications}
       />
       <div className="flex-1">
         <div className="border-b border-line bg-paper px-4 py-3 lg:hidden">
