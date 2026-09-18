@@ -19,6 +19,7 @@ import {
   Shield,
   UserRound,
   Users,
+  UserRoundCheck,
 } from "lucide-react";
 import { SignOutButton } from "@/components/portal/SignOutButton";
 
@@ -31,6 +32,7 @@ type NavItem = {
 
 const items: NavItem[] = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
+  { href: "/dashboard/hr", label: "HR & Onboarding", permission: "employees.view", icon: UserRoundCheck },
   { href: "/dashboard/applicants", label: "Applicants", permission: "applicants.view", icon: UserRound },
   { href: "/dashboard/jobs", label: "Job postings", permission: "jobs.view", icon: Briefcase },
   { href: "/dashboard/employees", label: "Employees", permission: "employees.view", icon: Users },
