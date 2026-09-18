@@ -185,7 +185,13 @@ export default async function ApplicantProfilePage({
       {canEdit ? (
         <section className="rounded-2xl border border-line bg-paper p-5">
           <h2 className="text-lg font-semibold text-navy">Interview</h2>
-          <form action={updateInterview.bind(null, applicationId)} className="mt-3 grid gap-3 sm:grid-cols-2">
+          <form
+            action={async (formData) => {
+              "use server";
+              await updateInterview(applicationId, formData);
+            }}
+            className="mt-3 grid gap-3 sm:grid-cols-2"
+          >
             <label className="text-sm font-semibold text-navy">
               Interview date & time (Eastern Time)
               <input
