@@ -38,14 +38,14 @@ export default async function DashboardPage() {
       ) : null}
 
       <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Active employees" value={stats.activeEmployees} href="/dashboard/employees" />
+        <StatCard label="Active employees" value={stats.activeEmployees} href="/dashboard/employees" context={`${stats.employeeRecords} total · ${stats.pendingOnboardingEmployees} onboarding`} />
         <StatCard label="Active couriers" value={stats.activeCouriers} href="/dashboard/employees" />
-        <StatCard label="Pending applicants" value={stats.pendingApplicants} href="/dashboard/applicants" />
+        <StatCard label="Pending applicants" value={stats.pendingApplicants} href="/dashboard/applicants" context={`${stats.applicationRecords} total applications`} />
         <StatCard label="Applications this month" value={stats.applicationsThisMonth} href="/dashboard/applicants" />
-        <StatCard label="Open positions" value={stats.openPositions} href="/dashboard/jobs" />
-        <StatCard label="Active customers" value={stats.activeCustomers} href="/dashboard/customers" />
+        <StatCard label="Open positions" value={stats.openPositions} href="/dashboard/jobs" context={`${stats.jobRecords} total postings`} />
+        <StatCard label="Active customers" value={stats.activeCustomers} href="/dashboard/customers" context={`${stats.customerRecords} total customers`} />
         <StatCard label="Prospective customers" value={stats.prospectiveCustomers} href="/dashboard/customers" />
-        <StatCard label="Active contracts" value={stats.activeContracts} href="/dashboard/contracts" />
+        <StatCard label="Active contracts" value={stats.activeContracts} href="/dashboard/contracts" context={`${stats.contractRecords} total contracts`} />
         <StatCard label="Contracts expiring soon" value={stats.contractsExpiringSoon} href="/dashboard/contracts" />
         <StatCard label="Pending contracts" value={stats.pendingContracts} href="/dashboard/contracts" />
         <StatCard label="Expiring in 30 days" value={documentAlerts.expiringIn30Days} href="/dashboard/documents/alerts" />
