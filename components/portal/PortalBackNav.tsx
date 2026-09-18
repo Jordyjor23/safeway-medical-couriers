@@ -8,6 +8,7 @@ const exactParents: Record<string, { href: string; label: string }> = {
   "/dashboard/audit": { href: "/dashboard", label: "Dashboard" },
   "/dashboard/compliance": { href: "/dashboard", label: "Dashboard" },
   "/dashboard/contracts": { href: "/dashboard", label: "Dashboard" },
+  "/dashboard/contracts/routes": { href: "/dashboard/contracts", label: "Contracts" },
   "/dashboard/customers": { href: "/dashboard", label: "Dashboard" },
   "/dashboard/documents": { href: "/dashboard", label: "Dashboard" },
   "/dashboard/employees": { href: "/dashboard", label: "Dashboard" },
