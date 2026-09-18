@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { createManualTimeEntry, setTimeEntryStatus } from "@/app/(portal)/dashboard/workforce/actions";
 import { prisma } from "@/lib/db";
-import { formatBusinessDateTime, hoursBetween } from "@/lib/workforce-time";
+import { currentInstant, formatBusinessDateTime, hoursBetween } from "@/lib/workforce-time";
 import { hasPermission, requirePermission } from "@/lib/rbac";
 
 export const metadata: Metadata = { title: "Timecards" };
@@ -10,7 +10,8 @@ export const metadata: Metadata = { title: "Timecards" };
 export default async function TimecardsPage() {
   const ctx = await requirePermission("timecards.view");
   const canManage = hasPermission(ctx, "timecards.manage");
-  const since = new Date(Date.now() - 45 * 86_400_000);
+  const now = currentInstant();
+  const since = new Date(now.getTime() - 45 * 86_400_000);
   const [employees, entries] = await Promise.all([
     prisma.employee.findMany({ where: { status: { in: ["ACTIVE", "PENDING_ONBOARDING"] } }, orderBy: [{ legalLastName: "asc" }, { legalFirstName: "asc" }] }),
     prisma.timeEntry.findMany({ where: { clockIn: { gte: since } }, include: { employee: true }, orderBy: { clockIn: "desc" }, take: 250 }),

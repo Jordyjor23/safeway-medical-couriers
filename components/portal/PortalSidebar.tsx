@@ -57,10 +57,12 @@ export function PortalSidebar({
   userName,
   userEmail,
   permissions,
+  unreadNotifications,
 }: {
   userName: string;
   userEmail: string;
   permissions: string[];
+  unreadNotifications: number;
 }) {
   const pathname = usePathname();
   const permissionSet = new Set(permissions);
@@ -93,7 +95,15 @@ export function PortalSidebar({
               }`}
             >
               <item.icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-              {item.label}
+              <span className="min-w-0 flex-1">{item.label}</span>
+              {item.href === "/dashboard/notifications" && unreadNotifications > 0 ? (
+                <span
+                  className="inline-flex min-w-6 items-center justify-center rounded-full bg-medical px-1.5 py-0.5 text-xs font-bold text-white"
+                  aria-label={`${unreadNotifications} unread notifications`}
+                >
+                  {unreadNotifications > 99 ? "99+" : unreadNotifications}
+                </span>
+              ) : null}
             </Link>
           );
         })}

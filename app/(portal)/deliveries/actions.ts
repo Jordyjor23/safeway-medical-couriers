@@ -3,10 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { writeAuditLog } from "@/lib/audit";
 import { prisma } from "@/lib/db";
+import { canTransitionDelivery } from "@/lib/delivery-lifecycle";
 import { nextScopedId } from "@/lib/ids";
 import { resolveRouteCourier } from "@/lib/route-assignment";
 import { buildRouteChecklist, courierSignoffRole } from "@/lib/route-packet";
 import { requirePermission } from "@/lib/rbac";
+import { notifyEmployee, notifyRoles } from "@/lib/notifications";
 import { businessLocalToUtc } from "@/lib/workforce-time";
 import type {
   DeliveryChecklistStatus,
@@ -154,6 +156,15 @@ export async function createDelivery(formData: FormData) {
     targetId: delivery.id,
     metadata: { routePacketItems: checklist.length },
   });
+  if (driverEmployeeId) {
+    await notifyEmployee({
+      employeeId: driverEmployeeId,
+      title: "New delivery assignment",
+      body: `You were assigned delivery ${delivery.deliveryNumber}. Open your driver dashboard for pickup, destination, timing, and handling instructions.`,
+      href: "/driver/dashboard",
+      dedupeKey: `delivery-assigned:${delivery.id}:${driverEmployeeId}`,
+    });
+  }
   refreshDelivery(delivery.id);
 }
 
@@ -299,6 +310,16 @@ export async function createDeliveryFromRouteTemplate(routeTemplateId: string, f
     }
   }
 
+  if (assignment.employeeId) {
+    await notifyEmployee({
+      employeeId: assignment.employeeId,
+      title: "New route assignment",
+      body: `You were assigned ${template.name} (${delivery.deliveryNumber}). Open your driver dashboard for the route packet and schedule.`,
+      href: "/driver/dashboard",
+      dedupeKey: `delivery-assigned:${delivery.id}:${assignment.employeeId}`,
+    });
+  }
+
   await writeAuditLog({
     actorId: ctx.user.id,
     actorEmail: ctx.user.email,
@@ -385,6 +406,13 @@ export async function assignDeliveryCourier(deliveryId: string, formData: FormDa
     targetType: "delivery",
     targetId: deliveryId,
     metadata: { employeeId, assignmentSource },
+  });
+  await notifyEmployee({
+    employeeId,
+    title: "Delivery assignment updated",
+    body: `You are assigned to delivery ${delivery.deliveryNumber}. Open your driver dashboard to review the current route details.`,
+    href: "/driver/dashboard",
+    dedupeKey: `delivery-assigned:${deliveryId}:${employeeId}:${delivery.updatedAt.toISOString()}`,
   });
   refreshDelivery(deliveryId);
 }
@@ -512,6 +540,12 @@ export async function updateDeliveryStatus(formData: FormData) {
   const status = String(formData.get("status") ?? "") as DeliveryStatus;
   const delivery = await getAuthorizedDelivery(ctx, deliveryId);
 
+  if (!canTransitionDelivery(delivery.status, status)) {
+    throw new Error(
+      `Delivery cannot move from ${delivery.status.replaceAll("_", " ")} to ${status.replaceAll("_", " ")}.`,
+    );
+  }
+
   if (status === "DELIVERED") {
     if (delivery.checklistItems.length === 0) {
       throw new Error("Initialize the route packet before completing this delivery.");
@@ -576,7 +610,7 @@ export async function updateDeliveryStatus(formData: FormData) {
 export async function createIncident(formData: FormData) {
   const ctx = await requirePermission("incident.view");
   const deliveryId = String(formData.get("deliveryId") ?? "") || null;
-  await prisma.incidentReport.create({
+  const incident = await prisma.incidentReport.create({
     data: {
       reporterUserId: ctx.user.id,
       deliveryId,
@@ -590,7 +624,14 @@ export async function createIncident(formData: FormData) {
     actorEmail: ctx.user.email,
     action: "incident.created",
     targetType: "incident",
-    targetId: ctx.user.id,
+    targetId: incident.id,
+  });
+  await notifyRoles({
+    roles: ["OWNER", "ADMIN", "OPERATIONS_MANAGER", "DISPATCHER", "COMPLIANCE_ADMIN"],
+    title: "New incident report",
+    body: `${incident.title} was reported and needs review.`,
+    href: deliveryId ? `/dispatch/deliveries/${deliveryId}` : "/operations/dashboard",
+    dedupeKeyPrefix: `incident:${incident.id}`,
   });
   revalidatePath("/driver/dashboard");
   revalidatePath("/employee/dashboard");

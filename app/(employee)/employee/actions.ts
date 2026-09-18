@@ -5,6 +5,7 @@ import { writeAuditLog } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { leaveBankTypeForRequest } from "@/lib/leave";
 import { requirePortal } from "@/lib/rbac";
+import { notifyRoles } from "@/lib/notifications";
 import { businessDateKey, parseBusinessDate } from "@/lib/workforce-time";
 
 function refreshManagerWorkforce() {
@@ -69,6 +70,13 @@ export async function requestTimeOff(formData: FormData) {
     },
   });
   await writeAuditLog({ actorId: ctx.user.id, actorEmail: ctx.user.email, action: "employee.timeoff.requested", targetType: "time_off_request", targetId: request.id });
+  await notifyRoles({
+    roles: ["OWNER", "ADMIN", "OPERATIONS_MANAGER", "HR_RECRUITER"],
+    title: "New time-off request",
+    body: "An employee submitted a time-off request that is waiting for review.",
+    href: "/dashboard/workforce/time-off",
+    dedupeKeyPrefix: `timeoff-request:${request.id}`,
+  });
   refreshManagerWorkforce();
   revalidatePath("/employee/time-off");
   revalidatePath("/dashboard/workforce/time-off");
@@ -97,6 +105,13 @@ export async function reportCallOff(formData: FormData) {
   if (!callOffDate) throw new Error("Call-off date is required.");
   const row = await prisma.callOffRequest.create({ data: { employeeId, shiftId, callOffDate, reason: String(formData.get("reason") ?? "").trim() || "Call-off", notes: String(formData.get("notes") ?? "").trim() || null } });
   await writeAuditLog({ actorId: ctx.user.id, actorEmail: ctx.user.email, action: "employee.calloff.reported", targetType: "call_off_request", targetId: row.id });
+  await notifyRoles({
+    roles: ["OWNER", "ADMIN", "OPERATIONS_MANAGER", "HR_RECRUITER", "DISPATCHER"],
+    title: "Employee call-off reported",
+    body: "An employee reported a call-off. Review coverage and acknowledge the call-off.",
+    href: "/dashboard/workforce/time-off#call-offs",
+    dedupeKeyPrefix: `calloff:${row.id}`,
+  });
   refreshManagerWorkforce();
   revalidatePath("/employee/time-off");
   revalidatePath("/employee/schedule");

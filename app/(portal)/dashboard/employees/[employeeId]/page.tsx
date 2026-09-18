@@ -94,6 +94,13 @@ export default async function EmployeeProfilePage({
   const updateHire = updateNewHireReport.bind(null, employee.id);
   const updateCompensation = updateEmployeeCompensation.bind(null, employee.id);
   const adjustLeave = adjustLeaveBalance.bind(null, employee.id);
+  const readyForAssignment = Boolean(
+    employee.onboarding?.steps.some(
+      (step) =>
+        step.key === "READY_FOR_ASSIGNMENT" &&
+        (step.status === "COMPLETED" || step.status === "NOT_APPLICABLE"),
+    ),
+  );
 
   return (
     <div className="space-y-6">
@@ -167,7 +174,7 @@ export default async function EmployeeProfilePage({
               Status
               <select name="status" defaultValue={employee.status} className={fieldClass}>
                 <option value="PENDING_ONBOARDING">Pending onboarding</option>
-                <option value="ACTIVE">Active</option>
+                <option value="ACTIVE" disabled={employee.status !== "ACTIVE" && !readyForAssignment}>Active</option>
                 <option value="INACTIVE">Inactive</option>
                 <option value="TERMINATED">Terminated</option>
               </select>
@@ -189,9 +196,16 @@ export default async function EmployeeProfilePage({
                 Include this person in route qualification and courier assignment checks.
               </span>
             </label>
-            <button className="h-fit self-end rounded-full bg-navy px-4 py-2 text-sm font-semibold text-white">
-              Save profile
-            </button>
+            <div className="self-end">
+              {employee.status !== "ACTIVE" && !readyForAssignment ? (
+                <p className="mb-2 text-xs font-semibold text-amber-700">
+                  Complete the READY FOR ASSIGNMENT onboarding step before activating this worker.
+                </p>
+              ) : null}
+              <button className="h-fit rounded-full bg-navy px-4 py-2 text-sm font-semibold text-white">
+                Save profile
+              </button>
+            </div>
           </form>
         ) : (
           <p className="mt-2 text-sm text-muted">You can view this record but cannot edit it.</p>

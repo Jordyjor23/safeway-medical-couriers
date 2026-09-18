@@ -5,6 +5,7 @@ import { writeAuditLog } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { applyTimeOffDecision, leaveBankTypeForRequest } from "@/lib/leave";
 import { requirePermission } from "@/lib/rbac";
+import { notifyEmployee, notifyRoles } from "@/lib/notifications";
 import { businessLocalToUtc, parseBusinessDate } from "@/lib/workforce-time";
 import type { ShiftStatus, TimeEntryStatus, TimeOffStatus } from "@prisma/client";
 
@@ -46,6 +47,15 @@ export async function createShift(formData: FormData) {
     },
   });
   await writeAuditLog({ actorId: ctx.user.id, actorEmail: ctx.user.email, action: "workforce.shift.created", targetType: "employee_shift", targetId: shift.id });
+  if (shift.status === "PUBLISHED") {
+    await notifyEmployee({
+      employeeId: shift.employeeId,
+      title: "New shift published",
+      body: "A new Safeway shift has been added to your schedule. Open your schedule for the date, time, assignment, and location.",
+      href: "/employee/schedule",
+      dedupeKey: `shift-published:${shift.id}`,
+    });
+  }
   refreshWorkforceSummary();
   revalidatePath("/dashboard/workforce");
   revalidatePath("/dashboard/workforce/schedule");
@@ -58,6 +68,18 @@ export async function setShiftStatus(shiftId: string, status: ShiftStatus) {
     data: { status, publishedAt: status === "PUBLISHED" ? new Date() : undefined },
   });
   await writeAuditLog({ actorId: ctx.user.id, actorEmail: ctx.user.email, action: `workforce.shift.${status.toLowerCase()}`, targetType: "employee_shift", targetId: shiftId });
+  if (status === "PUBLISHED") {
+    const shift = await prisma.employeeShift.findUnique({ where: { id: shiftId }, select: { employeeId: true } });
+    if (shift) {
+      await notifyEmployee({
+        employeeId: shift.employeeId,
+        title: "Shift published",
+        body: "A Safeway shift was published to your schedule. Open your schedule to review the assignment.",
+        href: "/employee/schedule",
+        dedupeKey: `shift-published:${shiftId}`,
+      });
+    }
+  }
   refreshWorkforceSummary();
   revalidatePath("/dashboard/workforce/schedule");
   revalidatePath("/employee/schedule");
@@ -114,6 +136,18 @@ export async function setTimeEntryStatus(entryId: string, status: TimeEntryStatu
     },
   });
   await writeAuditLog({ actorId: ctx.user.id, actorEmail: ctx.user.email, action: `workforce.timecard.${status.toLowerCase()}`, targetType: "time_entry", targetId: entryId });
+  if (["APPROVED", "REJECTED"].includes(status)) {
+    const entry = await prisma.timeEntry.findUnique({ where: { id: entryId }, select: { employeeId: true } });
+    if (entry) {
+      await notifyEmployee({
+        employeeId: entry.employeeId,
+        title: `Timecard ${status.toLowerCase()}`,
+        body: `Your Safeway timecard was ${status.toLowerCase()}. Open your timecards to review the record.`,
+        href: "/employee/timecards",
+        dedupeKey: `timecard-decision:${entryId}:${status}`,
+      });
+    }
+  }
   refreshWorkforceSummary();
   revalidatePath("/dashboard/workforce/timecards");
   revalidatePath("/dashboard/payroll");
@@ -156,6 +190,19 @@ export async function setTimeOffStatus(requestId: string, status: TimeOffStatus,
     actorUserId: ctx.user.id,
     managerNote: formData ? String(formData.get("managerNote") ?? "").trim() || null : undefined,
   });
+  const decidedRequest = await prisma.timeOffRequest.findUnique({
+    where: { id: requestId },
+    select: { employeeId: true, type: true, startDate: true, endDate: true },
+  });
+  if (decidedRequest && ["APPROVED", "DENIED", "CANCELLED"].includes(status)) {
+    await notifyEmployee({
+      employeeId: decidedRequest.employeeId,
+      title: `Time-off request ${status.toLowerCase()}`,
+      body: `Your ${decidedRequest.type.toLowerCase().replaceAll("_", " ")} request has been ${status.toLowerCase()}.`,
+      href: "/employee/time-off",
+      dedupeKey: `timeoff-decision:${requestId}:${status}`,
+    });
+  }
   await writeAuditLog({ actorId: ctx.user.id, actorEmail: ctx.user.email, action: `workforce.timeoff.${status.toLowerCase()}`, targetType: "time_off_request", targetId: requestId });
   refreshWorkforceSummary();
   revalidatePath("/dashboard/workforce/time-off");
@@ -177,6 +224,13 @@ export async function recordCallOff(formData: FormData) {
     },
   });
   await writeAuditLog({ actorId: ctx.user.id, actorEmail: ctx.user.email, action: "workforce.calloff.reported", targetType: "call_off_request", targetId: row.id });
+  await notifyRoles({
+    roles: ["OWNER", "ADMIN", "OPERATIONS_MANAGER", "HR_RECRUITER", "DISPATCHER"],
+    title: "Employee call-off reported",
+    body: "A call-off was recorded and may require schedule or dispatch coverage.",
+    href: "/dashboard/workforce/time-off#call-offs",
+    dedupeKeyPrefix: `calloff:${row.id}`,
+  });
   refreshWorkforceSummary();
   revalidatePath("/dashboard/workforce/time-off");
   revalidatePath("/employee/time-off");
@@ -224,6 +278,15 @@ export async function updateShift(shiftId: string, formData: FormData) {
     targetId: shiftId,
     metadata: { previousEmployeeId: current.employeeId },
   });
+  if (current.status === "PUBLISHED") {
+    await notifyEmployee({
+      employeeId,
+      title: "Shift updated",
+      body: "A published Safeway shift on your schedule was updated. Open your schedule to review the latest date, time, assignment, and location.",
+      href: "/employee/schedule",
+      dedupeKey: `shift-updated:${shiftId}:${Date.now()}`,
+    });
+  }
   refreshWorkforceSummary();
   revalidatePath("/dashboard/workforce/schedule");
   revalidatePath(`/dashboard/workforce/schedule/${shiftId}`);

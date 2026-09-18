@@ -1,5 +1,9 @@
 export const BUSINESS_TIME_ZONE = "America/New_York";
 
+export function currentInstant() {
+  return new Date();
+}
+
 function partsInZone(date: Date, timeZone = BUSINESS_TIME_ZONE) {
   const formatter = new Intl.DateTimeFormat("en-US", {
     timeZone,

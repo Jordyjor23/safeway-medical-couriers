@@ -11,6 +11,8 @@ import {
   type DocumentActor,
 } from "@/lib/documents/access";
 import { prisma } from "@/lib/db";
+import { notifyUser } from "@/lib/notifications";
+import { sendTransactionalEmail } from "@/lib/email";
 import { notifyDocumentRejected } from "@/lib/documents/notification-scheduler";
 
 function forbidden() {
@@ -150,6 +152,34 @@ export async function verifyManagedDocument(args: { documentId: string; actor: D
     targetType: "document",
     targetId: document.id,
   });
+
+  try {
+    const employeeUsers = await prisma.employee.findMany({
+      where: {
+        id: { in: document.employeeLinks.map((link) => link.employeeId) },
+        userId: { not: null },
+      },
+      select: { userId: true },
+    });
+    await Promise.all(
+      employeeUsers
+        .map((employee) => employee.userId)
+        .filter((userId): userId is string => Boolean(userId))
+        .map((userId) =>
+          notifyUser({
+            userId,
+            type: "SYSTEM",
+            title: "Document verified",
+            body: `${document.name} was reviewed and verified by Safeway.`,
+            href: "/employee/dashboard",
+            dedupeKey: `document-verified:${document.id}:${userId}`,
+          }),
+        ),
+    );
+  } catch {
+    // Verification must still succeed if notification delivery fails.
+  }
+
   return { document: updated };
 }
 
@@ -199,8 +229,39 @@ export async function rejectManagedDocument(args: {
       uploadedBy: document.uploadedBy,
       associatedEmployeeUserIds,
     });
+
+    if (document.applicantLinks.length) {
+      const applications = await prisma.application.findMany({
+        where: { id: { in: document.applicantLinks.map((link) => link.applicationId) } },
+        include: { applicant: true, jobOpening: true },
+      });
+      await Promise.allSettled(
+        applications.map(async (application) => {
+          const subject = `Safeway onboarding document needs correction — ${document.name}`;
+          const reason = args.reason || "The document needs to be corrected and uploaded again.";
+          await sendTransactionalEmail({
+            to: application.applicant.email,
+            subject,
+            html: `<p>Hello ${application.applicant.preferredName || application.applicant.legalFirstName},</p>
+<p>Safeway Couriers reviewed <strong>${document.name}</strong> for your ${application.jobOpening.title} onboarding.</p>
+<p><strong>Correction needed:</strong> ${reason}</p>
+<p>Please use your existing secure onboarding link to upload the corrected document. If your link has expired, contact Safeway Couriers for a new one.</p>`,
+          });
+          await prisma.applicationCommunication.create({
+            data: {
+              applicationId: application.id,
+              channel: "EMAIL",
+              subject,
+              body: `Document rejected: ${document.name}. Reason: ${reason}`,
+              direction: "OUTBOUND",
+              createdBy: args.actor.user.id,
+            },
+          });
+        }),
+      );
+    }
   } catch {
-    // Rejection must still succeed if reminder delivery fails.
+    // Rejection must still succeed if notification or email delivery fails.
   }
 
   return { document: updated };

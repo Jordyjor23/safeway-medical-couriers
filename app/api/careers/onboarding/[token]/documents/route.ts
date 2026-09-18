@@ -2,11 +2,12 @@ import { NextResponse } from "next/server";
 import { writeAuditLog } from "@/lib/audit";
 import { resolveCandidateOnboardingToken } from "@/lib/candidate-onboarding";
 import { prisma } from "@/lib/db";
+import { notifyRoles } from "@/lib/notifications";
 import {
   applicantOnboardingDocumentTypes,
   SENSITIVE_ONBOARDING_DOCUMENT_TYPES,
 } from "@/lib/onboarding-documents";
-import { storePrivateFile } from "@/lib/storage";
+import { DocumentStorageError, storePrivateFile } from "@/lib/storage";
 import { validateDocumentFile } from "@/lib/documents/validate";
 
 function optionalDate(value: FormDataEntryValue | null) {
@@ -71,7 +72,21 @@ export async function POST(
     return NextResponse.json({ error: "This file has already been submitted." }, { status: 409 });
   }
 
-  const stored = await storePrivateFile(file);
+  let stored;
+  try {
+    stored = await storePrivateFile(file);
+  } catch (error) {
+    if (error instanceof DocumentStorageError) {
+      return NextResponse.json(
+        {
+          error: "Secure document storage is temporarily unavailable. Your file was not submitted. Please try again shortly.",
+          code: "DOCUMENT_STORAGE_UNAVAILABLE",
+        },
+        { status: 503 },
+      );
+    }
+    throw error;
+  }
   const name = String(formData.get("name") ?? "").trim() || stored.originalFileName;
   const effectiveDate = optionalDate(formData.get("effectiveDate"));
   const expirationDate = optionalDate(formData.get("expirationDate"));
@@ -115,6 +130,14 @@ export async function POST(
       documentType,
       trackingNumber: resolved.application.trackingNumber,
     },
+  });
+
+  await notifyRoles({
+    roles: ["OWNER", "ADMIN", "HR_RECRUITER", "COMPLIANCE_ADMIN"],
+    title: "Candidate document ready for review",
+    body: `${resolved.application.applicant.legalFirstName} ${resolved.application.applicant.legalLastName} uploaded ${name} for ${resolved.application.jobOpening.title}.`,
+    href: "/dashboard/documents/review",
+    dedupeKeyPrefix: `candidate-document:${document.id}`,
   });
 
   return NextResponse.json({ ok: true, documentId: document.id }, { status: 201 });
