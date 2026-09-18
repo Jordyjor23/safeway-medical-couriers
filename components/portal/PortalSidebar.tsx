@@ -5,6 +5,8 @@ import { usePathname } from "next/navigation";
 import {
   Bell,
   Briefcase,
+  CalendarDays,
+  CircleDollarSign,
   Building2,
   ClipboardCheck,
   FileText,
@@ -30,6 +32,8 @@ const items: NavItem[] = [
   { href: "/dashboard/applicants", label: "Applicants", permission: "applicants.view", icon: UserRound },
   { href: "/dashboard/jobs", label: "Job postings", permission: "jobs.view", icon: Briefcase },
   { href: "/dashboard/employees", label: "Employees", permission: "employees.view", icon: Users },
+  { href: "/dashboard/workforce", label: "Workforce", permission: "scheduling.view", icon: CalendarDays },
+  { href: "/dashboard/payroll", label: "Payroll", permission: "payroll.view", icon: CircleDollarSign },
   { href: "/dashboard/customers", label: "Customers", permission: "customers.view", icon: Building2 },
   { href: "/dashboard/contracts", label: "Contracts", permission: "contracts.view", icon: FileText },
   { href: "/dashboard/documents", label: "Documents", permission: "documents.view", icon: ScrollText },
