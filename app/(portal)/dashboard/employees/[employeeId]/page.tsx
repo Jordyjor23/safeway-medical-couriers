@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { addEmployeeTraining, updateEmployee, updateNewHireReport, updateOnboardingStep } from "@/app/(portal)/dashboard/employees/actions";
+import { addEmployeeTraining, deleteEmployee, setEmployeePortalAccess, updateEmployee, updateNewHireReport, updateOnboardingStep } from "@/app/(portal)/dashboard/employees/actions";
+import { updateEmployeeCompensation } from "@/app/(portal)/dashboard/payroll/actions";
 import { documentUploadCapabilities } from "@/app/(portal)/dashboard/documents/actions";
+import { ConfirmSubmitButton } from "@/components/portal/ConfirmSubmitButton";
 import { DocumentUploader } from "@/components/portal/DocumentUploader";
 import { EntityDocumentsSection } from "@/components/portal/EntityDocumentsSection";
 import { employeeDocumentBuckets, missingRequirementLabels } from "@/lib/documents/buckets";
@@ -34,11 +36,33 @@ export default async function EmployeeProfilePage({
       certifications: true,
       complianceRecords: { include: { requirement: true } },
       newHireReport: true,
+      user: { select: { disabled: true, accountStatus: true } },
+      _count: {
+        select: {
+          deliveries: true,
+          documents: true,
+          complianceRecords: true,
+          shifts: true,
+          timeEntries: true,
+          timeOffRequests: true,
+          callOffs: true,
+          payrollEntries: true,
+          tasks: true,
+        },
+      },
     },
   });
   if (!employee) notFound();
   const canEdit = hasPermission(ctx, "employees.edit");
+  const canDisable = hasPermission(ctx, "employees.disable");
+  const canViewPayroll = hasPermission(ctx, "payroll.view");
+  const canManagePayroll = hasPermission(ctx, "payroll.manage");
   const canViewDocs = hasPermission(ctx, "documents.view");
+  const canHardDelete =
+    canDisable &&
+    !employee.userId &&
+    !employee.applicationId &&
+    Object.values(employee._count).every((count) => count === 0);
   const [documents, capabilities, rules] = canViewDocs
     ? await Promise.all([
         prisma.managedDocument.findMany({
@@ -60,6 +84,7 @@ export default async function EmployeeProfilePage({
   const updateStep = updateOnboardingStep.bind(null, employee.id);
   const addTraining = addEmployeeTraining.bind(null, employee.id);
   const updateHire = updateNewHireReport.bind(null, employee.id);
+  const updateCompensation = updateEmployeeCompensation.bind(null, employee.id);
 
   return (
     <div className="space-y-6">
@@ -145,6 +170,85 @@ export default async function EmployeeProfilePage({
           <p className="mt-2 text-sm text-muted">You can view this record but cannot edit it.</p>
         )}
       </section>
+
+      <section className="rounded-2xl border border-line bg-paper p-5">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h2 className="font-semibold text-navy">Portal access</h2>
+            <p className="mt-1 text-sm text-muted">
+              {employee.userId
+                ? employee.user?.disabled
+                  ? "Portal access is disabled."
+                  : "Portal access is active."
+                : "No portal account is linked."}
+            </p>
+          </div>
+          {canDisable && employee.userId ? (
+            employee.user?.disabled ? (
+              <form action={setEmployeePortalAccess.bind(null, employee.id, true)}>
+                <button className="rounded-full border border-line px-4 py-2 text-sm font-semibold text-navy">
+                  Restore access
+                </button>
+              </form>
+            ) : (
+              <form action={setEmployeePortalAccess.bind(null, employee.id, false)}>
+                <ConfirmSubmitButton
+                  label="Disable access"
+                  confirmText="Disable this employee’s portal access and mark the employee inactive?"
+                />
+              </form>
+            )
+          ) : null}
+        </div>
+        {canHardDelete ? (
+          <form action={deleteEmployee.bind(null, employee.id)} className="mt-4 border-t border-line pt-4">
+            <ConfirmSubmitButton
+              label="Delete empty employee record"
+              confirmText="Permanently delete this empty employee record? This cannot be undone."
+            />
+          </form>
+        ) : null}
+      </section>
+
+      {canViewPayroll ? (
+        <section className="rounded-2xl border border-line bg-paper p-5">
+          <h2 className="font-semibold text-navy">Compensation & PTO</h2>
+          {canManagePayroll ? (
+            <form action={updateCompensation} className="mt-4 grid gap-3 sm:grid-cols-2">
+              <label className="text-sm font-semibold text-navy">
+                Compensation type
+                <select name="compensationType" defaultValue={employee.compensationType ?? ""} className={fieldClass}>
+                  <option value="">Not set</option>
+                  <option value="HOURLY">Hourly</option>
+                  <option value="SALARY">Salary</option>
+                  <option value="ROUTE_BASED">Route-based</option>
+                  <option value="COMMISSION">Commission</option>
+                </select>
+              </label>
+              <label className="text-sm font-semibold text-navy">
+                Base pay rate
+                <input name="basePayRate" type="number" min="0" step="0.01" defaultValue={employee.basePayRate?.toString() ?? ""} className={fieldClass} />
+              </label>
+              <label className="text-sm font-semibold text-navy">
+                PTO balance (hours)
+                <input name="ptoBalanceHours" type="number" min="0" step="0.25" defaultValue={employee.ptoBalanceHours.toString()} className={fieldClass} />
+              </label>
+              <label className="flex items-center gap-2 self-end pb-2 text-sm font-semibold text-navy">
+                <input name="overtimeEligible" type="checkbox" defaultChecked={employee.overtimeEligible} />
+                Overtime eligible
+              </label>
+              <button className="w-fit rounded-full bg-navy px-4 py-2 text-sm font-semibold text-white sm:col-span-2">
+                Save compensation
+              </button>
+            </form>
+          ) : (
+            <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+              <div><dt className="text-muted">Compensation</dt><dd>{employee.compensationType ?? "Not set"}</dd></div>
+              <div><dt className="text-muted">PTO balance</dt><dd>{employee.ptoBalanceHours.toString()} hours</dd></div>
+            </dl>
+          )}
+        </section>
+      ) : null}
 
       <section className="rounded-2xl border border-line bg-paper p-5">
         <h2 className="font-semibold text-navy">Onboarding</h2>
