@@ -92,6 +92,22 @@ export default async function HrOnboardingPage() {
         classification, agreements, and employee records.
       </p>
 
+      <form action="/dashboard/employees" method="get" className="mt-6 rounded-2xl border border-line bg-paper p-4">
+        <label className="text-sm font-semibold text-navy">
+          Find an employee
+          <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+            <input
+              name="q"
+              placeholder="Search name, employee ID, email, phone, title, or department"
+              className="min-w-0 flex-1 rounded-lg border border-line px-3 py-2.5 text-sm"
+            />
+            <button className="rounded-full bg-navy px-5 py-2.5 text-sm font-semibold text-white">
+              Search directory
+            </button>
+          </div>
+        </label>
+      </form>
+
       <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {cards.map((card) => (
           <Link
