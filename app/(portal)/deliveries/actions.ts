@@ -48,6 +48,13 @@ function addDaysToDateText(dateText: string, days: number) {
   return date.toISOString().slice(0, 10);
 }
 
+function csvList(value: string | null | undefined) {
+  return (value ?? "")
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
 export async function createDelivery(formData: FormData) {
   const ctx = await requirePermission("delivery.create");
   const driverEmployeeId = String(formData.get("driverEmployeeId") ?? "") || null;
@@ -154,6 +161,30 @@ export async function createDeliveryFromRouteTemplate(routeTemplateId: string, f
     throw new Error("Pickup and delivery addresses are required before assigning the route.");
   }
 
+  const requiredDocumentTypes = csvList(template.requiredDocumentTypes);
+  const contractDocumentLinks = requiredDocumentTypes.length
+    ? await prisma.contractDocument.findMany({
+        where: {
+          contractId: template.contractId,
+          document: {
+            documentType: { in: requiredDocumentTypes },
+            lifecycleStatus: { notIn: ["ARCHIVED", "SUPERSEDED"] },
+            verificationStatus: { not: "REJECTED" },
+          },
+        },
+        include: { document: true },
+      })
+    : [];
+  const foundDocumentTypes = new Set(
+    contractDocumentLinks.map((link) => link.document.documentType).filter((type): type is string => Boolean(type)),
+  );
+  const missingDocumentTypes = requiredDocumentTypes.filter((type) => !foundDocumentTypes.has(type));
+  if (missingDocumentTypes.length) {
+    throw new Error(
+      `This contract route is missing required paperwork: ${missingDocumentTypes.join(", ")}. Upload/link those documents to the contract before dispatching.`,
+    );
+  }
+
   const checklist = buildRouteChecklist(template);
   const delivery = await prisma.delivery.create({
     data: {
@@ -177,6 +208,9 @@ export async function createDeliveryFromRouteTemplate(routeTemplateId: string, f
       chainOfCustodyRequired: template.chainOfCustodyRequired,
       proofOfDeliveryRequired: template.proofOfDeliveryRequired,
       checklistItems: { create: checklist },
+      documents: {
+        create: contractDocumentLinks.map((link) => ({ documentId: link.documentId })),
+      },
     },
   });
 
@@ -192,6 +226,8 @@ export async function createDeliveryFromRouteTemplate(routeTemplateId: string, f
       assignmentSource: assignment.source,
       driverEmployeeId: assignment.employeeId,
       assignmentNotes: assignment.reasons,
+      inheritedDocumentTypes: requiredDocumentTypes,
+      inheritedDocumentCount: contractDocumentLinks.length,
     },
   });
 
