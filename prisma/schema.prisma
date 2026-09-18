@@ -645,6 +645,8 @@ model Employee {
   timeOffRequests TimeOffRequest[]
   callOffs        CallOffRequest[]
   payrollEntries  PayrollEntry[]
+  leaveBanks      LeaveBank[]
+  leaveLedger     LeaveLedgerEntry[]
 
   @@index([managerId])
 }
@@ -853,6 +855,7 @@ model TimeEntry {
 enum TimeOffType {
   PTO
   SICK
+  VACATION
   UNPAID
   BEREAVEMENT
   OTHER
@@ -876,13 +879,59 @@ model TimeOffRequest {
   reason      String?
   status      TimeOffStatus @default(PENDING)
   managerNote String?
-  decidedBy   String?
-  decidedAt   DateTime?
-  createdAt   DateTime      @default(now())
+  decidedBy          String?
+  decidedAt          DateTime?
+  balanceAppliedAt   DateTime?
+  balanceHoursApplied Decimal?      @db.Decimal(8, 2)
+  createdAt          DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
   @@index([employeeId, startDate])
   @@index([status, startDate])
+}
+
+enum LeaveBankType {
+  PTO
+  SICK
+  VACATION
+}
+
+enum LeaveLedgerKind {
+  INITIAL
+  ACCRUAL
+  ADJUSTMENT
+  USED
+  RESTORED
+}
+
+model LeaveBank {
+  id           String        @id @default(uuid())
+  employeeId   String
+  employee     Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  type         LeaveBankType
+  balanceHours Decimal       @default(0) @db.Decimal(8, 2)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@unique([employeeId, type])
+  @@index([employeeId])
+}
+
+model LeaveLedgerEntry {
+  id               String          @id @default(uuid())
+  employeeId       String
+  employee         Employee        @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  bankType         LeaveBankType
+  kind             LeaveLedgerKind
+  deltaHours       Decimal         @db.Decimal(8, 2)
+  balanceAfter     Decimal         @db.Decimal(8, 2)
+  timeOffRequestId String?
+  actorUserId      String?
+  note             String?
+  createdAt        DateTime        @default(now())
+
+  @@index([employeeId, bankType, createdAt])
+  @@index([timeOffRequestId])
 }
 
 enum CallOffStatus {
@@ -1498,9 +1547,61 @@ model Delivery {
   events DeliveryEvent[]
   incidents IncidentReport[]
   documents DeliveryDocument[]
+  checklistItems DeliveryChecklistItem[]
+  signoffs DeliverySignoff[]
 
   @@index([customerId, status])
   @@index([driverEmployeeId, status])
+}
+
+enum DeliveryChecklistStatus {
+  PENDING
+  COMPLETED
+  WAIVED
+}
+
+enum DeliverySignoffRole {
+  COURIER
+  CONTRACTOR
+  RECIPIENT
+  CUSTOMER
+  STAFF
+}
+
+model DeliveryChecklistItem {
+  id                String                  @id @default(uuid())
+  deliveryId        String
+  delivery          Delivery                @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  key               String
+  label             String
+  required          Boolean                 @default(true)
+  status            DeliveryChecklistStatus @default(PENDING)
+  sortOrder         Int                     @default(0)
+  completedAt       DateTime?
+  completedByUserId String?
+  note              String?
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+
+  @@unique([deliveryId, key])
+  @@index([deliveryId, status])
+}
+
+model DeliverySignoff {
+  id             String              @id @default(uuid())
+  deliveryId     String
+  delivery       Delivery            @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  role           DeliverySignoffRole
+  signerName     String
+  signerTitle    String?
+  signatureText  String
+  attested       Boolean             @default(false)
+  formVersion    String              @default("1.0")
+  notes          String?
+  signedByUserId String?
+  signedAt       DateTime            @default(now())
+
+  @@index([deliveryId, role, signedAt])
 }
 
 model DeliveryEvent {
