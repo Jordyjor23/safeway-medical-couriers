@@ -647,6 +647,8 @@ model Employee {
   payrollEntries  PayrollEntry[]
   leaveBanks      LeaveBank[]
   leaveLedger     LeaveLedgerEntry[]
+  primaryRouteTemplates RouteTemplate[] @relation("PrimaryRouteCourier")
+  backupRouteTemplates  RouteTemplate[] @relation("BackupRouteCourier")
 
   @@index([managerId])
 }
@@ -1073,6 +1075,7 @@ model Customer {
   users     CustomerUser[]
   notesList CustomerNote[]
   deliveries Delivery[]
+  routeTemplates RouteTemplate[]
 
   @@index([status])
   @@index([accountOwnerId])
@@ -1172,6 +1175,8 @@ model Contract {
   documents  ContractDocument[]
   amendments ContractAmendment[]
   operatingModels ContractOperatingModel[]
+  routeTemplates RouteTemplate[]
+  deliveries Delivery[]
 
   @@index([customerId, status])
   @@index([expirationDate])
@@ -1505,6 +1510,59 @@ model IdSequence {
   value Int    @default(0)
 }
 
+enum RouteTemplateScope {
+  GENERIC
+  CONTRACT
+}
+
+model RouteTemplate {
+  id                       String             @id @default(uuid())
+  templateCode             String             @unique
+  scope                    RouteTemplateScope @default(GENERIC)
+  name                     String
+  contractId               String?
+  contract                 Contract?          @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  customerId               String?
+  customer                 Customer?          @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  sourceTemplateId         String?
+  sourceTemplate           RouteTemplate?     @relation("RouteTemplateCopies", fields: [sourceTemplateId], references: [id], onDelete: SetNull)
+  copies                   RouteTemplate[]    @relation("RouteTemplateCopies")
+  pickupBusinessName       String?
+  pickupAddress            String?
+  deliveryBusinessName     String?
+  deliveryAddress          String?
+  pickupTimeLocal          String?
+  deliverByTimeLocal       String?
+  operatingDays            String?
+  shipmentType             String?
+  temperatureRequired      String?
+  chainOfCustodyRequired   Boolean            @default(false)
+  proofOfDeliveryRequired  Boolean            @default(true)
+  customerInstructions     String?
+  handlingInstructions     String?
+  requiredTrainingKeys     String?
+  requiredCertificationNames String?
+  vehicleRequirement       String?
+  estimatedRouteHours      Decimal?           @db.Decimal(6, 2)
+  routePay                 Decimal?           @db.Decimal(10, 2)
+  primaryDriverEmployeeId  String?
+  primaryDriver            Employee?          @relation("PrimaryRouteCourier", fields: [primaryDriverEmployeeId], references: [id], onDelete: SetNull)
+  backupDriverEmployeeId   String?
+  backupDriver             Employee?          @relation("BackupRouteCourier", fields: [backupDriverEmployeeId], references: [id], onDelete: SetNull)
+  active                   Boolean            @default(true)
+  createdById              String?
+  createdAt                DateTime           @default(now())
+  updatedAt                DateTime           @updatedAt
+
+  deliveries Delivery[]
+
+  @@index([scope, active])
+  @@index([contractId, active])
+  @@index([customerId])
+  @@index([primaryDriverEmployeeId])
+  @@index([backupDriverEmployeeId])
+}
+
 enum DeliveryStatus {
   DRAFT
   ASSIGNED
@@ -1524,6 +1582,12 @@ model Delivery {
   deliveryNumber          String         @unique
   customerId              String
   customer                Customer       @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  contractId              String?
+  contract                Contract?       @relation(fields: [contractId], references: [id], onDelete: SetNull)
+  routeTemplateId         String?
+  routeTemplate           RouteTemplate?  @relation(fields: [routeTemplateId], references: [id], onDelete: SetNull)
+  pickupBusinessName      String?
+  deliveryBusinessName    String?
   driverEmployeeId        String?
   driver                  Employee?      @relation(fields: [driverEmployeeId], references: [id], onDelete: SetNull)
   assignedById            String?
@@ -1551,6 +1615,8 @@ model Delivery {
   signoffs DeliverySignoff[]
 
   @@index([customerId, status])
+  @@index([contractId, status])
+  @@index([routeTemplateId, status])
   @@index([driverEmployeeId, status])
 }
 
