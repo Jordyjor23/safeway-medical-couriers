@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { StatCard } from "@/components/portal/StatCard";
 import { getDashboardOverview } from "@/lib/dashboard-stats";
+import { formatBusinessDateTime } from "@/lib/workforce-time";
 import { getDocumentAlertStats } from "@/lib/documents/alert-stats";
 import { isOwnerRole } from "@/lib/permissions";
 import { requireAuth } from "@/lib/rbac";
@@ -72,7 +73,7 @@ export default async function DashboardPage() {
                 <span className="text-muted">{item.targetType}</span>
                 <span className="text-muted">{item.actorEmail ?? "system"}</span>
                 <time className="text-muted" dateTime={item.createdAt.toISOString()}>
-                  {item.createdAt.toLocaleString()}
+                  {formatBusinessDateTime(item.createdAt)}
                 </time>
               </li>
             ))}
