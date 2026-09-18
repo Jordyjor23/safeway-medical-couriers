@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
+import { formatBusinessDate } from "@/lib/workforce-time";
 import { requirePermission } from "@/lib/rbac";
 
 export const metadata: Metadata = { title: "Applicants" };
@@ -65,7 +66,7 @@ export default async function ApplicantsPage({
                     </Link>
                   </td>
                   <td className="px-4 py-3">{application.jobOpening.title}</td>
-                  <td className="px-4 py-3">{application.submittedAt?.toLocaleDateString() ?? "—"}</td>
+                  <td className="px-4 py-3">{application.submittedAt ? formatBusinessDate(application.submittedAt) : "—"}</td>
                   <td className="px-4 py-3">{application.jobOpening.location}</td>
                   <td className="px-4 py-3">{application.status.replaceAll("_", " ")}</td>
                   <td className="px-4 py-3">{application.assignedReviewer?.name ?? "—"}</td>
