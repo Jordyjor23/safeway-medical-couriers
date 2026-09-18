@@ -50,6 +50,19 @@ export function parseBusinessDate(value: string) {
   return new Date(`${value}T12:00:00.000Z`);
 }
 
+export function formatBusinessDateTimeInput(value: Date | null | undefined) {
+  if (!value) return "";
+  const parts = partsInZone(value);
+  const pad = (number: number) => String(number).padStart(2, "0");
+  return `${parts.year}-${pad(parts.month)}-${pad(parts.day)}T${pad(parts.hour)}:${pad(parts.minute)}`;
+}
+
+export function businessDateKey(value: Date) {
+  const parts = partsInZone(value);
+  const pad = (number: number) => String(number).padStart(2, "0");
+  return `${parts.year}-${pad(parts.month)}-${pad(parts.day)}`;
+}
+
 export function formatBusinessDateTime(value: Date | null | undefined) {
   if (!value) return "—";
   return new Intl.DateTimeFormat("en-US", {
