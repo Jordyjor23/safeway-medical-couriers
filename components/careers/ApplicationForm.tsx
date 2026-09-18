@@ -5,6 +5,119 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 const fieldClass = "mkt-field";
+const DRAFT_DB_NAME = "safeway-career-drafts";
+const DRAFT_DB_VERSION = 1;
+const DRAFT_STORE = "resumeFiles";
+
+type DraftState = {
+  fields: Record<string, string[]>;
+  employment?: EmploymentRow[];
+};
+
+function openDraftDb() {
+  return new Promise<IDBDatabase>((resolve, reject) => {
+    const request = indexedDB.open(DRAFT_DB_NAME, DRAFT_DB_VERSION);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(DRAFT_STORE)) db.createObjectStore(DRAFT_STORE);
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function saveResumeDraft(key: string, file: File) {
+  const db = await openDraftDb();
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(DRAFT_STORE, "readwrite");
+    tx.objectStore(DRAFT_STORE).put(file, key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+  db.close();
+}
+
+async function loadResumeDraft(key: string) {
+  const db = await openDraftDb();
+  const file = await new Promise<File | null>((resolve, reject) => {
+    const request = db.transaction(DRAFT_STORE, "readonly").objectStore(DRAFT_STORE).get(key);
+    request.onsuccess = () => resolve(request.result instanceof File ? request.result : null);
+    request.onerror = () => reject(request.error);
+  });
+  db.close();
+  return file;
+}
+
+async function deleteResumeDraft(key: string) {
+  const db = await openDraftDb();
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(DRAFT_STORE, "readwrite");
+    tx.objectStore(DRAFT_STORE).delete(key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+  db.close();
+}
+
+function snapshotFormFields(form: HTMLFormElement) {
+  const fields: Record<string, string[]> = {};
+  for (const element of Array.from(form.elements)) {
+    if (
+      !(element instanceof HTMLInputElement) &&
+      !(element instanceof HTMLTextAreaElement) &&
+      !(element instanceof HTMLSelectElement)
+    ) continue;
+    if (!element.name || (element instanceof HTMLInputElement && element.type === "file")) continue;
+
+    if (element instanceof HTMLInputElement && (element.type === "checkbox" || element.type === "radio")) {
+      if (element.checked) (fields[element.name] ??= []).push(element.value);
+      continue;
+    }
+    fields[element.name] = [element.value];
+  }
+  return fields;
+}
+
+function restoreFormFields(form: HTMLFormElement, fields: Record<string, string[]>) {
+  for (const element of Array.from(form.elements)) {
+    if (
+      !(element instanceof HTMLInputElement) &&
+      !(element instanceof HTMLTextAreaElement) &&
+      !(element instanceof HTMLSelectElement)
+    ) continue;
+    if (!element.name || (element instanceof HTMLInputElement && element.type === "file")) continue;
+
+    const values = fields[element.name] ?? [];
+    if (element instanceof HTMLInputElement && (element.type === "checkbox" || element.type === "radio")) {
+      element.checked = values.includes(element.value);
+      continue;
+    }
+    if (values[0] !== undefined) element.value = values[0];
+  }
+}
+
+const FIELD_LABELS: Record<string, string> = {
+  legalFirstName: "Legal first name",
+  legalLastName: "Legal last name",
+  email: "Email",
+  phone: "Phone",
+  city: "City",
+  state: "State",
+  zip: "ZIP code",
+  authorizedToWorkUs: "Work authorization",
+  hasValidDriversLicense: "Valid driver's license",
+  canPerformEssentialFunctions: "Essential-functions question",
+  privacyReviewed: "Applicant privacy notice acknowledgement",
+  acknowledgementAccepted: "Application acknowledgement",
+};
+
+function fieldLabel(name: string, questions: Question[]) {
+  if (FIELD_LABELS[name]) return FIELD_LABELS[name];
+  if (name.startsWith("answer-")) {
+    return questions.find((item) => `answer-${item.id}` === name)?.prompt ?? "Required application question";
+  }
+  return name.replace(/([A-Z])/g, " $1").replace(/^./, (letter) => letter.toUpperCase());
+}
 
 type Question = { id: string; prompt: string; required: boolean };
 
@@ -53,52 +166,80 @@ export function ApplicationForm({
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [employment, setEmployment] = useState<EmploymentRow[]>([emptyEmployment()]);
+  const [draftResume, setDraftResume] = useState<File | null>(null);
   const contractor = job.workerClassification === "INDEPENDENT_CONTRACTOR";
 
   useEffect(() => {
     const raw = localStorage.getItem(storageKey);
-    if (!raw) return;
-    try {
-      const parsed = JSON.parse(raw) as { employment?: EmploymentRow[] };
-      // Restore a client-only draft after mount so server HTML stays stable.
-      if (parsed.employment?.length) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage hydrate
-        setEmployment(parsed.employment);
-      }
-      const form = document.getElementById("application-form") as HTMLFormElement | null;
-      if (!form) return;
-      for (const [key, value] of Object.entries(parsed)) {
-        if (key === "employment") continue;
-        const field = form.elements.namedItem(key);
-        if (field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement || field instanceof HTMLSelectElement) {
-          if (field instanceof HTMLInputElement && (field.type === "checkbox" || field.type === "radio")) {
-            if (field.type === "checkbox") field.checked = Boolean(value);
-          } else {
-            field.value = String(value ?? "");
-          }
+    const form = document.getElementById("application-form") as HTMLFormElement | null;
+
+    if (raw && form) {
+      try {
+        const parsed = JSON.parse(raw) as DraftState & Record<string, unknown>;
+        if (parsed.employment?.length) {
+          // eslint-disable-next-line react-hooks/set-state-in-effect -- restoring an intentional browser draft
+          setEmployment(parsed.employment);
         }
+        if (parsed.fields) {
+          restoreFormFields(form, parsed.fields);
+        } else {
+          // Backward compatibility for drafts saved before structured field snapshots.
+          const legacyFields: Record<string, string[]> = {};
+          for (const [key, value] of Object.entries(parsed)) {
+            if (key === "employment" || value === undefined || value === null) continue;
+            legacyFields[key] = [String(value)];
+          }
+          restoreFormFields(form, legacyFields);
+        }
+      } catch {
+        localStorage.removeItem(storageKey);
       }
-    } catch {
-      localStorage.removeItem(storageKey);
     }
+
+    loadResumeDraft(storageKey)
+      .then((file) => {
+        if (file) setDraftResume(file);
+      })
+      .catch(() => {
+        // IndexedDB may be unavailable in hardened/private browser modes.
+      });
   }, [storageKey]);
 
-  function persist(form: HTMLFormElement) {
-    const formData = new FormData(form);
-    formData.delete("resume");
-    const data = Object.fromEntries(formData.entries());
-    localStorage.setItem(storageKey, JSON.stringify({ ...data, employment }));
+  function persist(form: HTMLFormElement, nextEmployment = employment) {
+    const draft: DraftState = {
+      fields: snapshotFormFields(form),
+      employment: nextEmployment,
+    };
+    localStorage.setItem(storageKey, JSON.stringify(draft));
   }
 
   return (
     <form
       id="application-form"
       className="space-y-10"
+      noValidate
       onChange={(event) => persist(event.currentTarget)}
       onSubmit={async (event) => {
         event.preventDefault();
         setError(null);
-        const form = new FormData(event.currentTarget);
+
+        const formElement = event.currentTarget;
+        const invalid = Array.from(
+          formElement.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(
+            "input:invalid, textarea:invalid, select:invalid",
+          ),
+        );
+        if (invalid.length) {
+          const missing = Array.from(
+            new Set(invalid.map((element) => fieldLabel(element.name || "required field", job.questions))),
+          );
+          setError(`Please complete: ${missing.join(", ")}.`);
+          invalid[0]?.scrollIntoView({ behavior: "smooth", block: "center" });
+          invalid[0]?.focus({ preventScroll: true });
+          return;
+        }
+
+        const form = new FormData(formElement);
         const bool = (name: string) => form.get(name) === "on" || form.get(name) === "true";
         const yesNo = (name: string) => form.get(name) === "yes";
         const payload = {
@@ -165,9 +306,11 @@ export function ApplicationForm({
           privacyReviewed: bool("privacyReviewed") ? true : undefined,
         };
 
-        const resume = form.get("resume");
+        const selectedResume = form.get("resume");
+        const resume =
+          selectedResume instanceof File && selectedResume.size > 0 ? selectedResume : draftResume;
         if (!(resume instanceof File) || resume.size === 0) {
-          setError("Please upload your resume before submitting.");
+          setError("Please complete: Resume / CV.");
           return;
         }
 
@@ -183,10 +326,15 @@ export function ApplicationForm({
         const result = await response.json().catch(() => null);
         setPending(false);
         if (!response.ok) {
-          setError(result?.error ?? "The application could not be submitted.");
+          const serverFields = Array.isArray(result?.fields)
+            ? result.fields.map((name: string) => fieldLabel(name, job.questions))
+            : [];
+          const suffix = serverFields.length ? ` Missing or invalid: ${serverFields.join(", ")}.` : "";
+          setError((result?.error ?? "The application could not be submitted.") + suffix);
           return;
         }
         localStorage.removeItem(storageKey);
+        await deleteResumeDraft(storageKey).catch(() => undefined);
         router.push(`/careers/apply/confirmation/${result.application.trackingNumber}?email=${encodeURIComponent(payload.email)}`);
       }}
     >
@@ -215,11 +363,23 @@ export function ApplicationForm({
           <input
             name="resume"
             type="file"
-            required
+            required={!draftResume}
             accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             className={fieldClass}
+            onChange={(event) => {
+              const file = event.target.files?.[0] ?? null;
+              setDraftResume(file);
+              if (file) {
+                saveResumeDraft(storageKey, file).catch(() => undefined);
+              } else {
+                deleteResumeDraft(storageKey).catch(() => undefined);
+              }
+            }}
           />
         </label>
+        {draftResume ? (
+          <p className="mt-2 text-sm text-medical">Saved resume: {draftResume.name}</p>
+        ) : null}
         <p className="mt-2 text-xs text-mist-soft">Accepted formats: PDF or DOCX. Maximum file size follows Safeway document-upload limits.</p>
       </section>
 
@@ -452,7 +612,12 @@ export function ApplicationForm({
         <label className="mt-4 flex items-start gap-2 text-sm font-semibold text-mist">
           <input type="checkbox" name="privacyReviewed" required className="mt-1 h-4 w-4" />
           I have reviewed the{" "}
-          <Link href={privacyHref} className="text-medical underline">
+          <Link
+            href={privacyHref}
+            target="_blank"
+            rel="noreferrer"
+            className="text-medical underline"
+          >
             applicant privacy notice
           </Link>
           .
@@ -480,7 +645,12 @@ export function ApplicationForm({
   );
 
   function updateEmployment(index: number, patch: Partial<EmploymentRow>) {
-    setEmployment((rows) => rows.map((row, rowIndex) => (rowIndex === index ? { ...row, ...patch } : row)));
+    setEmployment((rows) => {
+      const nextRows = rows.map((row, rowIndex) => (rowIndex === index ? { ...row, ...patch } : row));
+      const form = document.getElementById("application-form") as HTMLFormElement | null;
+      if (form) persist(form, nextRows);
+      return nextRows;
+    });
   }
 }
 

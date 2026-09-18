@@ -1,7 +1,7 @@
 /**
  * Default legal and careers copy.
- * ATTORNEY/HR REVIEW: Confirm all notices, acknowledgements, FCRA language,
- * EEO statements, and retention periods with counsel before production use.
+ * Counsel review was reported complete by the company owner on 2026-09-18.
+ * Re-review these notices when the hiring process, jurisdiction, or governing law changes.
  * Software tracking is not a legal-compliance guarantee.
  */
 
@@ -37,7 +37,7 @@ Safeway Couriers may obtain a consumer report and/or investigative consumer repo
 
 This disclosure is provided separately from the general employment application. Authorization, date and time of acceptance, disclosure version, and related FCRA steps (including pre-adverse action, copy of report, Summary of Rights, dispute, and final adverse action) are recorded in a restricted screening workflow.
 
-This language requires attorney review before production use and before any consumer report is requested.`;
+This disclosure should be re-reviewed if the background-screening process, consumer reporting agency, jurisdiction, or governing law changes.`;
 
 export const LEGAL_REVIEW_NOTE =
-  "ATTORNEY/HR REVIEW REQUIRED before production use. Confirm jurisdiction-specific hiring, FCRA, independent-contractor classification, and privacy requirements.";
+  "Counsel review reported complete by the company owner on 2026-09-18. Re-review if content, process, jurisdiction, or governing law changes.";
