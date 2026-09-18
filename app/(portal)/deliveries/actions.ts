@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { writeAuditLog } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { nextScopedId } from "@/lib/ids";
+import { resolveRouteCourier } from "@/lib/route-assignment";
 import { buildRouteChecklist, courierSignoffRole } from "@/lib/route-packet";
 import { requirePermission } from "@/lib/rbac";
 import { businessLocalToUtc } from "@/lib/workforce-time";
@@ -41,6 +42,12 @@ function refreshDelivery(deliveryId: string) {
   revalidatePath(`/dispatch/deliveries/${deliveryId}`);
 }
 
+function addDaysToDateText(dateText: string, days: number) {
+  const date = new Date(`${dateText}T12:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
 export async function createDelivery(formData: FormData) {
   const ctx = await requirePermission("delivery.create");
   const driverEmployeeId = String(formData.get("driverEmployeeId") ?? "") || null;
@@ -66,6 +73,8 @@ export async function createDelivery(formData: FormData) {
     data: {
       deliveryNumber: await nextScopedId("DLV"),
       customerId: String(formData.get("customerId") ?? ""),
+      pickupBusinessName: String(formData.get("pickupBusinessName") ?? "").trim() || null,
+      deliveryBusinessName: String(formData.get("deliveryBusinessName") ?? "").trim() || null,
       driverEmployeeId,
       assignedById: ctx.user.id,
       status: driverEmployeeId ? "ASSIGNED" : "DRAFT",
@@ -91,6 +100,103 @@ export async function createDelivery(formData: FormData) {
     metadata: { routePacketItems: checklist.length },
   });
   refreshDelivery(delivery.id);
+}
+
+export async function createDeliveryFromRouteTemplate(routeTemplateId: string, formData: FormData) {
+  const ctx = await requirePermission("delivery.create");
+  const template = await prisma.routeTemplate.findUnique({
+    where: { id: routeTemplateId },
+    include: { contract: true, customer: true },
+  });
+  if (!template || template.scope !== "CONTRACT" || !template.contractId || !template.customerId) {
+    throw new Error("Contract route template not found.");
+  }
+  if (!template.active) throw new Error("This contract route is archived.");
+
+  const serviceDate = String(formData.get("serviceDate") ?? "").trim();
+  const pickupTimeLocal =
+    String(formData.get("pickupTimeLocal") ?? "").trim() || template.pickupTimeLocal || "";
+  const deliverByTimeLocal =
+    String(formData.get("deliverByTimeLocal") ?? "").trim() || template.deliverByTimeLocal || "";
+  if (!serviceDate || !pickupTimeLocal || !deliverByTimeLocal) {
+    throw new Error("Service date, pickup time, and deliver-by time are required.");
+  }
+
+  const pickupAt = businessLocalToUtc(`${serviceDate}T${pickupTimeLocal}`);
+  let deliveryDate = serviceDate;
+  let deliverBy = businessLocalToUtc(`${deliveryDate}T${deliverByTimeLocal}`);
+  if (!pickupAt || !deliverBy) throw new Error("Route date or time is invalid.");
+  if (deliverBy <= pickupAt) {
+    deliveryDate = addDaysToDateText(serviceDate, 1);
+    deliverBy = businessLocalToUtc(`${deliveryDate}T${deliverByTimeLocal}`);
+  }
+  if (!deliverBy) throw new Error("Deliver-by time is invalid.");
+
+  const explicitDriverRaw = String(formData.get("driverEmployeeId") ?? "").trim();
+  const explicitDriverEmployeeId =
+    explicitDriverRaw && explicitDriverRaw !== "AUTO" ? explicitDriverRaw : null;
+  const assignment = await resolveRouteCourier({
+    routeTemplateId,
+    pickupAt,
+    deliverBy,
+    explicitEmployeeId: explicitDriverEmployeeId,
+  });
+
+  const pickupBusinessName =
+    String(formData.get("pickupBusinessName") ?? "").trim() || template.pickupBusinessName;
+  const deliveryBusinessName =
+    String(formData.get("deliveryBusinessName") ?? "").trim() || template.deliveryBusinessName;
+  const pickupAddress =
+    String(formData.get("pickupAddress") ?? "").trim() || template.pickupAddress || "";
+  const deliveryAddress =
+    String(formData.get("deliveryAddress") ?? "").trim() || template.deliveryAddress || "";
+  if (!pickupAddress || !deliveryAddress) {
+    throw new Error("Pickup and delivery addresses are required before assigning the route.");
+  }
+
+  const checklist = buildRouteChecklist(template);
+  const delivery = await prisma.delivery.create({
+    data: {
+      deliveryNumber: await nextScopedId("DLV"),
+      customerId: template.customerId,
+      contractId: template.contractId,
+      routeTemplateId: template.id,
+      pickupBusinessName,
+      deliveryBusinessName,
+      driverEmployeeId: assignment.employeeId,
+      assignedById: ctx.user.id,
+      status: assignment.employeeId ? "ASSIGNED" : "DRAFT",
+      pickupAddress,
+      deliveryAddress,
+      pickupAt,
+      deliverBy,
+      customerInstructions: template.customerInstructions,
+      handlingInstructions: template.handlingInstructions,
+      shipmentType: template.shipmentType,
+      temperatureRequired: template.temperatureRequired,
+      chainOfCustodyRequired: template.chainOfCustodyRequired,
+      proofOfDeliveryRequired: template.proofOfDeliveryRequired,
+      checklistItems: { create: checklist },
+    },
+  });
+
+  await writeAuditLog({
+    actorId: ctx.user.id,
+    actorEmail: ctx.user.email,
+    action: "delivery.created_from_contract_route",
+    targetType: "delivery",
+    targetId: delivery.id,
+    metadata: {
+      contractId: template.contractId,
+      routeTemplateId: template.id,
+      assignmentSource: assignment.source,
+      driverEmployeeId: assignment.employeeId,
+      assignmentNotes: assignment.reasons,
+    },
+  });
+
+  refreshDelivery(delivery.id);
+  revalidatePath(`/dashboard/contracts/${template.contractId}`);
 }
 
 export async function initializeDeliveryPacket(deliveryId: string) {
