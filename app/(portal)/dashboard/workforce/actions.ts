@@ -98,6 +98,8 @@ export async function createManualTimeEntry(formData: FormData) {
   refreshWorkforceSummary();
   revalidatePath("/dashboard/workforce");
   revalidatePath("/dashboard/workforce/timecards");
+  revalidatePath("/employee/timecards");
+  revalidatePath("/employee/dashboard");
 }
 
 export async function setTimeEntryStatus(entryId: string, status: TimeEntryStatus) {
@@ -156,6 +158,8 @@ export async function setTimeOffStatus(requestId: string, status: TimeOffStatus,
   await writeAuditLog({ actorId: ctx.user.id, actorEmail: ctx.user.email, action: `workforce.timeoff.${status.toLowerCase()}`, targetType: "time_off_request", targetId: requestId });
   refreshWorkforceSummary();
   revalidatePath("/dashboard/workforce/time-off");
+  revalidatePath("/employee/time-off");
+  revalidatePath("/employee/dashboard");
 }
 
 export async function recordCallOff(formData: FormData) {
@@ -174,6 +178,8 @@ export async function recordCallOff(formData: FormData) {
   await writeAuditLog({ actorId: ctx.user.id, actorEmail: ctx.user.email, action: "workforce.calloff.reported", targetType: "call_off_request", targetId: row.id });
   refreshWorkforceSummary();
   revalidatePath("/dashboard/workforce/time-off");
+  revalidatePath("/employee/time-off");
+  revalidatePath("/employee/dashboard");
 }
 
 export async function acknowledgeCallOff(callOffId: string) {
@@ -185,6 +191,7 @@ export async function acknowledgeCallOff(callOffId: string) {
   await writeAuditLog({ actorId: ctx.user.id, actorEmail: ctx.user.email, action: "workforce.calloff.acknowledged", targetType: "call_off_request", targetId: callOffId });
   refreshWorkforceSummary();
   revalidatePath("/dashboard/workforce/time-off");
+  revalidatePath("/employee/time-off");
 }
 
 
@@ -220,6 +227,7 @@ export async function updateShift(shiftId: string, formData: FormData) {
   revalidatePath("/dashboard/workforce/schedule");
   revalidatePath(`/dashboard/workforce/schedule/${shiftId}`);
   revalidatePath("/employee/schedule");
+  revalidatePath("/employee/dashboard");
 }
 
 export async function updateTimeEntry(entryId: string, formData: FormData) {
@@ -256,4 +264,5 @@ export async function updateTimeEntry(entryId: string, formData: FormData) {
   revalidatePath("/dashboard/workforce/timecards");
   revalidatePath(`/dashboard/workforce/timecards/${entryId}`);
   revalidatePath("/employee/timecards");
+  revalidatePath("/employee/dashboard");
 }
