@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarDays, Clock3, Home, KeyRound, CalendarOff } from "lucide-react";
+import { CalendarDays, Clock3, Home, KeyRound, CalendarOff, WalletCards } from "lucide-react";
 import { SignOutButton } from "@/components/portal/SignOutButton";
 
 const items = [
   { href: "/employee/dashboard", label: "Home", icon: Home },
   { href: "/employee/schedule", label: "My schedule", icon: CalendarDays },
   { href: "/employee/timecards", label: "My timecards", icon: Clock3 },
+  { href: "/employee/pay", label: "My pay", icon: WalletCards },
   { href: "/employee/time-off", label: "PTO & call-offs", icon: CalendarOff },
   { href: "/employee/security", label: "Security", icon: KeyRound },
 ];
