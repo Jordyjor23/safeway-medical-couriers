@@ -65,3 +65,33 @@ export async function updateContract(contractId: string, formData: FormData) {
   revalidatePath(`/dashboard/contracts/${contractId}`);
   revalidatePath(`/dashboard/customers/${contract.customerId}`);
 }
+
+
+export async function deleteContract(contractId: string) {
+  const ctx = await requirePermission("contracts.delete");
+  const contract = await prisma.contract.findUnique({
+    where: { id: contractId },
+    include: { _count: { select: { documents: true, amendments: true } } },
+  });
+  if (!contract) redirect("/dashboard/contracts");
+  if (
+    contract.status !== "DRAFT" ||
+    contract._count.documents > 0 ||
+    contract._count.amendments > 0
+  ) {
+    throw new Error(
+      "Only draft contracts with no documents or amendments can be deleted. Use a terminated/expired status to preserve contract history.",
+    );
+  }
+  await prisma.contract.delete({ where: { id: contractId } });
+  await writeAuditLog({
+    actorId: ctx.user.id,
+    actorEmail: ctx.user.email,
+    action: "contract.deleted",
+    targetType: "contract",
+    targetId: contractId,
+  });
+  revalidatePath("/dashboard/contracts");
+  revalidatePath(`/dashboard/customers/${contract.customerId}`);
+  redirect("/dashboard/contracts");
+}
