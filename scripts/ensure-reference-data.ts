@@ -26,6 +26,7 @@ const routeTemplates = [
     chainOfCustodyRequired: false,
     proofOfDeliveryRequired: true,
     requiredTrainingKeys: "HIPAA,BLOODBORNE_PATHOGENS",
+    requiredDocumentTypes: "ROUTE_SPECIFICATION,PICKUP_INSTRUCTIONS,FACILITY_REQUIREMENTS",
     handlingInstructions: "Follow customer SOPs and assignment-specific handling instructions.",
   },
   {
@@ -39,6 +40,7 @@ const routeTemplates = [
     chainOfCustodyRequired: true,
     proofOfDeliveryRequired: true,
     requiredTrainingKeys: "HIPAA,BLOODBORNE_PATHOGENS,CHAIN_OF_CUSTODY",
+    requiredDocumentTypes: "ROUTE_SPECIFICATION,PICKUP_INSTRUCTIONS,CHAIN_OF_CUSTODY",
     handlingInstructions: "Time-critical assignment. Confirm pickup, chain of custody, and delivery handoff.",
   },
   {
@@ -53,6 +55,7 @@ const routeTemplates = [
     chainOfCustodyRequired: true,
     proofOfDeliveryRequired: true,
     requiredTrainingKeys: "HIPAA,BLOODBORNE_PATHOGENS,CHAIN_OF_CUSTODY",
+    requiredDocumentTypes: "ROUTE_SPECIFICATION,PICKUP_INSTRUCTIONS,TEMPERATURE_LOG",
     handlingInstructions: "Verify required temperature range before dispatch and document exceptions.",
   },
   {
@@ -66,6 +69,7 @@ const routeTemplates = [
     chainOfCustodyRequired: true,
     proofOfDeliveryRequired: true,
     requiredTrainingKeys: "HIPAA,CHAIN_OF_CUSTODY",
+    requiredDocumentTypes: "ROUTE_SPECIFICATION,CHAIN_OF_CUSTODY",
     handlingInstructions: "Document every required custody transfer and receiving-party sign-off.",
   },
   {
@@ -79,6 +83,7 @@ const routeTemplates = [
     chainOfCustodyRequired: true,
     proofOfDeliveryRequired: true,
     requiredTrainingKeys: "HIPAA,BLOODBORNE_PATHOGENS,CHAIN_OF_CUSTODY",
+    requiredDocumentTypes: "ROUTE_SPECIFICATION,PICKUP_INSTRUCTIONS,FACILITY_REQUIREMENTS,CHAIN_OF_CUSTODY,CUSTOMER_PROVIDED_PAPERWORK",
     handlingInstructions: "Configure all timing, packaging, temperature, custody, communication, and receiving requirements to the governing client/OPO protocol before use.",
   },
 ];
