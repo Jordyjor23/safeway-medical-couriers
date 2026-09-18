@@ -48,23 +48,28 @@ export function CandidateOnboardingUploader({
     if (effectiveDate) body.set("effectiveDate", effectiveDate);
     if (expirationDate) body.set("expirationDate", expirationDate);
 
-    const response = await fetch("/api/careers/onboarding/" + encodeURIComponent(token) + "/documents", {
-      method: "POST",
-      body,
-    });
-    const payload = await response.json().catch(() => null);
-    setPending(false);
-    if (!response.ok) {
-      setError(payload?.error ?? "The document could not be uploaded.");
-      return;
+    try {
+      const response = await fetch("/api/careers/onboarding/" + encodeURIComponent(token) + "/documents", {
+        method: "POST",
+        body,
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        setError(payload?.error ?? "The document could not be uploaded.");
+        return;
+      }
+      setSuccess("Document submitted for review.");
+      setFile(null);
+      setName("");
+      setEffectiveDate("");
+      setExpirationDate("");
+      if (fileRef.current) fileRef.current.value = "";
+      router.refresh();
+    } catch {
+      setError("The upload could not reach Safeway. Your file was not submitted. Check your connection and try again.");
+    } finally {
+      setPending(false);
     }
-    setSuccess("Document submitted for review.");
-    setFile(null);
-    setName("");
-    setEffectiveDate("");
-    setExpirationDate("");
-    if (fileRef.current) fileRef.current.value = "";
-    router.refresh();
   }
 
   return (
