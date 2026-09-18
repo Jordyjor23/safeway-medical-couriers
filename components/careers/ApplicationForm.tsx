@@ -84,7 +84,9 @@ export function ApplicationForm({
   }, [storageKey]);
 
   function persist(form: HTMLFormElement) {
-    const data = Object.fromEntries(new FormData(form).entries());
+    const formData = new FormData(form);
+    formData.delete("resume");
+    const data = Object.fromEntries(formData.entries());
     localStorage.setItem(storageKey, JSON.stringify({ ...data, employment }));
   }
 
@@ -163,11 +165,20 @@ export function ApplicationForm({
           privacyReviewed: bool("privacyReviewed") ? true : undefined,
         };
 
+        const resume = form.get("resume");
+        if (!(resume instanceof File) || resume.size === 0) {
+          setError("Please upload your resume before submitting.");
+          return;
+        }
+
+        const submission = new FormData();
+        submission.set("application", JSON.stringify(payload));
+        submission.set("resume", resume);
+
         setPending(true);
         const response = await fetch("/api/careers/applications", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
+          body: submission,
         });
         const result = await response.json().catch(() => null);
         setPending(false);
@@ -192,6 +203,24 @@ export function ApplicationForm({
           <Field label="State" name="state" required autoComplete="address-level1" />
           <Field label="ZIP code" name="zip" required autoComplete="postal-code" />
         </div>
+      </section>
+
+      <section className="rounded-2xl border border-white/10 bg-panel p-6">
+        <h2 className="text-xl font-semibold text-mist">Resume</h2>
+        <p className="mt-2 text-sm text-mist-soft">
+          Upload your current resume. It is stored privately and is only available to authorized Safeway hiring staff.
+        </p>
+        <label className="mt-4 block text-sm font-semibold text-mist">
+          Resume / CV
+          <input
+            name="resume"
+            type="file"
+            required
+            accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            className={fieldClass}
+          />
+        </label>
+        <p className="mt-2 text-xs text-mist-soft">Accepted formats: PDF or DOCX. Maximum file size follows Safeway document-upload limits.</p>
       </section>
 
       <section className="rounded-2xl border border-white/10 bg-panel p-6">

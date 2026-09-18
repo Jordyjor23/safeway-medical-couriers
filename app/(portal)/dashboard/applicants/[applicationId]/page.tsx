@@ -60,6 +60,7 @@ export default async function ApplicantProfilePage({
   const canEdit = hasPermission(ctx, "applicants.edit");
   const canNotes = hasPermission(ctx, "applicants.notes.view");
   const canScreen = hasPermission(ctx, "applicants.screening.view");
+  const resumeDocument = application.documents.find(({ document }) => document.documentType === "RESUME")?.document;
 
   return (
     <div className="space-y-8">
@@ -120,6 +121,25 @@ export default async function ApplicantProfilePage({
           <div><dt className="text-muted">Location</dt><dd>{application.applicant.city}, {application.applicant.state} {application.applicant.zip}</dd></div>
           <div><dt className="text-muted">Work authorized</dt><dd>{application.authorizedToWorkUs ? "Yes" : "No"}</dd></div>
         </dl>
+      </section>
+
+      <section className="rounded-2xl border border-line bg-paper p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold text-navy">Resume</h2>
+            <p className="mt-1 text-sm text-muted">
+              {resumeDocument ? resumeDocument.originalFileName || "Resume attached" : "No resume attached."}
+            </p>
+          </div>
+          {resumeDocument ? (
+            <a
+              href={documentFileHref(resumeDocument.id)}
+              className="rounded-full bg-navy px-4 py-2 text-sm font-semibold text-white"
+            >
+              View / Download Resume
+            </a>
+          ) : null}
+        </div>
       </section>
 
       <section className="rounded-2xl border border-line bg-paper p-5">

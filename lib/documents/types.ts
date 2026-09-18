@@ -28,6 +28,7 @@ export const REJECTED_DOCUMENT_EXTENSIONS = [
 export type AllowedDocumentExtension = (typeof ALLOWED_DOCUMENT_EXTENSIONS)[number];
 
 export const DOCUMENT_TYPES = [
+  "RESUME",
   "DRIVERS_LICENSE",
   "STATE_ID",
   "VEHICLE_REGISTRATION",
