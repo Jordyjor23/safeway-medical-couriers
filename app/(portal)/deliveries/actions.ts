@@ -344,6 +344,7 @@ export async function assignDeliveryCourier(deliveryId: string, formData: FormDa
       pickupAt: delivery.pickupAt,
       deliverBy: delivery.deliverBy,
       explicitEmployeeId: raw && raw !== "AUTO" ? raw : null,
+      excludeDeliveryId: deliveryId,
     });
     employeeId = resolved.employeeId;
     assignmentSource = resolved.source;
