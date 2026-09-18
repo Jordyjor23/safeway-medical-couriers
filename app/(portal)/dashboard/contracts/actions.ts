@@ -55,6 +55,11 @@ export async function updateContract(contractId: string, formData: FormData) {
       notes: String(formData.get("notes") ?? "") || null,
     },
   });
+  await prisma.routeTemplate.updateMany({
+    where: { contractId },
+    data: { customerId: contract.customerId },
+  });
+
   await writeAuditLog({
     actorId: ctx.user.id,
     actorEmail: ctx.user.email,
