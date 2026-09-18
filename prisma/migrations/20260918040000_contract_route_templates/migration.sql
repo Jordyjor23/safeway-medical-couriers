@@ -45,6 +45,9 @@ ADD COLUMN "routeTemplateId" TEXT,
 ADD COLUMN "pickupBusinessName" TEXT,
 ADD COLUMN "deliveryBusinessName" TEXT;
 
+ALTER TABLE "EmployeeShift"
+ADD COLUMN "deliveryId" TEXT;
+
 CREATE UNIQUE INDEX "RouteTemplate_templateCode_key" ON "RouteTemplate"("templateCode");
 CREATE INDEX "RouteTemplate_scope_active_idx" ON "RouteTemplate"("scope", "active");
 CREATE INDEX "RouteTemplate_contractId_active_idx" ON "RouteTemplate"("contractId", "active");
@@ -54,6 +57,8 @@ CREATE INDEX "RouteTemplate_backupDriverEmployeeId_idx" ON "RouteTemplate"("back
 
 CREATE INDEX "Delivery_contractId_status_idx" ON "Delivery"("contractId", "status");
 CREATE INDEX "Delivery_routeTemplateId_status_idx" ON "Delivery"("routeTemplateId", "status");
+CREATE UNIQUE INDEX "EmployeeShift_deliveryId_key" ON "EmployeeShift"("deliveryId");
+CREATE INDEX "EmployeeShift_deliveryId_idx" ON "EmployeeShift"("deliveryId");
 
 ALTER TABLE "RouteTemplate"
 ADD CONSTRAINT "RouteTemplate_contractId_fkey" FOREIGN KEY ("contractId") REFERENCES "Contract"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -70,3 +75,5 @@ ALTER TABLE "Delivery"
 ADD CONSTRAINT "Delivery_contractId_fkey" FOREIGN KEY ("contractId") REFERENCES "Contract"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 ALTER TABLE "Delivery"
 ADD CONSTRAINT "Delivery_routeTemplateId_fkey" FOREIGN KEY ("routeTemplateId") REFERENCES "RouteTemplate"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "EmployeeShift"
+ADD CONSTRAINT "EmployeeShift_deliveryId_fkey" FOREIGN KEY ("deliveryId") REFERENCES "Delivery"("id") ON DELETE SET NULL ON UPDATE CASCADE;
