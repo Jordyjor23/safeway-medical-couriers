@@ -54,7 +54,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Please upload your resume." }, { status: 400 });
   }
 
-  const body = JSON.parse(applicationJson);
+  let body: unknown;
+  try {
+    body = JSON.parse(applicationJson);
+  } catch {
+    return NextResponse.json({ error: "Invalid application." }, { status: 400 });
+  }
   if (!body || typeof body !== "object") {
     return NextResponse.json({ error: "Invalid application." }, { status: 400 });
   }
