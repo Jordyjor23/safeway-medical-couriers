@@ -108,19 +108,27 @@ export default async function HrOnboardingPage() {
 
       <section className="mt-8 rounded-2xl border border-line bg-paper p-5">
         <h2 className="font-semibold text-navy">HR workflow</h2>
+        <p className="mt-1 text-xs text-muted">
+          Use these steps as navigation. Each worker’s individual onboarding checklist and status are edited on their employee profile.
+        </p>
         <div className="mt-4 grid gap-3 lg:grid-cols-5">
           {[
-            ["1", "Applicant", "Review application and interview"],
-            ["2", "Conditional offer", "Start pre-hire requirements"],
-            ["3", "Onboarding", "Secure uploads + W-2/1099 paperwork"],
-            ["4", "HR review", "Verify documents and finish checklist"],
-            ["5", "Active", "Employee/courier enters workforce"],
-          ].map(([number, title, body]) => (
-            <div key={number} className="rounded-xl border border-line bg-ice p-4">
+            ["1", "Applicant", "Review application and interview", canViewApplicants ? "/dashboard/applicants" : "/dashboard/employees"],
+            ["2", "Conditional offer", "Start pre-hire requirements", canViewApplicants ? "/dashboard/applicants?status=CONDITIONAL_OFFER" : "/dashboard/employees"],
+            ["3", "Onboarding", "Secure uploads + W-2/1099 paperwork", canViewApplicants ? "/dashboard/applicants?status=ONBOARDING" : "/dashboard/employees?status=PENDING_ONBOARDING"],
+            ["4", "HR review", "Verify documents and finish checklist", canViewDocuments ? "/dashboard/documents/review" : "/dashboard/employees?status=PENDING_ONBOARDING"],
+            ["5", "Active", "Employee/courier enters workforce", "/dashboard/employees?status=ACTIVE"],
+          ].map(([number, title, body, href]) => (
+            <Link
+              key={number}
+              href={href}
+              className="rounded-xl border border-line bg-ice p-4 transition hover:border-medical hover:bg-white"
+            >
               <p className="text-xs font-bold text-medical">{number}</p>
               <p className="mt-1 font-semibold text-navy">{title}</p>
               <p className="mt-1 text-xs text-muted">{body}</p>
-            </div>
+              <p className="mt-3 text-xs font-semibold text-medical">Open →</p>
+            </Link>
           ))}
         </div>
       </section>

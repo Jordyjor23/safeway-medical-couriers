@@ -163,11 +163,13 @@ export async function updateEmployee(employeeId: string, formData: FormData) {
       classification: classificationValue as EmploymentClassification,
       hireDate: hireDateValue ? parseBusinessDate(hireDateValue) : null,
       status: statusValue as EmployeeStatus,
+      isDriver: String(formData.get("isDriver") ?? "") === "1",
     },
     select: {
       id: true,
       status: true,
       classification: true,
+      isDriver: true,
       legalFirstName: true,
       legalLastName: true,
     },
@@ -182,11 +184,14 @@ export async function updateEmployee(employeeId: string, formData: FormData) {
     metadata: {
       status: employee.status,
       classification: employee.classification,
+      isDriver: employee.isDriver,
     },
   });
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/employees");
   revalidatePath(`/dashboard/employees/${employeeId}`);
+  revalidatePath("/dashboard/hr");
+  revalidatePath("/dashboard/hr/qualifications");
   redirect(`/dashboard/employees/${employeeId}?saved=1&status=${encodeURIComponent(employee.status)}`);
 }
 
