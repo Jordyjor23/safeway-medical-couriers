@@ -194,6 +194,7 @@ export const ROLE_PERMISSIONS: Record<RoleKey, readonly PermissionKey[]> = {
     "documents.upload",
     "documents.download",
     "documents.editMetadata",
+    "documents.verify",
     "documents.viewSensitive",
     "notifications.manage",
   ],
