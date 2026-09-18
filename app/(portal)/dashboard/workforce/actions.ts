@@ -18,6 +18,11 @@ function nonNegativeInt(value: FormDataEntryValue | null) {
   return Number.isFinite(number) && number >= 0 ? Math.round(number) : 0;
 }
 
+function refreshWorkforceSummary() {
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/workforce");
+}
+
 export async function createShift(formData: FormData) {
   const ctx = await requirePermission("scheduling.manage");
   const employeeId = required(formData.get("employeeId"), "Employee");
@@ -40,6 +45,7 @@ export async function createShift(formData: FormData) {
     },
   });
   await writeAuditLog({ actorId: ctx.user.id, actorEmail: ctx.user.email, action: "workforce.shift.created", targetType: "employee_shift", targetId: shift.id });
+  refreshWorkforceSummary();
   revalidatePath("/dashboard/workforce");
   revalidatePath("/dashboard/workforce/schedule");
 }
@@ -51,6 +57,7 @@ export async function setShiftStatus(shiftId: string, status: ShiftStatus) {
     data: { status, publishedAt: status === "PUBLISHED" ? new Date() : undefined },
   });
   await writeAuditLog({ actorId: ctx.user.id, actorEmail: ctx.user.email, action: `workforce.shift.${status.toLowerCase()}`, targetType: "employee_shift", targetId: shiftId });
+  refreshWorkforceSummary();
   revalidatePath("/dashboard/workforce/schedule");
 }
 
@@ -63,6 +70,7 @@ export async function deleteDraftShift(shiftId: string) {
   }
   await prisma.employeeShift.delete({ where: { id: shiftId } });
   await writeAuditLog({ actorId: ctx.user.id, actorEmail: ctx.user.email, action: "workforce.shift.deleted", targetType: "employee_shift", targetId: shiftId });
+  refreshWorkforceSummary();
   revalidatePath("/dashboard/workforce/schedule");
 }
 
@@ -85,6 +93,7 @@ export async function createManualTimeEntry(formData: FormData) {
     },
   });
   await writeAuditLog({ actorId: ctx.user.id, actorEmail: ctx.user.email, action: "workforce.timecard.created", targetType: "time_entry", targetId: entry.id });
+  refreshWorkforceSummary();
   revalidatePath("/dashboard/workforce");
   revalidatePath("/dashboard/workforce/timecards");
 }
@@ -100,6 +109,7 @@ export async function setTimeEntryStatus(entryId: string, status: TimeEntryStatu
     },
   });
   await writeAuditLog({ actorId: ctx.user.id, actorEmail: ctx.user.email, action: `workforce.timecard.${status.toLowerCase()}`, targetType: "time_entry", targetId: entryId });
+  refreshWorkforceSummary();
   revalidatePath("/dashboard/workforce/timecards");
   revalidatePath("/dashboard/payroll");
 }
@@ -122,6 +132,7 @@ export async function createTimeOffForEmployee(formData: FormData) {
     },
   });
   await writeAuditLog({ actorId: ctx.user.id, actorEmail: ctx.user.email, action: "workforce.timeoff.created", targetType: "time_off_request", targetId: request.id });
+  refreshWorkforceSummary();
   revalidatePath("/dashboard/workforce/time-off");
 }
 
@@ -137,6 +148,7 @@ export async function setTimeOffStatus(requestId: string, status: TimeOffStatus,
     },
   });
   await writeAuditLog({ actorId: ctx.user.id, actorEmail: ctx.user.email, action: `workforce.timeoff.${status.toLowerCase()}`, targetType: "time_off_request", targetId: requestId });
+  refreshWorkforceSummary();
   revalidatePath("/dashboard/workforce/time-off");
 }
 
@@ -154,6 +166,7 @@ export async function recordCallOff(formData: FormData) {
     },
   });
   await writeAuditLog({ actorId: ctx.user.id, actorEmail: ctx.user.email, action: "workforce.calloff.reported", targetType: "call_off_request", targetId: row.id });
+  refreshWorkforceSummary();
   revalidatePath("/dashboard/workforce/time-off");
 }
 
@@ -164,6 +177,7 @@ export async function acknowledgeCallOff(callOffId: string) {
     data: { status: "ACKNOWLEDGED", acknowledgedBy: ctx.user.id, acknowledgedAt: new Date() },
   });
   await writeAuditLog({ actorId: ctx.user.id, actorEmail: ctx.user.email, action: "workforce.calloff.acknowledged", targetType: "call_off_request", targetId: callOffId });
+  refreshWorkforceSummary();
   revalidatePath("/dashboard/workforce/time-off");
 }
 
@@ -196,6 +210,7 @@ export async function updateShift(shiftId: string, formData: FormData) {
     targetId: shiftId,
     metadata: { previousEmployeeId: current.employeeId },
   });
+  refreshWorkforceSummary();
   revalidatePath("/dashboard/workforce/schedule");
   revalidatePath(`/dashboard/workforce/schedule/${shiftId}`);
   revalidatePath("/employee/schedule");
@@ -231,6 +246,7 @@ export async function updateTimeEntry(entryId: string, formData: FormData) {
     targetId: entryId,
     metadata: { previousStatus: current.status },
   });
+  refreshWorkforceSummary();
   revalidatePath("/dashboard/workforce/timecards");
   revalidatePath(`/dashboard/workforce/timecards/${entryId}`);
   revalidatePath("/employee/timecards");
