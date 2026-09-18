@@ -2,6 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { deleteContract, updateContract } from "@/app/(portal)/dashboard/contracts/actions";
+import {
+  archiveRouteTemplate,
+  copyRouteTemplateToContract,
+  updateRouteTemplate,
+} from "@/app/(portal)/dashboard/contracts/routes/actions";
 import { documentUploadCapabilities } from "@/app/(portal)/dashboard/documents/actions";
 import { ConfirmSubmitButton } from "@/components/portal/ConfirmSubmitButton";
 import { DocumentUploader } from "@/components/portal/DocumentUploader";
@@ -41,12 +46,31 @@ export default async function ContractDetailPage({
 }) {
   const ctx = await requirePermission("contracts.view");
   const { contractId } = await params;
-  const [contract, customers] = await Promise.all([
+  const [contract, customers, genericTemplates, drivers] = await Promise.all([
     prisma.contract.findUnique({
       where: { id: contractId },
-      include: { customer: true, _count: { select: { documents: true, amendments: true } } },
+      include: {
+        customer: true,
+        routeTemplates: {
+          include: {
+            primaryDriver: true,
+            backupDriver: true,
+            _count: { select: { deliveries: true } },
+          },
+          orderBy: [{ active: "desc" }, { name: "asc" }],
+        },
+        _count: { select: { documents: true, amendments: true } },
+      },
     }),
     prisma.customer.findMany({ orderBy: { legalName: "asc" } }),
+    prisma.routeTemplate.findMany({
+      where: { scope: "GENERIC", active: true },
+      orderBy: { name: "asc" },
+    }),
+    prisma.employee.findMany({
+      where: { isDriver: true, status: { in: ["ACTIVE", "PENDING_ONBOARDING"] } },
+      orderBy: [{ legalLastName: "asc" }, { legalFirstName: "asc" }],
+    }),
   ]);
   if (!contract) notFound();
   const canEdit = hasPermission(ctx, "contracts.edit");
@@ -165,6 +189,107 @@ export default async function ContractDetailPage({
             <p>{contract.notes ?? "No notes."}</p>
           </div>
         )}
+      </section>
+
+      <section className="rounded-2xl border border-line bg-paper p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="font-semibold text-navy">Contract route operations</h2>
+            <p className="mt-1 text-sm text-muted">
+              Copy a reusable route setup into this contract, then customize the customer-specific locations, staffing, times, and requirements.
+            </p>
+          </div>
+          <Link href="/dashboard/contracts/routes" className="text-sm font-semibold text-medical hover:underline">
+            Open template library
+          </Link>
+        </div>
+
+        {contract.routeTemplates.length ? (
+          <div className="mt-5 grid gap-5">
+            {contract.routeTemplates.map((route) => (
+              <div key={route.id} className="rounded-2xl border border-line bg-ice p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="font-mono text-xs text-muted">{route.templateCode}</p>
+                    <h3 className="mt-1 font-semibold text-navy">{route.name}</h3>
+                    <p className="text-xs text-muted">
+                      {route.active ? "Active" : "Archived"} · {route._count.deliveries} assignment{route._count.deliveries === 1 ? "" : "s"} created
+                    </p>
+                  </div>
+                  {canEdit && route.active ? (
+                    <form action={archiveRouteTemplate.bind(null, route.id)}>
+                      <button className="rounded-full border border-line bg-paper px-3 py-2 text-xs font-semibold text-navy">Archive route</button>
+                    </form>
+                  ) : null}
+                </div>
+
+                {canEdit ? (
+                  <form action={updateRouteTemplate.bind(null, route.id)} className="mt-4 grid gap-3 sm:grid-cols-2">
+                    {route.active ? <input type="hidden" name="active" value="on" /> : null}
+                    <label className="text-sm font-semibold text-navy">Route name<input name="name" defaultValue={route.name} className={fieldClass} /></label>
+                    <label className="text-sm font-semibold text-navy">Operating days<input name="operatingDays" defaultValue={route.operatingDays ?? ""} placeholder="Mon-Fri" className={fieldClass} /></label>
+                    <label className="text-sm font-semibold text-navy">Pickup business<input name="pickupBusinessName" defaultValue={route.pickupBusinessName ?? ""} className={fieldClass} /></label>
+                    <label className="text-sm font-semibold text-navy">Delivery business<input name="deliveryBusinessName" defaultValue={route.deliveryBusinessName ?? ""} className={fieldClass} /></label>
+                    <label className="text-sm font-semibold text-navy">Pickup address<input name="pickupAddress" defaultValue={route.pickupAddress ?? ""} className={fieldClass} /></label>
+                    <label className="text-sm font-semibold text-navy">Delivery address<input name="deliveryAddress" defaultValue={route.deliveryAddress ?? ""} className={fieldClass} /></label>
+                    <label className="text-sm font-semibold text-navy">Default pickup time<input name="pickupTimeLocal" type="time" defaultValue={route.pickupTimeLocal ?? ""} className={fieldClass} /></label>
+                    <label className="text-sm font-semibold text-navy">Default deliver-by time<input name="deliverByTimeLocal" type="time" defaultValue={route.deliverByTimeLocal ?? ""} className={fieldClass} /></label>
+                    <label className="text-sm font-semibold text-navy">Primary courier
+                      <select name="primaryDriverEmployeeId" defaultValue={route.primaryDriverEmployeeId ?? ""} className={fieldClass}>
+                        <option value="">Auto-select eligible courier</option>
+                        {drivers.map((driver) => <option key={driver.id} value={driver.id}>{driver.legalFirstName} {driver.legalLastName}</option>)}
+                      </select>
+                    </label>
+                    <label className="text-sm font-semibold text-navy">Backup courier
+                      <select name="backupDriverEmployeeId" defaultValue={route.backupDriverEmployeeId ?? ""} className={fieldClass}>
+                        <option value="">No designated backup</option>
+                        {drivers.map((driver) => <option key={driver.id} value={driver.id}>{driver.legalFirstName} {driver.legalLastName}</option>)}
+                      </select>
+                    </label>
+                    <label className="text-sm font-semibold text-navy">Shipment type<input name="shipmentType" defaultValue={route.shipmentType ?? ""} className={fieldClass} /></label>
+                    <label className="text-sm font-semibold text-navy">Temperature requirement<input name="temperatureRequired" defaultValue={route.temperatureRequired ?? ""} className={fieldClass} /></label>
+                    <label className="text-sm font-semibold text-navy">Required training<input name="requiredTrainingKeys" defaultValue={route.requiredTrainingKeys ?? ""} placeholder="HIPAA,CHAIN_OF_CUSTODY" className={fieldClass} /></label>
+                    <label className="text-sm font-semibold text-navy">Required certifications<input name="requiredCertificationNames" defaultValue={route.requiredCertificationNames ?? ""} className={fieldClass} /></label>
+                    <label className="text-sm font-semibold text-navy">Vehicle requirement<input name="vehicleRequirement" defaultValue={route.vehicleRequirement ?? ""} className={fieldClass} /></label>
+                    <label className="text-sm font-semibold text-navy">Estimated route hours<input name="estimatedRouteHours" type="number" min="0" step="0.25" defaultValue={route.estimatedRouteHours?.toString() ?? ""} className={fieldClass} /></label>
+                    <label className="text-sm font-semibold text-navy">Route pay<input name="routePay" type="number" min="0" step="0.01" defaultValue={route.routePay?.toString() ?? ""} className={fieldClass} /></label>
+                    <div className="flex flex-wrap gap-4 text-sm sm:col-span-2">
+                      <label className="flex items-center gap-2"><input name="chainOfCustodyRequired" type="checkbox" defaultChecked={route.chainOfCustodyRequired} /> Chain of custody</label>
+                      <label className="flex items-center gap-2"><input name="proofOfDeliveryRequired" type="checkbox" defaultChecked={route.proofOfDeliveryRequired} /> Recipient / POD sign-off</label>
+                    </div>
+                    <label className="text-sm font-semibold text-navy sm:col-span-2">Customer instructions<textarea name="customerInstructions" rows={2} defaultValue={route.customerInstructions ?? ""} className={fieldClass} /></label>
+                    <label className="text-sm font-semibold text-navy sm:col-span-2">Handling instructions<textarea name="handlingInstructions" rows={3} defaultValue={route.handlingInstructions ?? ""} className={fieldClass} /></label>
+                    <button className="w-fit rounded-full bg-medical px-4 py-2 text-sm font-semibold text-white sm:col-span-2">Save contract route</button>
+                  </form>
+                ) : (
+                  <div className="mt-3 text-sm text-muted">
+                    <p>{route.pickupBusinessName ?? "Pickup"} → {route.deliveryBusinessName ?? "Delivery"}</p>
+                    <p>{route.operatingDays ?? "Schedule not configured"}</p>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="mt-4 rounded-xl border border-dashed border-line p-4 text-sm text-muted">
+            No contract routes yet. Copy one of the reusable templates below to get started.
+          </p>
+        )}
+
+        {canEdit ? (
+          <div className="mt-6 border-t border-line pt-5">
+            <h3 className="font-semibold text-navy">Copy a reusable setup into this contract</h3>
+            <div className="mt-3 grid gap-3 md:grid-cols-2">
+              {genericTemplates.map((template) => (
+                <form key={template.id} action={copyRouteTemplateToContract.bind(null, template.id, contract.id)} className="rounded-xl border border-line p-4">
+                  <p className="font-semibold text-navy">{template.name}</p>
+                  <p className="mt-1 text-xs text-muted">{template.shipmentType ?? "General medical route"} · {template.operatingDays ?? "Configure schedule"}</p>
+                  <button className="mt-3 rounded-full bg-navy px-3 py-2 text-xs font-semibold text-white">Copy into {contract.customer.legalName}</button>
+                </form>
+              ))}
+            </div>
+          </div>
+        ) : null}
       </section>
 
       {canDelete ? (
