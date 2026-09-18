@@ -76,7 +76,7 @@ export async function processDocumentUpload(ctx: DocumentActor, formData: FormDa
         return { error: "Employee uploads can only be attached to your own profile." };
       }
       const categoryTypes = TYPES_BY_CATEGORY[category] ?? [];
-      if (!documentTypeRaw || !categoryTypes.includes(documentTypeRaw as never)) {
+      if (!documentTypeRaw || !(categoryTypes as readonly string[]).includes(documentTypeRaw)) {
         return { error: "Choose a valid document type for this category." };
       }
     }
