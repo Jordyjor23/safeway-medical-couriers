@@ -59,7 +59,7 @@ export default async function ContractDetailPage({
           },
           orderBy: [{ active: "desc" }, { name: "asc" }],
         },
-        _count: { select: { documents: true, amendments: true } },
+        _count: { select: { documents: true, amendments: true, routeTemplates: true, deliveries: true } },
       },
     }),
     prisma.customer.findMany({ orderBy: { legalName: "asc" } }),
@@ -78,7 +78,9 @@ export default async function ContractDetailPage({
     hasPermission(ctx, "contracts.delete") &&
     contract.status === "DRAFT" &&
     contract._count.documents === 0 &&
-    contract._count.amendments === 0;
+    contract._count.amendments === 0 &&
+    contract._count.routeTemplates === 0 &&
+    contract._count.deliveries === 0;
   const canViewDocs = hasPermission(ctx, "documents.view");
   const [documents, capabilities] = canViewDocs
     ? await Promise.all([
