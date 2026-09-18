@@ -65,6 +65,7 @@ export async function resolveRouteCourier({
 
   const requiredTrainingKeys = csv(template.requiredTrainingKeys).map((value) => value.toUpperCase());
   const requiredCertificationNames = csv(template.requiredCertificationNames).map((value) => value.toUpperCase());
+  const vehicleRequirement = template.vehicleRequirement?.trim();
   const { start: dayStart, end: dayEnd } = sameBusinessDateBounds(pickupAt);
 
   const candidates = await prisma.employee.findMany({
@@ -145,7 +146,6 @@ export async function resolveRouteCourier({
       if (!match) failures.push(`missing/expired certification: ${name}`);
     }
 
-    const vehicleRequirement = template.vehicleRequirement?.trim();
     if (
       vehicleRequirement &&
       vehicleRequirement.toLowerCase() !== "any" &&
