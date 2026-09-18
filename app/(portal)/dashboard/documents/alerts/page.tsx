@@ -6,6 +6,7 @@ import { associatedWithLabel, expirationLabel } from "@/lib/documents/display";
 import { documentDetailHref } from "@/lib/documents/paths";
 import { DOCUMENT_LIST_INCLUDE, documentLibraryWhere } from "@/lib/documents/query";
 import { prisma } from "@/lib/db";
+import { formatBusinessDate } from "@/lib/workforce-time";
 import { requirePermission } from "@/lib/rbac";
 
 export const metadata: Metadata = { title: "Document alerts" };
@@ -130,9 +131,9 @@ export default async function DocumentAlertsPage({
                   </Link>
                 </td>
                 <td className="px-4 py-3">{expirationLabel(document)}</td>
-                <td className="px-4 py-3">{document.expirationDate?.toLocaleDateString() ?? "—"}</td>
+                <td className="px-4 py-3">{document.expirationDate ? formatBusinessDate(document.expirationDate) : "—"}</td>
                 <td className="px-4 py-3">{daysRemainingLabel(document.expirationDate)}</td>
-                <td className="px-4 py-3">{last ? last.createdAt.toLocaleDateString() : "—"}</td>
+                <td className="px-4 py-3">{last ? formatBusinessDate(last.createdAt) : "—"}</td>
                 <td className="px-4 py-3">{last?.thresholdKey ? `After ${last.thresholdKey}` : "Per reminder rules"}</td>
               </tr>
             ))}
