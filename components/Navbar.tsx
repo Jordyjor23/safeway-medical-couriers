@@ -67,12 +67,6 @@ export function Navbar() {
         </nav>
 
         <div className="flex items-center gap-2">
-          <Link
-            href="/portal"
-            className="hidden rounded-full border border-white/20 px-3 py-2 text-xs font-semibold text-mist transition hover:border-medical/60 hover:bg-white/5 sm:inline-flex sm:px-4 sm:text-sm"
-          >
-            Staff Portal
-          </Link>
           <Link href="/quote" className="mkt-btn mkt-btn-primary hidden !px-3 !py-2 text-xs sm:!px-4 sm:text-sm xl:inline-flex">
             Request a Quote
           </Link>
@@ -106,15 +100,8 @@ export function Navbar() {
               </Link>
             ))}
             <Link
-              href="/portal"
-              className="mt-4 w-full rounded-full border border-white/20 px-4 py-3.5 text-center font-semibold text-mist transition hover:border-medical/60 hover:bg-white/5"
-              onClick={() => setOpen(false)}
-            >
-              Staff Portal
-            </Link>
-            <Link
               href="/quote"
-              className="mkt-btn mkt-btn-primary mt-3 w-full py-3.5"
+              className="mkt-btn mkt-btn-primary mt-4 w-full py-3.5"
               onClick={() => setOpen(false)}
             >
               Request a Quote
