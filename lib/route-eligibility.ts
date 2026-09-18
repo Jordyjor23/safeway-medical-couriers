@@ -32,7 +32,7 @@ export type EmployeeQualificationInput = {
       archivedAt: Date | null;
     };
   }[];
-  vehicle: { vehicleType: string } | null;
+  vehicle: { vehicleType: string | null } | null;
 };
 
 function csv(value: string | null | undefined) {

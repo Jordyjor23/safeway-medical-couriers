@@ -41,6 +41,11 @@ export async function resolveRouteCourier({
   const template = await prisma.routeTemplate.findUnique({ where: { id: routeTemplateId } });
   if (!template) throw new Error("Route template not found.");
 
+  const routeRequirements = {
+    requiredTrainingKeys: template.requiredTrainingKeys,
+    requiredCertificationNames: template.requiredCertificationNames,
+    vehicleRequirement: template.vehicleRequirement,
+  };
   const { start: dayStart, end: dayEnd } = sameBusinessDateBounds(pickupAt);
 
   const candidates = await prisma.employee.findMany({
@@ -106,11 +111,7 @@ export async function resolveRouteCourier({
   function reasons(candidate: (typeof candidates)[number]) {
     const qualification = evaluateEmployeeRouteQualification(
       candidate,
-      {
-        requiredTrainingKeys: template.requiredTrainingKeys,
-        requiredCertificationNames: template.requiredCertificationNames,
-        vehicleRequirement: template.vehicleRequirement,
-      },
+      routeRequirements,
       pickupAt,
     );
     const failures = [...qualification.reasons];
