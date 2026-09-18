@@ -87,6 +87,7 @@ export async function createEmployee(formData: FormData) {
       targetId: employee.id,
       metadata: { email, portalError: provisioned.error },
     });
+  revalidatePath("/dashboard");
     revalidatePath("/dashboard/employees");
     return {
       ok: true as const,
@@ -110,6 +111,7 @@ export async function createEmployee(formData: FormData) {
     targetId: employee.id,
     metadata: { email, userId: provisioned.userId, emailSent: activation.emailSent },
   });
+  revalidatePath("/dashboard");
   revalidatePath("/dashboard/employees");
   revalidatePath("/dashboard/users");
   return {
@@ -146,6 +148,7 @@ export async function updateEmployee(employeeId: string, formData: FormData) {
     targetType: "employee",
     targetId: employeeId,
   });
+  revalidatePath("/dashboard");
   revalidatePath("/dashboard/employees");
   revalidatePath(`/dashboard/employees/${employeeId}`);
 }
@@ -169,6 +172,7 @@ export async function updateOnboardingStep(employeeId: string, formData: FormDat
     targetType: "employee",
     targetId: employeeId,
   });
+  revalidatePath("/dashboard");
   revalidatePath(`/dashboard/employees/${employeeId}`);
 }
 
@@ -193,6 +197,7 @@ export async function addEmployeeTraining(employeeId: string, formData: FormData
     targetType: "employee",
     targetId: employeeId,
   });
+  revalidatePath("/dashboard");
   revalidatePath(`/dashboard/employees/${employeeId}`);
   revalidatePath("/dashboard/compliance");
 }
@@ -224,6 +229,7 @@ export async function updateNewHireReport(employeeId: string, formData: FormData
     targetType: "employee",
     targetId: employeeId,
   });
+  revalidatePath("/dashboard");
   revalidatePath(`/dashboard/employees/${employeeId}`);
 }
 
@@ -265,6 +271,7 @@ export async function setEmployeePortalAccess(employeeId: string, enabled: boole
     targetType: "employee",
     targetId: employeeId,
   });
+  revalidatePath("/dashboard");
   revalidatePath("/dashboard/employees");
   revalidatePath(`/dashboard/employees/${employeeId}`);
   revalidatePath("/dashboard/users");
@@ -308,5 +315,6 @@ export async function deleteEmployee(employeeId: string) {
     targetType: "employee",
     targetId: employeeId,
   });
+  revalidatePath("/dashboard");
   revalidatePath("/dashboard/employees");
 }
