@@ -185,11 +185,33 @@ export default async function ApplicantProfilePage({
       {canEdit ? (
         <section className="rounded-2xl border border-line bg-paper p-5">
           <h2 className="text-lg font-semibold text-navy">Interview</h2>
-          <form action={updateInterview.bind(null, applicationId)} className="mt-3 grid gap-3 sm:grid-cols-2">
-            <input name="scheduledAt" type="datetime-local" className="rounded-lg border border-line px-3 py-2 text-sm" />
-            <input name="location" placeholder="Location / video link" className="rounded-lg border border-line px-3 py-2 text-sm" />
-            <input name="interviewer" placeholder="Interviewer" className="rounded-lg border border-line px-3 py-2 text-sm" />
-            <button className="rounded-full bg-navy px-4 py-2 text-sm font-semibold text-white sm:w-fit">Save interview</button>
+          <form
+            action={async (formData) => {
+              "use server";
+              await updateInterview(applicationId, formData);
+            }}
+            className="mt-3 grid gap-3 sm:grid-cols-2"
+          >
+            <label className="text-sm font-semibold text-navy">
+              Interview date & time (Eastern Time)
+              <input
+                name="scheduledAt"
+                type="datetime-local"
+                required
+                className="mt-1.5 w-full rounded-lg border border-line px-3 py-2 text-sm"
+              />
+            </label>
+            <label className="text-sm font-semibold text-navy">
+              Location / video link
+              <input name="location" placeholder="Office address or meeting link" className="mt-1.5 w-full rounded-lg border border-line px-3 py-2 text-sm" />
+            </label>
+            <label className="text-sm font-semibold text-navy">
+              Interviewer
+              <input name="interviewer" placeholder="Interviewer name" className="mt-1.5 w-full rounded-lg border border-line px-3 py-2 text-sm" />
+            </label>
+            <div className="flex items-end">
+              <button className="rounded-full bg-navy px-4 py-2 text-sm font-semibold text-white sm:w-fit">Save interview & notify applicant</button>
+            </div>
           </form>
           <ul className="mt-4 space-y-2 text-sm">
             {application.interviews.map((interview) => (

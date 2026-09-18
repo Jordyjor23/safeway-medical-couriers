@@ -8,10 +8,15 @@ import {
 } from "@/lib/candidate-onboarding";
 import { writeAuditLog } from "@/lib/audit";
 import { prisma } from "@/lib/db";
+import { sendTransactionalEmail } from "@/lib/email";
 import { nextScopedId } from "@/lib/ids";
 import { ONBOARDING_STEPS } from "@/lib/onboarding";
 import { provisionEmployeePortalUser } from "@/lib/portal-account";
 import { requirePermission } from "@/lib/rbac";
+import {
+  businessLocalToUtc,
+  formatBusinessDateTime,
+} from "@/lib/workforce-time";
 import type { ApplicationStatus, InterviewStatus } from "@prisma/client";
 
 export async function updateApplicationStatus(applicationId: string, status: ApplicationStatus) {
@@ -173,29 +178,99 @@ export async function addApplicationNote(applicationId: string, formData: FormDa
 
 export async function updateInterview(applicationId: string, formData: FormData) {
   const ctx = await requirePermission("applicants.edit");
-  const scheduledAt = String(formData.get("scheduledAt") ?? "");
+  const application = await prisma.application.findUnique({
+    where: { id: applicationId },
+    include: { applicant: true, jobOpening: true },
+  });
+  if (!application) return { error: "Application not found." };
+
+  const scheduledAtValue = String(formData.get("scheduledAt") ?? "").trim();
+  const scheduledAt = scheduledAtValue ? businessLocalToUtc(scheduledAtValue) : null;
+  if (!scheduledAt) return { error: "Choose a valid interview date and time." };
+
+  const location = String(formData.get("location") ?? "").trim() || null;
+  const interviewer = String(formData.get("interviewer") ?? "").trim() || null;
+  const notes = String(formData.get("notes") ?? "").trim() || null;
+  const status = String(formData.get("status") ?? "SCHEDULED") as InterviewStatus;
+
   await prisma.interview.create({
     data: {
       applicationId,
-      status: String(formData.get("status") ?? "SCHEDULED") as InterviewStatus,
-      scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
-      location: String(formData.get("location") ?? "") || null,
-      interviewer: String(formData.get("interviewer") ?? "") || null,
-      notes: String(formData.get("notes") ?? "") || null,
+      status,
+      scheduledAt,
+      location,
+      interviewer,
+      notes,
     },
   });
   await prisma.application.update({
     where: { id: applicationId },
-    data: { interviewStatus: "SCHEDULED" },
+    data: {
+      interviewStatus: "SCHEDULED",
+      status:
+        application.status === "SUBMITTED" || application.status === "UNDER_REVIEW"
+          ? "INTERVIEW_SCHEDULED"
+          : application.status,
+    },
   });
+
+  const formattedDateTime = formatBusinessDateTime(scheduledAt);
+  const subject = `Safeway Couriers interview scheduled — ${application.jobOpening.title}`;
+  const detailLines = [
+    `Date & time: ${formattedDateTime}`,
+    location ? `Location / meeting link: ${location}` : null,
+    interviewer ? `Interviewer: ${interviewer}` : null,
+  ].filter(Boolean);
+
+  let emailSent = false;
+  try {
+    await sendTransactionalEmail({
+      to: application.applicant.email,
+      subject,
+      html: `<p>Hello ${application.applicant.preferredName || application.applicant.legalFirstName},</p>
+<p>Your interview with Safeway Couriers for <strong>${application.jobOpening.title}</strong> has been scheduled.</p>
+<p><strong>Date &amp; time:</strong> ${formattedDateTime}</p>
+${location ? `<p><strong>Location / meeting link:</strong> ${location}</p>` : ""}
+${interviewer ? `<p><strong>Interviewer:</strong> ${interviewer}</p>` : ""}
+<p>If you need to request a change, please reply to this email or contact Safeway Couriers.</p>`,
+    });
+    emailSent = true;
+  } catch {
+    emailSent = false;
+  }
+
+  await prisma.applicationCommunication.create({
+    data: {
+      applicationId,
+      channel: "EMAIL",
+      subject,
+      body: emailSent
+        ? `Interview notice sent to ${application.applicant.email}. ${detailLines.join(" · ")}`
+        : `Interview scheduled, but email delivery was not confirmed for ${application.applicant.email}. ${detailLines.join(" · ")}`,
+      direction: "OUTBOUND",
+      createdBy: ctx.user.id,
+    },
+  });
+
   await writeAuditLog({
     actorId: ctx.user.id,
     actorEmail: ctx.user.email,
     action: "applicant.interview.updated",
     targetType: "application",
     targetId: applicationId,
+    metadata: {
+      scheduledAt: scheduledAt.toISOString(),
+      location,
+      interviewer,
+      emailSent,
+    },
   });
+
+  revalidatePath("/dashboard/applicants");
   revalidatePath(`/dashboard/applicants/${applicationId}`);
+  return emailSent
+    ? { ok: true as const }
+    : { ok: true as const, warning: "Interview saved, but the email provider did not confirm delivery." };
 }
 
 
