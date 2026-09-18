@@ -17,8 +17,25 @@ import { site, publishedContactEmail } from "@/lib/site";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Careers",
-  description: `Careers and independent contractor opportunities with ${site.name} in Columbus and Central Ohio.`,
+  title: "Now Accepting Driver Applications",
+  description:
+    "Apply to join Safeway Couriers' driver network as a medical courier or independent contract driver in Columbus and Central Ohio.",
+  alternates: {
+    canonical: "/careers",
+  },
+  openGraph: {
+    title: "Now Accepting Driver Applications | Safeway Couriers",
+    description:
+      "Medical courier and independent contract driver applications are now open for upcoming routes and contracts in Columbus and Central Ohio.",
+    url: "/careers",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Now Accepting Driver Applications | Safeway Couriers",
+    description:
+      "Apply to join Safeway Couriers' driver network for upcoming medical courier and independent contractor routes.",
+  },
 };
 
 export default async function CareersPage() {
