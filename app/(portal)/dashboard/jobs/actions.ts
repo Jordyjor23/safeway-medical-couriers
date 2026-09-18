@@ -49,6 +49,7 @@ export async function createJob(formData: FormData) {
     targetType: "job",
     targetId: job.id,
   });
+  revalidatePath("/dashboard");
 
   revalidatePath("/careers");
   revalidatePath("/dashboard/jobs");
@@ -93,6 +94,7 @@ export async function updateJob(jobId: string, formData: FormData) {
     targetType: "job",
     targetId: jobId,
   });
+  revalidatePath("/dashboard");
   revalidatePath("/careers");
   revalidatePath("/dashboard/jobs");
   revalidatePath(`/dashboard/jobs/${jobId}`);
@@ -115,6 +117,7 @@ export async function setJobStatus(jobId: string, status: JobStatus) {
     targetType: "job",
     targetId: jobId,
   });
+  revalidatePath("/dashboard");
   revalidatePath("/careers");
   revalidatePath("/dashboard/jobs");
   revalidatePath(`/dashboard/jobs/${jobId}`);
@@ -141,6 +144,7 @@ export async function deleteJob(jobId: string) {
     targetType: "job",
     targetId: jobId,
   });
+  revalidatePath("/dashboard");
   revalidatePath("/careers");
   revalidatePath("/dashboard/jobs");
   redirect("/dashboard/jobs");
