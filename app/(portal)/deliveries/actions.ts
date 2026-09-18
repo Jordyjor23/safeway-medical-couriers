@@ -55,6 +55,45 @@ function csvList(value: string | null | undefined) {
     .filter(Boolean);
 }
 
+async function syncDeliveryShift(args: {
+  deliveryId: string;
+  employeeId: string | null;
+  pickupAt: Date | null;
+  deliverBy: Date | null;
+  assignment: string;
+  location: string;
+  createdBy: string;
+}) {
+  if (!args.employeeId || !args.pickupAt || !args.deliverBy) return;
+  await prisma.employeeShift.upsert({
+    where: { deliveryId: args.deliveryId },
+    update: {
+      employeeId: args.employeeId,
+      startsAt: args.pickupAt,
+      endsAt: args.deliverBy,
+      assignment: args.assignment,
+      location: args.location,
+      status: "PUBLISHED",
+      publishedAt: new Date(),
+    },
+    create: {
+      deliveryId: args.deliveryId,
+      employeeId: args.employeeId,
+      startsAt: args.pickupAt,
+      endsAt: args.deliverBy,
+      assignment: args.assignment,
+      location: args.location,
+      status: "PUBLISHED",
+      publishedAt: new Date(),
+      createdBy: args.createdBy,
+    },
+  });
+  revalidatePath("/dashboard/workforce");
+  revalidatePath("/dashboard/workforce/schedule");
+  revalidatePath("/employee/dashboard");
+  revalidatePath("/employee/schedule");
+}
+
 export async function createDelivery(formData: FormData) {
   const ctx = await requirePermission("delivery.create");
   const driverEmployeeId = String(formData.get("driverEmployeeId") ?? "") || null;
@@ -97,6 +136,15 @@ export async function createDelivery(formData: FormData) {
       proofOfDeliveryRequired,
       checklistItems: { create: checklist },
     },
+  });
+  await syncDeliveryShift({
+    deliveryId: delivery.id,
+    employeeId: driverEmployeeId,
+    pickupAt,
+    deliverBy,
+    assignment: "Ad-hoc delivery " + delivery.deliveryNumber,
+    location: delivery.pickupAddress + " → " + delivery.deliveryAddress,
+    createdBy: ctx.user.id,
   });
   await writeAuditLog({
     actorId: ctx.user.id,
@@ -214,6 +262,16 @@ export async function createDeliveryFromRouteTemplate(routeTemplateId: string, f
     },
   });
 
+  await syncDeliveryShift({
+    deliveryId: delivery.id,
+    employeeId: assignment.employeeId,
+    pickupAt,
+    deliverBy,
+    assignment: template.name + " · " + delivery.deliveryNumber,
+    location: pickupAddress + " → " + deliveryAddress,
+    createdBy: ctx.user.id,
+  });
+
   if (!assignment.employeeId) {
     const recipients = await prisma.user.findMany({
       where: {
@@ -260,6 +318,74 @@ export async function createDeliveryFromRouteTemplate(routeTemplateId: string, f
 
   refreshDelivery(delivery.id);
   revalidatePath(`/dashboard/contracts/${template.contractId}`);
+}
+
+export async function assignDeliveryCourier(deliveryId: string, formData: FormData) {
+  const ctx = await requirePermission("delivery.update");
+  const delivery = await prisma.delivery.findUnique({
+    where: { id: deliveryId },
+    include: { routeTemplate: true },
+  });
+  if (!delivery) throw new Error("Delivery not found.");
+  if (!["DRAFT", "ASSIGNED"].includes(delivery.status)) {
+    throw new Error("Only draft or assigned routes can be reassigned from Dispatch.");
+  }
+  if (!delivery.pickupAt || !delivery.deliverBy) {
+    throw new Error("Pickup and delivery times are required before assigning a courier.");
+  }
+
+  const raw = String(formData.get("driverEmployeeId") ?? "").trim();
+  let employeeId: string | null = null;
+  let assignmentSource = "MANUAL";
+
+  if (delivery.routeTemplateId) {
+    const resolved = await resolveRouteCourier({
+      routeTemplateId: delivery.routeTemplateId,
+      pickupAt: delivery.pickupAt,
+      deliverBy: delivery.deliverBy,
+      explicitEmployeeId: raw && raw !== "AUTO" ? raw : null,
+    });
+    employeeId = resolved.employeeId;
+    assignmentSource = resolved.source;
+    if (!employeeId) throw new Error("No eligible courier is currently available for this route.");
+  } else {
+    if (!raw || raw === "AUTO") throw new Error("Choose a courier for an ad-hoc assignment.");
+    const employee = await prisma.employee.findFirst({
+      where: { id: raw, isDriver: true, status: "ACTIVE" },
+      select: { id: true },
+    });
+    if (!employee) throw new Error("Selected courier is not an active driver.");
+    employeeId = employee.id;
+  }
+
+  await prisma.delivery.update({
+    where: { id: deliveryId },
+    data: {
+      driverEmployeeId: employeeId,
+      status: "ASSIGNED",
+      assignedById: ctx.user.id,
+    },
+  });
+
+  await syncDeliveryShift({
+    deliveryId,
+    employeeId,
+    pickupAt: delivery.pickupAt,
+    deliverBy: delivery.deliverBy,
+    assignment: (delivery.routeTemplate?.name ?? "Delivery") + " · " + delivery.deliveryNumber,
+    location: delivery.pickupAddress + " → " + delivery.deliveryAddress,
+    createdBy: ctx.user.id,
+  });
+
+  await writeAuditLog({
+    actorId: ctx.user.id,
+    actorEmail: ctx.user.email,
+    action: "delivery.courier.assigned",
+    targetType: "delivery",
+    targetId: deliveryId,
+    metadata: { employeeId, assignmentSource },
+  });
+  refreshDelivery(deliveryId);
 }
 
 export async function initializeDeliveryPacket(deliveryId: string) {
@@ -417,6 +543,16 @@ export async function updateDeliveryStatus(formData: FormData) {
       deliveryNotes: String(formData.get("deliveryNotes") ?? "") || delivery.deliveryNotes,
     },
   });
+  if (status === "DELIVERED" || status === "CANCELLED") {
+    await prisma.employeeShift.updateMany({
+      where: { deliveryId },
+      data: { status: status === "DELIVERED" ? "COMPLETED" : "CANCELLED" },
+    });
+    revalidatePath("/dashboard/workforce");
+    revalidatePath("/dashboard/workforce/schedule");
+    revalidatePath("/employee/schedule");
+  }
+
   await prisma.deliveryEvent.create({
     data: {
       deliveryId,
