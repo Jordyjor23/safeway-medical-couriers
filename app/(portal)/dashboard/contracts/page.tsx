@@ -23,6 +23,13 @@ export default async function ContractsPage() {
             Track agreements, dates, files, and the operating economics behind each opportunity.
           </p>
         </div>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href="/dashboard/contracts/routes"
+            className="rounded-full border border-navy px-4 py-2 text-sm font-semibold text-navy hover:bg-navy hover:text-white"
+          >
+            Route templates
+          </Link>
         {hasPermission(ctx, "finance.view") ? (
           <Link
             href="/dashboard/contracts/operating-model"
@@ -31,6 +38,7 @@ export default async function ContractsPage() {
             Open $1.1M operating model
           </Link>
         ) : null}
+        </div>
       </div>
       {hasPermission(ctx, "contracts.edit") ? (
         <form action={createContract} className="mt-6 grid gap-3 rounded-2xl border border-line bg-paper p-5 sm:grid-cols-2">
