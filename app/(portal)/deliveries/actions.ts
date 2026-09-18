@@ -214,6 +214,33 @@ export async function createDeliveryFromRouteTemplate(routeTemplateId: string, f
     },
   });
 
+  if (!assignment.employeeId) {
+    const recipients = await prisma.user.findMany({
+      where: {
+        disabled: false,
+        roles: {
+          some: {
+            role: { key: { in: ["OWNER", "ADMIN", "OPERATIONS_MANAGER", "DISPATCHER"] } },
+          },
+        },
+      },
+      select: { id: true },
+    });
+    if (recipients.length) {
+      await prisma.notification.createMany({
+        data: recipients.map((user) => ({
+          userId: user.id,
+          type: "SYSTEM",
+          title: "Route needs courier",
+          body: (template.contract?.contractNumber ?? "Contract") + " · " + template.name + " on " + serviceDate + " could not be auto-assigned.",
+          href: "/dispatch/dashboard",
+          dedupeKey: delivery.id + ":unassigned:" + user.id,
+        })),
+        skipDuplicates: true,
+      });
+    }
+  }
+
   await writeAuditLog({
     actorId: ctx.user.id,
     actorEmail: ctx.user.email,
