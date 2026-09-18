@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { writeAuditLog } from "@/lib/audit";
 import { prisma } from "@/lib/db";
+import { applyTimeOffDecision, leaveBankTypeForRequest } from "@/lib/leave";
 import { requirePermission } from "@/lib/rbac";
 import { businessLocalToUtc, parseBusinessDate } from "@/lib/workforce-time";
 import type { ShiftStatus, TimeEntryStatus, TimeOffStatus } from "@prisma/client";
@@ -127,13 +128,16 @@ export async function createTimeOffForEmployee(formData: FormData) {
   const endDate = parseBusinessDate(required(formData.get("endDate"), "End date"));
   if (!startDate || !endDate || endDate < startDate) throw new Error("Time-off dates are invalid.");
   const hoursValue = String(formData.get("hours") ?? "");
+  const requestType = required(formData.get("type"), "Type") as "PTO" | "SICK" | "VACATION" | "UNPAID" | "BEREAVEMENT" | "OTHER";
+  const hours = hoursValue ? Number(hoursValue) : 0;
+  if (leaveBankTypeForRequest(requestType) && (!Number.isFinite(hours) || hours <= 0)) throw new Error("Paid leave requests require hours.");
   const request = await prisma.timeOffRequest.create({
     data: {
       employeeId,
-      type: required(formData.get("type"), "Type") as "PTO" | "SICK" | "UNPAID" | "BEREAVEMENT" | "OTHER",
+      type: requestType,
       startDate,
       endDate,
-      hours: hoursValue ? Number(hoursValue) : null,
+      hours: hoursValue ? hours : null,
       reason: String(formData.get("reason") ?? "").trim() || null,
     },
   });
@@ -146,14 +150,11 @@ export async function createTimeOffForEmployee(formData: FormData) {
 
 export async function setTimeOffStatus(requestId: string, status: TimeOffStatus, formData?: FormData) {
   const ctx = await requirePermission("timeoff.manage");
-  await prisma.timeOffRequest.update({
-    where: { id: requestId },
-    data: {
-      status,
-      managerNote: formData ? String(formData.get("managerNote") ?? "").trim() || null : undefined,
-      decidedBy: ["APPROVED", "DENIED"].includes(status) ? ctx.user.id : null,
-      decidedAt: ["APPROVED", "DENIED"].includes(status) ? new Date() : null,
-    },
+  await applyTimeOffDecision({
+    requestId,
+    status,
+    actorUserId: ctx.user.id,
+    managerNote: formData ? String(formData.get("managerNote") ?? "").trim() || null : undefined,
   });
   await writeAuditLog({ actorId: ctx.user.id, actorEmail: ctx.user.email, action: `workforce.timeoff.${status.toLowerCase()}`, targetType: "time_off_request", targetId: requestId });
   refreshWorkforceSummary();
