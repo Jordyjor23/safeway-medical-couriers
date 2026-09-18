@@ -226,3 +226,87 @@ export async function updateNewHireReport(employeeId: string, formData: FormData
   });
   revalidatePath(`/dashboard/employees/${employeeId}`);
 }
+
+
+export async function setEmployeePortalAccess(employeeId: string, enabled: boolean) {
+  const ctx = await requirePermission("employees.disable");
+  const employee = await prisma.employee.findUnique({ where: { id: employeeId } });
+  if (!employee) throw new Error("Employee not found.");
+  if (enabled && employee.status === "TERMINATED") {
+    throw new Error("A terminated employee must be rehired through an authorized workflow before access is restored.");
+  }
+
+  if (employee.userId) {
+    await prisma.user.update({
+      where: { id: employee.userId },
+      data: {
+        disabled: !enabled,
+        accountStatus: enabled ? "ACTIVE" : "INACTIVE",
+        terminatedAt: enabled ? null : new Date(),
+        terminatedBy: enabled ? null : ctx.user.id,
+      },
+    });
+  }
+  await prisma.employee.update({
+    where: { id: employeeId },
+    data: {
+      status:
+        enabled && employee.status === "INACTIVE"
+          ? "ACTIVE"
+          : enabled
+            ? employee.status
+            : "INACTIVE",
+    },
+  });
+  await writeAuditLog({
+    actorId: ctx.user.id,
+    actorEmail: ctx.user.email,
+    action: enabled ? "employee.access.enabled" : "employee.access.disabled",
+    targetType: "employee",
+    targetId: employeeId,
+  });
+  revalidatePath("/dashboard/employees");
+  revalidatePath(`/dashboard/employees/${employeeId}`);
+  revalidatePath("/dashboard/users");
+}
+
+export async function deleteEmployee(employeeId: string) {
+  const ctx = await requirePermission("employees.disable");
+  const employee = await prisma.employee.findUnique({
+    where: { id: employeeId },
+    include: {
+      _count: {
+        select: {
+          deliveries: true,
+          documents: true,
+          complianceRecords: true,
+          shifts: true,
+          timeEntries: true,
+          timeOffRequests: true,
+          callOffs: true,
+          payrollEntries: true,
+          tasks: true,
+        },
+      },
+    },
+  });
+  if (!employee) return;
+  const linkedHistory =
+    Boolean(employee.applicationId) ||
+    Boolean(employee.userId) ||
+    Object.values(employee._count).some((count) => count > 0);
+  if (linkedHistory) {
+    throw new Error(
+      "This employee has linked account or operational history and cannot be hard-deleted. Disable access or set the employee status to inactive/terminated instead.",
+    );
+  }
+  await prisma.employee.delete({ where: { id: employeeId } });
+  await writeAuditLog({
+    actorId: ctx.user.id,
+    actorEmail: ctx.user.email,
+    action: "employee.deleted",
+    targetType: "employee",
+    targetId: employeeId,
+  });
+  revalidatePath("/dashboard/employees");
+}
