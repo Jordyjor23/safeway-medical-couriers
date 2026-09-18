@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { addEmployeeTraining, deleteEmployee, setEmployeePortalAccess, updateEmployee, updateNewHireReport, updateOnboardingStep } from "@/app/(portal)/dashboard/employees/actions";
+import { addEmployeeTraining, adjustLeaveBalance, deleteEmployee, setEmployeePortalAccess, updateEmployee, updateNewHireReport, updateOnboardingStep } from "@/app/(portal)/dashboard/employees/actions";
 import { updateEmployeeCompensation } from "@/app/(portal)/dashboard/payroll/actions";
 import { documentUploadCapabilities } from "@/app/(portal)/dashboard/documents/actions";
 import { ConfirmSubmitButton } from "@/components/portal/ConfirmSubmitButton";
@@ -11,7 +11,9 @@ import { employeeDocumentBuckets, missingRequirementLabels } from "@/lib/documen
 import { canAssociateEmployee } from "@/lib/documents/access";
 import { DOCUMENT_LIST_INCLUDE, documentLibraryWhere } from "@/lib/documents/query";
 import { prisma } from "@/lib/db";
+import { getLeaveSummary } from "@/lib/leave";
 import { hasPermission, requirePermission } from "@/lib/rbac";
+import { formatBusinessDate } from "@/lib/workforce-time";
 
 export const metadata: Metadata = { title: "Employee" };
 
@@ -53,6 +55,7 @@ export default async function EmployeeProfilePage({
     },
   });
   if (!employee) notFound();
+  const leaveSummary = await getLeaveSummary(employee.id);
   const canEdit = hasPermission(ctx, "employees.edit");
   const canDisable = hasPermission(ctx, "employees.disable");
   const canViewPayroll = hasPermission(ctx, "payroll.view");
@@ -85,6 +88,7 @@ export default async function EmployeeProfilePage({
   const addTraining = addEmployeeTraining.bind(null, employee.id);
   const updateHire = updateNewHireReport.bind(null, employee.id);
   const updateCompensation = updateEmployeeCompensation.bind(null, employee.id);
+  const adjustLeave = adjustLeaveBalance.bind(null, employee.id);
 
   return (
     <div className="space-y-6">
@@ -212,7 +216,7 @@ export default async function EmployeeProfilePage({
 
       {canViewPayroll ? (
         <section className="rounded-2xl border border-line bg-paper p-5">
-          <h2 className="font-semibold text-navy">Compensation & PTO</h2>
+          <h2 className="font-semibold text-navy">Compensation</h2>
           {canManagePayroll ? (
             <form action={updateCompensation} className="mt-4 grid gap-3 sm:grid-cols-2">
               <label className="text-sm font-semibold text-navy">
@@ -229,10 +233,6 @@ export default async function EmployeeProfilePage({
                 Base pay rate
                 <input name="basePayRate" type="number" min="0" step="0.01" defaultValue={employee.basePayRate?.toString() ?? ""} className={fieldClass} />
               </label>
-              <label className="text-sm font-semibold text-navy">
-                PTO balance (hours)
-                <input name="ptoBalanceHours" type="number" min="0" step="0.25" defaultValue={employee.ptoBalanceHours.toString()} className={fieldClass} />
-              </label>
               <label className="flex items-center gap-2 self-end pb-2 text-sm font-semibold text-navy">
                 <input name="overtimeEligible" type="checkbox" defaultChecked={employee.overtimeEligible} />
                 Overtime eligible
@@ -244,9 +244,39 @@ export default async function EmployeeProfilePage({
           ) : (
             <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
               <div><dt className="text-muted">Compensation</dt><dd>{employee.compensationType ?? "Not set"}</dd></div>
-              <div><dt className="text-muted">PTO balance</dt><dd>{employee.ptoBalanceHours.toString()} hours</dd></div>
             </dl>
           )}
+        </section>
+      ) : null}
+
+      {leaveSummary.length ? (
+        <section className="rounded-2xl border border-line bg-paper p-5">
+          <h2 className="font-semibold text-navy">Leave balances</h2>
+          <p className="mt-2 text-sm text-muted">PTO, sick, and vacation are tracked separately. Adjustments are written to the leave ledger.</p>
+          <div className="mt-4 grid gap-4 lg:grid-cols-3">
+            {leaveSummary.map((bank) => (
+              <div key={bank.type} className="rounded-xl border border-line p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted">{bank.type}</p>
+                <p className="mt-1 text-2xl font-semibold text-navy">{bank.availableHours.toFixed(2)} hrs</p>
+                <p className="mt-1 text-xs text-muted">{bank.pendingHours.toFixed(2)} pending · {bank.usedHours.toFixed(2)} used</p>
+                {canEdit ? (
+                  <form action={adjustLeave} className="mt-3 grid gap-2">
+                    <input type="hidden" name="type" value={bank.type} />
+                    <label className="text-xs font-semibold text-navy">Set available hours
+                      <input name="balanceHours" type="number" min="0" step="0.25" defaultValue={bank.availableHours} className={fieldClass} />
+                    </label>
+                    <input name="note" placeholder="Adjustment note" className="rounded-lg border border-line px-3 py-2 text-sm" />
+                    <button className="w-fit rounded-full bg-navy px-3 py-2 text-xs font-semibold text-white">Save balance</button>
+                  </form>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : employee.classification === "INDEPENDENT_CONTRACTOR" ? (
+        <section className="rounded-2xl border border-line bg-paper p-5">
+          <h2 className="font-semibold text-navy">Leave balances</h2>
+          <p className="mt-2 text-sm text-muted">Paid leave banks are not assigned to this independent contractor record.</p>
         </section>
       ) : null}
 
@@ -348,7 +378,7 @@ export default async function EmployeeProfilePage({
           <ul className="mt-2 text-sm">
             {employee.trainings.map((training) => (
               <li key={training.id}>
-                {training.title} · expires {training.expiresAt?.toLocaleDateString() ?? "n/a"}
+                {training.title} · expires {training.expiresAt ? formatBusinessDate(training.expiresAt) : "n/a"}
               </li>
             ))}
           </ul>
