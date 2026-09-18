@@ -1,21 +1,225 @@
 import Link from "next/link";
+import { createIncident } from "@/app/(portal)/deliveries/actions";
+import { EntityDocumentsSection } from "@/components/portal/EntityDocumentsSection";
+import { employeeDocumentBuckets, missingRequirementLabels } from "@/lib/documents/buckets";
+import { DOCUMENT_LIST_INCLUDE, documentLibraryWhere } from "@/lib/documents/query";
 import { prisma } from "@/lib/db";
-import { requirePortal } from "@/lib/rbac";
+import { assertSameEmployee, hasPermission, requirePortal } from "@/lib/rbac";
 import { formatBusinessDateTime } from "@/lib/workforce-time";
 
 export default async function EmployeeDashboardPage() {
   const ctx = await requirePortal("employee");
   const employeeId = ctx.user.employeeId;
-  if (!employeeId) return <div><h1 className="text-3xl font-semibold text-navy">Employee portal</h1><p className="mt-3 text-muted">Your login is active, but it is not linked to an employee profile yet. Contact an administrator.</p></div>;
+
+  if (!employeeId) {
+    return (
+      <div>
+        <h1 className="text-3xl font-semibold text-navy">Employee portal</h1>
+        <p className="mt-3 text-muted">
+          Your login is active, but it is not linked to an employee profile yet. Contact an administrator.
+        </p>
+      </div>
+    );
+  }
+
   const now = new Date();
-  const [employee, nextShift, openEntry, pendingTimeOff] = await Promise.all([
-    prisma.employee.findUnique({ where: { id: employeeId } }),
-    prisma.employeeShift.findFirst({ where: { employeeId, status: "PUBLISHED", startsAt: { gte: now } }, orderBy: { startsAt: "asc" } }),
-    prisma.timeEntry.findFirst({ where: { employeeId, clockOut: null, status: "OPEN" }, orderBy: { clockIn: "desc" } }),
+  const [employee, nextShift, openEntry, pendingTimeOff, incidents] = await Promise.all([
+    prisma.employee.findUnique({
+      where: { id: employeeId },
+      include: {
+        trainings: true,
+        tasks: { orderBy: { createdAt: "desc" } },
+        manager: true,
+      },
+    }),
+    prisma.employeeShift.findFirst({
+      where: { employeeId, status: "PUBLISHED", startsAt: { gte: now } },
+      orderBy: { startsAt: "asc" },
+    }),
+    prisma.timeEntry.findFirst({
+      where: { employeeId, clockOut: null, status: "OPEN" },
+      orderBy: { clockIn: "desc" },
+    }),
     prisma.timeOffRequest.count({ where: { employeeId, status: "PENDING" } }),
+    prisma.incidentReport.findMany({
+      where: { reporterUserId: ctx.user.id },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+    }),
   ]);
+
   if (!employee) return null;
-  return <div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-medical">Employee self-service</p><h1 className="mt-2 text-3xl font-semibold text-navy">Hi, {employee.preferredName || employee.legalFirstName}</h1><p className="mt-2 text-muted">{employee.jobTitle} · {employee.employeeNumber}</p>
-    <div className="mt-7 grid gap-4 md:grid-cols-3"><Link href="/employee/schedule" className="rounded-2xl border border-line bg-paper p-5"><p className="text-sm font-semibold text-muted">Next shift</p><p className="mt-2 font-semibold text-navy">{nextShift ? formatBusinessDateTime(nextShift.startsAt) : "No published shift"}</p></Link><Link href="/employee/timecards" className="rounded-2xl border border-line bg-paper p-5"><p className="text-sm font-semibold text-muted">Timecard</p><p className="mt-2 font-semibold text-navy">{openEntry ? "Clocked in" : "Not clocked in"}</p></Link><Link href="/employee/time-off" className="rounded-2xl border border-line bg-paper p-5"><p className="text-sm font-semibold text-muted">Pending PTO / leave</p><p className="mt-2 text-2xl font-semibold text-navy">{pendingTimeOff}</p></Link></div>
-  </div>;
+  assertSameEmployee(ctx, employee.id);
+
+  const canViewDocuments = hasPermission(ctx, "documents.view");
+  const [documents, rules, records] = await Promise.all([
+    canViewDocuments
+      ? prisma.managedDocument.findMany({
+          where: documentLibraryWhere(ctx, { employeeId: employee.id, archived: "all" }),
+          include: DOCUMENT_LIST_INCLUDE,
+          orderBy: { createdAt: "desc" },
+        })
+      : Promise.resolve([]),
+    canViewDocuments
+      ? prisma.documentRequirementRule.findMany({ include: { requirement: true } })
+      : Promise.resolve([]),
+    canViewDocuments
+      ? prisma.complianceRecord.findMany({
+          where: { employeeId: employee.id },
+          include: { requirement: true },
+        })
+      : Promise.resolve([]),
+  ]);
+
+  const buckets = employeeDocumentBuckets(documents);
+  const missing = missingRequirementLabels({ rules, records, documents });
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-medical">Employee self-service</p>
+        <h1 className="mt-2 text-3xl font-semibold text-navy">
+          Hi, {employee.preferredName || employee.legalFirstName}
+        </h1>
+        <p className="mt-2 text-muted">
+          {employee.jobTitle} · {employee.employeeNumber}
+        </p>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <Link href="/employee/schedule" className="rounded-2xl border border-line bg-paper p-5">
+          <p className="text-sm font-semibold text-muted">Next shift</p>
+          <p className="mt-2 font-semibold text-navy">
+            {nextShift ? formatBusinessDateTime(nextShift.startsAt) : "No published shift"}
+          </p>
+        </Link>
+        <Link href="/employee/timecards" className="rounded-2xl border border-line bg-paper p-5">
+          <p className="text-sm font-semibold text-muted">Timecard</p>
+          <p className="mt-2 font-semibold text-navy">{openEntry ? "Clocked in" : "Not clocked in"}</p>
+        </Link>
+        <Link href="/employee/time-off" className="rounded-2xl border border-line bg-paper p-5">
+          <p className="text-sm font-semibold text-muted">Pending PTO / leave</p>
+          <p className="mt-2 text-2xl font-semibold text-navy">{pendingTimeOff}</p>
+        </Link>
+      </div>
+
+      <section className="rounded-2xl border border-line bg-paper p-5">
+        <h2 className="font-semibold text-navy">My profile</h2>
+        <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+          <div>
+            <dt className="text-muted">Name</dt>
+            <dd>{employee.legalFirstName} {employee.legalLastName}</dd>
+          </div>
+          <div>
+            <dt className="text-muted">Employee ID</dt>
+            <dd>{employee.employeeNumber}</dd>
+          </div>
+          <div>
+            <dt className="text-muted">Title</dt>
+            <dd>{employee.jobTitle}</dd>
+          </div>
+          <div>
+            <dt className="text-muted">Department</dt>
+            <dd>{employee.department ?? "—"}</dd>
+          </div>
+          <div>
+            <dt className="text-muted">Manager</dt>
+            <dd>
+              {employee.manager
+                ? `${employee.manager.legalFirstName} ${employee.manager.legalLastName}`
+                : "—"}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-muted">Email</dt>
+            <dd>{employee.email}</dd>
+          </div>
+        </dl>
+      </section>
+
+      {canViewDocuments ? (
+        <EntityDocumentsSection
+          title="Your documents"
+          documents={documents}
+          canDownload={hasPermission(ctx, "documents.download")}
+          canOpenDetails={false}
+          missing={missing}
+          sections={[
+            { label: "Your documents", documents: buckets.uploaded, empty: "No current files." },
+            { label: "Expiring soon", documents: buckets.expiringSoon, empty: "None." },
+            { label: "Expired", documents: buckets.expired, empty: "None." },
+            { label: "Rejected", documents: buckets.rejected, empty: "None." },
+            { label: "Needs action", documents: buckets.needsAction, empty: "Nothing needs action." },
+          ]}
+          emptyBody="No assigned handbook, policy, or other files yet."
+        />
+      ) : null}
+
+      <section className="rounded-2xl border border-line bg-paper p-5">
+        <h2 className="font-semibold text-navy">My training</h2>
+        {employee.trainings.length ? (
+          <ul className="mt-2 text-sm">
+            {employee.trainings.map((training) => (
+              <li key={training.id}>
+                {training.title} · expires {training.expiresAt?.toLocaleDateString() ?? "n/a"}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-2 text-sm text-muted">No assigned training records.</p>
+        )}
+      </section>
+
+      <section className="rounded-2xl border border-line bg-paper p-5">
+        <h2 className="font-semibold text-navy">My tasks</h2>
+        {employee.tasks.length ? (
+          <ul className="mt-2 text-sm">
+            {employee.tasks.map((task) => (
+              <li key={task.id}>
+                {task.title} {task.dueAt ? `· due ${task.dueAt.toLocaleDateString()}` : ""}{" "}
+                {task.completedAt ? "· done" : ""}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-2 text-sm text-muted">No assigned tasks.</p>
+        )}
+      </section>
+
+      <section className="rounded-2xl border border-line bg-paper p-5">
+        <h2 className="font-semibold text-navy">My incidents</h2>
+        <form action={createIncident} className="mt-3 grid gap-2">
+          <select name="type" className="rounded-lg border border-line px-3 py-2 text-sm">
+            <option value="SAFETY">Safety concern</option>
+            <option value="EXPOSURE">Exposure</option>
+            <option value="VEHICLE">Vehicle issue</option>
+            <option value="PACKAGE">Package incident</option>
+            <option value="SECURITY">Security incident</option>
+          </select>
+          <input
+            name="title"
+            required
+            placeholder="Title"
+            className="rounded-lg border border-line px-3 py-2 text-sm"
+          />
+          <textarea
+            name="body"
+            required
+            placeholder="Details"
+            className="rounded-lg border border-line px-3 py-2 text-sm"
+          />
+          <button className="w-fit rounded-full bg-navy px-4 py-2 text-sm font-semibold text-white">
+            Submit report
+          </button>
+        </form>
+        <ul className="mt-4 text-sm">
+          {incidents.map((incident) => (
+            <li key={incident.id}>
+              {incident.title} · {incident.status} · {incident.createdAt.toLocaleDateString()}
+            </li>
+          ))}
+        </ul>
+      </section>
+    </div>
+  );
 }
