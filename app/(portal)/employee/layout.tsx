@@ -7,7 +7,10 @@ export default async function EmployeeLayout({ children }: { children: React.Rea
     <RoleShell
       title="Employee"
       userName={ctx.user.name}
-      links={[{ href: "/employee/dashboard", label: "My portal" }]}
+      links={[
+        { href: "/employee/dashboard", label: "My portal" },
+        { href: "/employee/workforce", label: "Schedule & time" },
+      ]}
     >
       {children}
     </RoleShell>
