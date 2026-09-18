@@ -31,10 +31,24 @@ export async function ensureSystemRoles(db: PrismaClient) {
     });
 
     const permissionKeys = ROLE_PERMISSIONS[key];
-    if (permissionKeys.length === 0) continue;
-    const permissions = await db.permission.findMany({
-      where: { key: { in: [...permissionKeys] } },
+    const permissions = permissionKeys.length
+      ? await db.permission.findMany({
+          where: { key: { in: [...permissionKeys] } },
+        })
+      : [];
+
+    // System roles are controlled by code. Reconcile stale grants as well as
+    // adding missing grants so a removed permission does not survive forever
+    // in the database after a deployment.
+    await db.rolePermission.deleteMany({
+      where: {
+        roleId: role.id,
+        ...(permissions.length
+          ? { permissionId: { notIn: permissions.map((permission) => permission.id) } }
+          : {}),
+      },
     });
+
     for (const permission of permissions) {
       await db.rolePermission.upsert({
         where: { roleId_permissionId: { roleId: role.id, permissionId: permission.id } },
