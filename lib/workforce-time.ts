@@ -72,6 +72,7 @@ export function formatBusinessDateTime(value: Date | null | undefined) {
     year: "numeric",
     hour: "numeric",
     minute: "2-digit",
+    timeZoneName: "short",
   }).format(value);
 }
 
