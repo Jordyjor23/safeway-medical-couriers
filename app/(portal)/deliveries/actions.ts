@@ -7,6 +7,7 @@ import { nextScopedId } from "@/lib/ids";
 import { resolveRouteCourier } from "@/lib/route-assignment";
 import { buildRouteChecklist, courierSignoffRole } from "@/lib/route-packet";
 import { requirePermission } from "@/lib/rbac";
+import { notifyEmployee } from "@/lib/notifications";
 import { businessLocalToUtc } from "@/lib/workforce-time";
 import type {
   DeliveryChecklistStatus,
@@ -154,6 +155,15 @@ export async function createDelivery(formData: FormData) {
     targetId: delivery.id,
     metadata: { routePacketItems: checklist.length },
   });
+  if (driverEmployeeId) {
+    await notifyEmployee({
+      employeeId: driverEmployeeId,
+      title: "New delivery assignment",
+      body: `You were assigned delivery ${delivery.deliveryNumber}. Open your driver dashboard for pickup, destination, timing, and handling instructions.`,
+      href: "/driver/dashboard",
+      dedupeKey: `delivery-assigned:${delivery.id}:${driverEmployeeId}`,
+    });
+  }
   refreshDelivery(delivery.id);
 }
 
@@ -299,6 +309,16 @@ export async function createDeliveryFromRouteTemplate(routeTemplateId: string, f
     }
   }
 
+  if (assignment.employeeId) {
+    await notifyEmployee({
+      employeeId: assignment.employeeId,
+      title: "New route assignment",
+      body: `You were assigned ${template.name} (${delivery.deliveryNumber}). Open your driver dashboard for the route packet and schedule.`,
+      href: "/driver/dashboard",
+      dedupeKey: `delivery-assigned:${delivery.id}:${assignment.employeeId}`,
+    });
+  }
+
   await writeAuditLog({
     actorId: ctx.user.id,
     actorEmail: ctx.user.email,
@@ -385,6 +405,13 @@ export async function assignDeliveryCourier(deliveryId: string, formData: FormDa
     targetType: "delivery",
     targetId: deliveryId,
     metadata: { employeeId, assignmentSource },
+  });
+  await notifyEmployee({
+    employeeId,
+    title: "Delivery assignment updated",
+    body: `You are assigned to delivery ${delivery.deliveryNumber}. Open your driver dashboard to review the current route details.`,
+    href: "/driver/dashboard",
+    dedupeKey: `delivery-assigned:${deliveryId}:${employeeId}:${delivery.updatedAt.toISOString()}`,
   });
   refreshDelivery(deliveryId);
 }
