@@ -4,15 +4,18 @@ export function StatCard({
   label,
   value,
   href,
+  context,
 }: {
   label: string;
   value: number;
   href?: string;
+  context?: string;
 }) {
   const content = (
     <div className="rounded-2xl border border-line bg-paper p-5 shadow-sm transition group-hover:border-medical">
       <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted">{label}</p>
       <p className="mt-2 text-3xl font-semibold text-navy">{value}</p>
+      {context ? <p className="mt-2 text-xs font-semibold text-medical">{context}</p> : null}
     </div>
   );
 
