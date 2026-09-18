@@ -12,6 +12,10 @@ export const PERMISSIONS = [
   "employees.edit",
   "employees.disable",
   "employees.sensitive.view",
+  "workforce.view",
+  "workforce.edit",
+  "payroll.view",
+  "payroll.manage",
   "driver.view",
   "driver.assign",
   "driver.manage",
@@ -105,6 +109,8 @@ const DAILY_ADMIN: PermissionKey[] = [
   "employees.view",
   "employees.create",
   "employees.edit",
+  "workforce.view",
+  "workforce.edit",
   "driver.view",
   "driver.assign",
   "customers.view",
@@ -135,6 +141,8 @@ export const ROLE_PERMISSIONS: Record<RoleKey, readonly PermissionKey[]> = {
   ADMIN: DAILY_ADMIN,
   OPERATIONS_MANAGER: [
     "employees.view",
+    "workforce.view",
+    "workforce.edit",
     "driver.view",
     "driver.assign",
     "driver.manage",
@@ -163,6 +171,9 @@ export const ROLE_PERMISSIONS: Record<RoleKey, readonly PermissionKey[]> = {
     "employees.view",
     "employees.create",
     "employees.edit",
+    "workforce.view",
+    "workforce.edit",
+    "payroll.view",
     "training.view",
     "documents.view",
     "documents.upload",
@@ -173,6 +184,7 @@ export const ROLE_PERMISSIONS: Record<RoleKey, readonly PermissionKey[]> = {
   ],
   OPERATIONS_ADMIN: [
     "employees.view",
+    "workforce.view",
     "driver.view",
     "customers.view",
     "contracts.view",
@@ -186,6 +198,7 @@ export const ROLE_PERMISSIONS: Record<RoleKey, readonly PermissionKey[]> = {
   ],
   DISPATCHER: [
     "driver.view",
+    "workforce.view",
     "driver.assign",
     "customers.view",
     "dispatch.view",
@@ -198,7 +211,7 @@ export const ROLE_PERMISSIONS: Record<RoleKey, readonly PermissionKey[]> = {
     "documents.view",
     "documents.download",
   ],
-  DRIVER: ["delivery.view", "delivery.update", "incident.view", "training.view", "documents.view", "documents.download"],
+  DRIVER: ["workforce.view", "delivery.view", "delivery.update", "incident.view", "training.view", "documents.view", "documents.download"],
   COMPLIANCE_ADMIN: [
     "compliance.view",
     "compliance.edit",
@@ -229,7 +242,7 @@ export const ROLE_PERMISSIONS: Record<RoleKey, readonly PermissionKey[]> = {
     "documents.download",
     "documents.editMetadata",
   ],
-  EMPLOYEE: ["training.view", "documents.view", "documents.download", "incident.view"],
+  EMPLOYEE: ["workforce.view", "training.view", "documents.view", "documents.download", "incident.view"],
   CUSTOMER: ["delivery.view", "contracts.view", "documents.view", "documents.download"],
 };
 
@@ -242,6 +255,7 @@ export const OWNER_ONLY_PERMISSIONS: readonly PermissionKey[] = [
   "billing.manage",
   "applicants.screening.view",
   "employees.sensitive.view",
+  "payroll.manage",
 ];
 
 export function roleHasPermission(role: string, permission: PermissionKey) {
