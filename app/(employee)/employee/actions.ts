@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { writeAuditLog } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { requirePortal } from "@/lib/rbac";
-import { parseBusinessDate } from "@/lib/workforce-time";
+import { businessDateKey, parseBusinessDate } from "@/lib/workforce-time";
 
 async function ownEmployee() {
   const ctx = await requirePortal("employee");
@@ -77,7 +77,7 @@ export async function reportCallOff(formData: FormData) {
   if (shiftId) {
     const shift = await prisma.employeeShift.findFirst({ where: { id: shiftId, employeeId } });
     if (!shift) throw new Error("Shift not found.");
-    callOffDate = new Date(Date.UTC(shift.startsAt.getUTCFullYear(), shift.startsAt.getUTCMonth(), shift.startsAt.getUTCDate(), 12));
+    callOffDate = parseBusinessDate(businessDateKey(shift.startsAt));
   }
   if (!callOffDate) throw new Error("Call-off date is required.");
   const row = await prisma.callOffRequest.create({ data: { employeeId, shiftId, callOffDate, reason: String(formData.get("reason") ?? "").trim() || "Call-off", notes: String(formData.get("notes") ?? "").trim() || null } });
