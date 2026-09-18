@@ -34,6 +34,7 @@ export const DOCUMENT_CATEGORY_LABELS: Record<DocumentCategory, string> = {
 };
 
 export const DOCUMENT_TYPE_LABELS: Record<DocumentTypeKey, string> = {
+  RESUME: "Resume",
   DRIVERS_LICENSE: "Driver's license",
   STATE_ID: "State ID",
   VEHICLE_REGISTRATION: "Vehicle registration",
@@ -194,7 +195,7 @@ export const TYPES_BY_CATEGORY: Record<DocumentCategory, DocumentTypeKey[]> = {
     "GOVERNMENT_REGISTRATION",
     "OTHER",
   ],
-  APPLICANT_DOCUMENTS: ["BACKGROUND_CHECK", "OTHER"],
+  APPLICANT_DOCUMENTS: ["RESUME", "BACKGROUND_CHECK", "OTHER"],
   POLICIES: ["SIGNED_POLICY", "HANDBOOK_ACKNOWLEDGMENT", "OTHER"],
   SOPS: ["OTHER"],
 };
