@@ -636,8 +636,143 @@ model Employee {
   complianceRecords ComplianceRecord[]
   deliveries    Delivery[]
   tasks         EmployeeTask[]
+  shifts        WorkShift[]
+  timeEntries   TimeEntry[]
+  leaveRequests LeaveRequest[]
+  payrollRecords PayrollRecord[]
 
   @@index([managerId])
+}
+
+
+// ---------------------------------------------------------------------------
+// Workforce scheduling / time / leave / payroll tracking
+// ---------------------------------------------------------------------------
+
+enum WorkShiftStatus {
+  DRAFT
+  PUBLISHED
+  COMPLETED
+  CANCELLED
+  CALLED_OFF
+}
+
+enum TimeEntryStatus {
+  OPEN
+  SUBMITTED
+  APPROVED
+  REJECTED
+  LOCKED
+}
+
+enum LeaveType {
+  PTO
+  SICK
+  UNPAID
+  BEREAVEMENT
+  JURY_DUTY
+  OTHER
+}
+
+enum LeaveRequestStatus {
+  PENDING
+  APPROVED
+  DENIED
+  CANCELLED
+}
+
+enum PayrollRecordStatus {
+  DRAFT
+  REVIEW
+  APPROVED
+  PAID
+  VOID
+}
+
+model WorkShift {
+  id          String          @id @default(uuid())
+  employeeId  String
+  employee    Employee        @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  startsAt    DateTime
+  endsAt      DateTime
+  location    String?
+  routeName   String?
+  notes       String?
+  status      WorkShiftStatus @default(DRAFT)
+  createdBy   String?
+  updatedBy   String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([employeeId, startsAt])
+  @@index([startsAt, status])
+}
+
+model TimeEntry {
+  id              String          @id @default(uuid())
+  employeeId      String
+  employee        Employee        @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  workDate        DateTime
+  clockIn         DateTime?
+  clockOut        DateTime?
+  breakMinutes    Int             @default(0)
+  regularHours    Decimal         @default(0) @db.Decimal(6, 2)
+  overtimeHours   Decimal         @default(0) @db.Decimal(6, 2)
+  status          TimeEntryStatus @default(OPEN)
+  notes           String?
+  approvedBy      String?
+  approvedAt      DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([employeeId, workDate])
+  @@index([status, workDate])
+}
+
+model LeaveRequest {
+  id          String             @id @default(uuid())
+  employeeId  String
+  employee    Employee           @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  type        LeaveType
+  startsOn    DateTime
+  endsOn      DateTime
+  hours       Decimal?           @db.Decimal(6, 2)
+  reason      String?
+  status      LeaveRequestStatus @default(PENDING)
+  reviewedBy  String?
+  reviewedAt  DateTime?
+  reviewNote  String?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@index([employeeId, startsOn])
+  @@index([status, startsOn])
+}
+
+model PayrollRecord {
+  id              String              @id @default(uuid())
+  employeeId      String
+  employee        Employee            @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  periodStart     DateTime
+  periodEnd       DateTime
+  regularHours    Decimal             @default(0) @db.Decimal(7, 2)
+  overtimeHours   Decimal             @default(0) @db.Decimal(7, 2)
+  hourlyRate      Decimal?            @db.Decimal(10, 2)
+  grossPay        Decimal             @default(0) @db.Decimal(12, 2)
+  reimbursements  Decimal             @default(0) @db.Decimal(12, 2)
+  deductions      Decimal             @default(0) @db.Decimal(12, 2)
+  netPay          Decimal             @default(0) @db.Decimal(12, 2)
+  status          PayrollRecordStatus @default(DRAFT)
+  externalPayrollId String?
+  notes           String?
+  approvedBy      String?
+  approvedAt      DateTime?
+  paidAt          DateTime?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@unique([employeeId, periodStart, periodEnd])
+  @@index([periodStart, periodEnd, status])
 }
 
 model EmployeeDocument {
