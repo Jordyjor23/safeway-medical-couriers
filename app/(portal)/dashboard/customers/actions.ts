@@ -36,6 +36,7 @@ export async function createCustomer(formData: FormData) {
     targetType: "customer",
     targetId: customer.id,
   });
+  revalidatePath("/dashboard");
   revalidatePath("/dashboard/customers");
   redirect(`/dashboard/customers/${customer.id}`);
 }
@@ -68,6 +69,7 @@ export async function updateCustomer(customerId: string, formData: FormData) {
     targetType: "customer",
     targetId: customerId,
   });
+  revalidatePath("/dashboard");
   revalidatePath("/dashboard/customers");
   revalidatePath(`/dashboard/customers/${customerId}`);
 }
@@ -93,6 +95,7 @@ export async function addCustomerContact(customerId: string, formData: FormData)
     targetType: "customer",
     targetId: customerId,
   });
+  revalidatePath("/dashboard");
   revalidatePath(`/dashboard/customers/${customerId}`);
 }
 
@@ -121,6 +124,7 @@ export async function updateCustomerContact(customerId: string, contactId: strin
     targetId: customerId,
     metadata: { contactId },
   });
+  revalidatePath("/dashboard");
   revalidatePath(`/dashboard/customers/${customerId}`);
 }
 
@@ -137,6 +141,7 @@ export async function deleteCustomerContact(customerId: string, contactId: strin
     targetId: customerId,
     metadata: { contactId },
   });
+  revalidatePath("/dashboard");
   revalidatePath(`/dashboard/customers/${customerId}`);
 }
 
@@ -170,6 +175,7 @@ export async function deleteCustomer(customerId: string) {
     targetType: "customer",
     targetId: customerId,
   });
+  revalidatePath("/dashboard");
   revalidatePath("/dashboard/customers");
   redirect("/dashboard/customers");
 }
