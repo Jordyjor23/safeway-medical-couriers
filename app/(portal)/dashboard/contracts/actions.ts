@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { writeAuditLog } from "@/lib/audit";
 import { prisma } from "@/lib/db";
-import { createContractNumber } from "@/lib/ids";
+import { createContractNumber, createRouteTemplateCode } from "@/lib/ids";
 import { requirePermission } from "@/lib/rbac";
 import { parseBusinessDate } from "@/lib/workforce-time";
 import type { ContractStatus, ContractType } from "@prisma/client";
@@ -26,6 +26,45 @@ export async function createContract(formData: FormData) {
       notes: String(formData.get("notes") ?? "") || null,
     },
   });
+  const starterRouteTemplateId = String(formData.get("starterRouteTemplateId") ?? "").trim();
+  if (starterRouteTemplateId) {
+    const source = await prisma.routeTemplate.findFirst({
+      where: { id: starterRouteTemplateId, scope: "GENERIC", active: true },
+    });
+    if (source) {
+      await prisma.routeTemplate.create({
+        data: {
+          templateCode: createRouteTemplateCode(),
+          scope: "CONTRACT",
+          name: source.name,
+          contractId: contract.id,
+          customerId: contract.customerId,
+          sourceTemplateId: source.id,
+          pickupBusinessName: source.pickupBusinessName,
+          pickupAddress: source.pickupAddress,
+          deliveryBusinessName: source.deliveryBusinessName,
+          deliveryAddress: source.deliveryAddress,
+          pickupTimeLocal: source.pickupTimeLocal,
+          deliverByTimeLocal: source.deliverByTimeLocal,
+          operatingDays: source.operatingDays,
+          shipmentType: source.shipmentType,
+          temperatureRequired: source.temperatureRequired,
+          chainOfCustodyRequired: source.chainOfCustodyRequired,
+          proofOfDeliveryRequired: source.proofOfDeliveryRequired,
+          customerInstructions: source.customerInstructions,
+          handlingInstructions: source.handlingInstructions,
+          requiredTrainingKeys: source.requiredTrainingKeys,
+          requiredCertificationNames: source.requiredCertificationNames,
+          requiredDocumentTypes: source.requiredDocumentTypes,
+          vehicleRequirement: source.vehicleRequirement,
+          estimatedRouteHours: source.estimatedRouteHours,
+          routePay: source.routePay,
+          createdById: ctx.user.id,
+        },
+      });
+    }
+  }
+
   await writeAuditLog({
     actorId: ctx.user.id,
     actorEmail: ctx.user.email,
