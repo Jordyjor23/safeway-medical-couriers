@@ -25,8 +25,8 @@ export default async function TimeOffPage() {
       {canManage ? <div className="grid gap-5 xl:grid-cols-2">
         <form action={createTimeOffForEmployee} className="grid gap-3 rounded-2xl border border-line bg-paper p-5 sm:grid-cols-2"><h2 className="text-lg font-semibold text-navy sm:col-span-2">Record time-off request</h2>
           <select name="employeeId" required className="rounded-lg border border-line px-3 py-2 text-sm sm:col-span-2"><option value="">Employee</option>{employees.map(e=><option key={e.id} value={e.id}>{e.legalFirstName} {e.legalLastName}</option>)}</select>
-          <select name="type" className="rounded-lg border border-line px-3 py-2 text-sm"><option value="PTO">PTO</option><option value="SICK">Sick</option><option value="UNPAID">Unpaid</option><option value="BEREAVEMENT">Bereavement</option><option value="OTHER">Other</option></select>
-          <input name="hours" type="number" min="0" step="0.25" placeholder="Hours (optional)" className="rounded-lg border border-line px-3 py-2 text-sm" />
+          <select name="type" className="rounded-lg border border-line px-3 py-2 text-sm"><option value="PTO">PTO</option><option value="SICK">Sick</option><option value="VACATION">Vacation</option><option value="UNPAID">Unpaid</option><option value="BEREAVEMENT">Bereavement</option><option value="OTHER">Other</option></select>
+          <input name="hours" type="number" min="0" step="0.25" placeholder="Hours (required for paid leave)" className="rounded-lg border border-line px-3 py-2 text-sm" />
           <label className="text-sm">Start<input name="startDate" type="date" required className="mt-1 w-full rounded-lg border border-line px-3 py-2" /></label><label className="text-sm">End<input name="endDate" type="date" required className="mt-1 w-full rounded-lg border border-line px-3 py-2" /></label>
           <textarea name="reason" placeholder="Reason / note" rows={2} className="rounded-lg border border-line px-3 py-2 text-sm sm:col-span-2" /><button className="w-fit rounded-full bg-navy px-4 py-2 text-sm font-semibold text-white">Save request</button>
         </form>
