@@ -8,6 +8,7 @@ import {
 import { writeAuditLog } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { nextScopedId } from "@/lib/ids";
+import { setLeaveBankBalance } from "@/lib/leave";
 import { ONBOARDING_STEPS } from "@/lib/onboarding";
 import { provisionEmployeePortalUser } from "@/lib/portal-account";
 import { requirePermission } from "@/lib/rbac";
@@ -16,6 +17,7 @@ import type {
   EmploymentClassification,
   NewHireReportStatus,
   OnboardingStepStatus,
+  LeaveBankType,
 } from "@prisma/client";
 
 async function createOnboardingRecords(employeeId: string, hireDate?: Date | null) {
@@ -317,4 +319,25 @@ export async function deleteEmployee(employeeId: string) {
   });
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/employees");
+}
+
+
+export async function adjustLeaveBalance(employeeId: string, formData: FormData) {
+  const ctx = await requirePermission("employees.edit");
+  const type = String(formData.get("type") ?? "PTO") as LeaveBankType;
+  const balanceHours = Number(formData.get("balanceHours") ?? 0);
+  const note = String(formData.get("note") ?? "").trim() || null;
+  await setLeaveBankBalance({ employeeId, type, balanceHours, actorUserId: ctx.user.id, note });
+  await writeAuditLog({
+    actorId: ctx.user.id,
+    actorEmail: ctx.user.email,
+    action: "employee.leave_balance.adjusted",
+    targetType: "employee",
+    targetId: employeeId,
+    metadata: { type, balanceHours },
+  });
+  revalidatePath(`/dashboard/employees/${employeeId}`);
+  revalidatePath("/dashboard/workforce/time-off");
+  revalidatePath("/employee/dashboard");
+  revalidatePath("/employee/time-off");
 }
