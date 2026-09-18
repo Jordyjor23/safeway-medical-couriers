@@ -136,6 +136,18 @@ export async function setTimeEntryStatus(entryId: string, status: TimeEntryStatu
     },
   });
   await writeAuditLog({ actorId: ctx.user.id, actorEmail: ctx.user.email, action: `workforce.timecard.${status.toLowerCase()}`, targetType: "time_entry", targetId: entryId });
+  if (["APPROVED", "REJECTED"].includes(status)) {
+    const entry = await prisma.timeEntry.findUnique({ where: { id: entryId }, select: { employeeId: true } });
+    if (entry) {
+      await notifyEmployee({
+        employeeId: entry.employeeId,
+        title: `Timecard ${status.toLowerCase()}`,
+        body: `Your Safeway timecard was ${status.toLowerCase()}. Open your timecards to review the record.`,
+        href: "/employee/timecards",
+        dedupeKey: `timecard-decision:${entryId}:${status}`,
+      });
+    }
+  }
   refreshWorkforceSummary();
   revalidatePath("/dashboard/workforce/timecards");
   revalidatePath("/dashboard/payroll");
