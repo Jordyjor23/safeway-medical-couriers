@@ -125,7 +125,14 @@ export default async function HrOnboardingPage() {
         </div>
       </section>
 
-      <section className="mt-6 grid gap-4 md:grid-cols-2">
+      <section className="mt-6 grid gap-4 md:grid-cols-3">
+        <Link href="/dashboard/hr/qualifications" className="rounded-2xl border border-line bg-paper p-5">
+          <h2 className="font-semibold text-navy">Route qualification matrix</h2>
+          <p className="mt-2 text-sm text-muted">
+            See which contracts and routes each courier is credential-eligible for, and what they are missing.
+          </p>
+          <p className="mt-3 text-sm font-semibold text-medical">Open qualification matrix →</p>
+        </Link>
         {canViewApplicants ? (
           <Link href="/dashboard/applicants" className="rounded-2xl border border-line bg-paper p-5">
             <h2 className="font-semibold text-navy">Recruiting & applicants</h2>

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { businessDateKey, parseBusinessDate } from "@/lib/workforce-time";
+import { evaluateEmployeeRouteQualification } from "@/lib/route-eligibility";
 
 const ACTIVE_DELIVERY_STATUSES = [
   "DRAFT",
@@ -12,29 +13,6 @@ const ACTIVE_DELIVERY_STATUSES = [
   "ARRIVED_DELIVERY",
   "EXCEPTION",
 ] as const;
-
-function csv(value: string | null | undefined) {
-  return (value ?? "")
-    .split(",")
-    .map((part) => part.trim())
-    .filter(Boolean);
-}
-
-function normalizeRequirement(value: string) {
-  return value
-    .toUpperCase()
-    .replace(/[^A-Z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "");
-}
-
-function requirementMatches(required: string, values: string[]) {
-  const wanted = normalizeRequirement(required);
-  const base = wanted.replace(/_TRAINING$/, "");
-  return values.some((value) => {
-    const normalized = normalizeRequirement(value);
-    return normalized === wanted || normalized === base || normalized.includes(base) || base.includes(normalized);
-  });
-}
 
 function sameBusinessDateBounds(value: Date) {
   const dateKey = businessDateKey(value);
@@ -63,9 +41,6 @@ export async function resolveRouteCourier({
   const template = await prisma.routeTemplate.findUnique({ where: { id: routeTemplateId } });
   if (!template) throw new Error("Route template not found.");
 
-  const requiredTrainingKeys = csv(template.requiredTrainingKeys).map((value) => value.toUpperCase());
-  const requiredCertificationNames = csv(template.requiredCertificationNames).map((value) => value.toUpperCase());
-  const vehicleRequirement = template.vehicleRequirement?.trim();
   const { start: dayStart, end: dayEnd } = sameBusinessDateBounds(pickupAt);
 
   const candidates = await prisma.employee.findMany({
@@ -78,6 +53,20 @@ export async function resolveRouteCourier({
       trainings: true,
       certifications: true,
       complianceRecords: { include: { requirement: true } },
+      documents: {
+        include: {
+          document: {
+            select: {
+              name: true,
+              documentType: true,
+              verificationStatus: true,
+              lifecycleStatus: true,
+              expirationDate: true,
+              archivedAt: true,
+            },
+          },
+        },
+      },
       vehicle: true,
       timeOffRequests: {
         where: {
@@ -115,44 +104,20 @@ export async function resolveRouteCourier({
   });
 
   function reasons(candidate: (typeof candidates)[number]) {
-    const failures: string[] = [];
+    const qualification = evaluateEmployeeRouteQualification(
+      candidate,
+      {
+        requiredTrainingKeys: template.requiredTrainingKeys,
+        requiredCertificationNames: template.requiredCertificationNames,
+        vehicleRequirement: template.vehicleRequirement,
+      },
+      pickupAt,
+    );
+    const failures = [...qualification.reasons];
     if (candidate.timeOffRequests.length) failures.push("approved time off");
     if (candidate.callOffs.length) failures.push("call-off recorded");
     if (candidate.shifts.length) failures.push("overlapping published shift");
     if (candidate.deliveries.length) failures.push("overlapping route");
-
-    for (const key of requiredTrainingKeys) {
-      const trainingMatch = candidate.trainings.find(
-        (training) =>
-          requirementMatches(key, [training.requirementKey, training.title]) &&
-          Boolean(training.completedAt) &&
-          (!training.expiresAt || training.expiresAt >= pickupAt),
-      );
-      const complianceMatch = candidate.complianceRecords.find(
-        (record) =>
-          requirementMatches(key, [record.requirement.key, record.requirement.name]) &&
-          ["CURRENT", "EXPIRING_SOON"].includes(record.status) &&
-          (!record.expiresAt || record.expiresAt >= pickupAt),
-      );
-      if (!trainingMatch && !complianceMatch) failures.push(`missing/expired training: ${key}`);
-    }
-
-    for (const name of requiredCertificationNames) {
-      const match = candidate.certifications.find(
-        (certification) =>
-          certification.name.toUpperCase() === name &&
-          (!certification.expiresAt || certification.expiresAt >= pickupAt),
-      );
-      if (!match) failures.push(`missing/expired certification: ${name}`);
-    }
-
-    if (
-      vehicleRequirement &&
-      vehicleRequirement.toLowerCase() !== "any" &&
-      !candidate.vehicle?.vehicleType?.toLowerCase().includes(vehicleRequirement.toLowerCase())
-    ) {
-      failures.push(`vehicle requirement: ${vehicleRequirement}`);
-    }
     return failures;
   }
 
