@@ -31,6 +31,8 @@ export default async function DriverDashboardPage() {
     where: { driver: { userId: ctx.user.id }, status: { notIn: ["CANCELLED"] } },
     include: {
       customer: true,
+      contract: { select: { contractNumber: true } },
+      routeTemplate: { select: { name: true, templateCode: true } },
       driver: { select: { legalFirstName: true, legalLastName: true, classification: true } },
       events: { orderBy: { createdAt: "desc" }, take: 5 },
       checklistItems: { orderBy: { sortOrder: "asc" } },
@@ -104,6 +106,12 @@ export default async function DriverDashboardPage() {
           return (
             <article key={delivery.id} className="rounded-2xl border border-line bg-paper p-4 sm:p-5">
               <p className="text-xs font-semibold uppercase tracking-wide text-medical">{delivery.deliveryNumber}</p>
+              {delivery.contract || delivery.routeTemplate ? (
+                <p className="mt-1 text-xs text-muted">
+                  {delivery.contract?.contractNumber ?? "Contract route"}
+                  {delivery.routeTemplate ? " · " + delivery.routeTemplate.name : ""}
+                </p>
+              ) : null}
               <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
                 <h2 className="text-lg font-semibold text-navy">{delivery.status.replaceAll("_", " ")}</h2>
                 <span className={`rounded-full px-3 py-1 text-xs font-semibold ${
@@ -114,8 +122,8 @@ export default async function DriverDashboardPage() {
               </div>
 
               <div className="mt-3 grid gap-1 text-sm">
-                <p><span className="font-semibold">Pickup:</span> {delivery.pickupAddress}</p>
-                <p><span className="font-semibold">Delivery:</span> {delivery.deliveryAddress}</p>
+                <p><span className="font-semibold">Pickup:</span> {delivery.pickupBusinessName ? delivery.pickupBusinessName + " · " : ""}{delivery.pickupAddress}</p>
+                <p><span className="font-semibold">Delivery:</span> {delivery.deliveryBusinessName ? delivery.deliveryBusinessName + " · " : ""}{delivery.deliveryAddress}</p>
                 <p className="text-muted">
                   Pickup {formatBusinessDateTime(delivery.pickupAt)} · Due {formatBusinessDateTime(delivery.deliverBy)} · Eastern Time
                 </p>
