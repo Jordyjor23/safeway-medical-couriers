@@ -104,9 +104,10 @@ const FIELD_LABELS: Record<string, string> = {
   city: "City",
   state: "State",
   zip: "ZIP code",
-  authorizedToWorkUs: "Work authorization",
-  hasValidDriversLicense: "Valid driver's license",
-  canPerformEssentialFunctions: "Essential-functions question",
+  authorizedToWorkUs: "Are you legally authorized to work in the United States?",
+  hasValidDriversLicense: "Do you currently possess a valid driver’s license?",
+  canPerformEssentialFunctions:
+    "Are you able to perform the essential functions of this position, with or without reasonable accommodation?",
   privacyReviewed: "Applicant privacy notice acknowledgement",
   acknowledgementAccepted: "Application acknowledgement",
 };
@@ -494,7 +495,22 @@ export function ApplicationForm({
         <h2 className="text-xl font-semibold text-mist">Education and qualifications</h2>
         <p className="mt-2 text-sm text-mist-soft">Graduation dates are not requested.</p>
         <div className="mt-4 grid gap-4">
-          <Field label="Highest relevant education" name="highestEducation" />
+          <label className="text-sm font-semibold text-mist">
+            Highest relevant education
+            <select name="highestEducation" className={fieldClass} defaultValue="">
+              <option value="">Select education level</option>
+              <option value="High school diploma">High school diploma</option>
+              <option value="GED / high school equivalency">GED / high school equivalency</option>
+              <option value="Some college">Some college</option>
+              <option value="Trade / technical certificate">Trade / technical certificate</option>
+              <option value="Associate degree">Associate degree</option>
+              <option value="Bachelor’s degree">Bachelor’s degree</option>
+              <option value="Master’s degree">Master’s degree</option>
+              <option value="Doctoral / professional degree">Doctoral / professional degree</option>
+              <option value="Other">Other</option>
+              <option value="Prefer not to answer">Prefer not to answer</option>
+            </select>
+          </label>
           <label className="text-sm font-semibold text-mist">
             Relevant education or training
             <textarea name="relevantTraining" rows={3} className={fieldClass} />
@@ -539,9 +555,49 @@ export function ApplicationForm({
           </p>
           <YesNo name="hasValidDriversLicense" label="Do you currently possess a valid driver’s license?" required />
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <Field label="State of issuance" name="licenseIssuingState" />
-            <Field label="License class (if relevant)" name="licenseClass" />
-            <Field label="Vehicle type" name="vehicleType" />
+            <label className="text-sm font-semibold text-mist">
+              State of issuance
+              <select name="licenseIssuingState" className={fieldClass} defaultValue="">
+                <option value="">Select state</option>
+                {[
+                  "Alabama","Alaska","Arizona","Arkansas","California","Colorado","Connecticut","Delaware",
+                  "District of Columbia","Florida","Georgia","Hawaii","Idaho","Illinois","Indiana","Iowa",
+                  "Kansas","Kentucky","Louisiana","Maine","Maryland","Massachusetts","Michigan","Minnesota",
+                  "Mississippi","Missouri","Montana","Nebraska","Nevada","New Hampshire","New Jersey",
+                  "New Mexico","New York","North Carolina","North Dakota","Ohio","Oklahoma","Oregon",
+                  "Pennsylvania","Rhode Island","South Carolina","South Dakota","Tennessee","Texas","Utah",
+                  "Vermont","Virginia","Washington","West Virginia","Wisconsin","Wyoming"
+                ].map((stateName) => (
+                  <option key={stateName} value={stateName}>{stateName}</option>
+                ))}
+              </select>
+            </label>
+            <label className="text-sm font-semibold text-mist">
+              License class (if relevant)
+              <select name="licenseClass" className={fieldClass} defaultValue="">
+                <option value="">Select license class</option>
+                <option value="Standard / Class D">Standard / Class D</option>
+                <option value="CDL Class A">CDL Class A</option>
+                <option value="CDL Class B">CDL Class B</option>
+                <option value="CDL Class C">CDL Class C</option>
+                <option value="Motorcycle">Motorcycle</option>
+                <option value="Other">Other</option>
+              </select>
+            </label>
+            <label className="text-sm font-semibold text-mist">
+              Vehicle type
+              <select name="vehicleType" className={fieldClass} defaultValue="">
+                <option value="">Select vehicle type</option>
+                <option value="Sedan">Sedan</option>
+                <option value="SUV">SUV</option>
+                <option value="Hatchback">Hatchback</option>
+                <option value="Minivan">Minivan</option>
+                <option value="Cargo van">Cargo van</option>
+                <option value="Pickup truck">Pickup truck</option>
+                <option value="Sprinter / large van">Sprinter / large van</option>
+                <option value="Other">Other</option>
+              </select>
+            </label>
           </div>
           <YesNo name="canMeetDrivingRequirements" label="Are you able to meet Safeway Couriers driving requirements?" />
           <YesNo name="hasPersonalVehicle" label="Do you have access to a personally supplied vehicle if this role requires one?" />
