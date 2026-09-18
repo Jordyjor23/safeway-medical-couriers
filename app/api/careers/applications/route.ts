@@ -11,7 +11,7 @@ import { createTrackingNumber } from "@/lib/ids";
 import { prisma } from "@/lib/db";
 import { publicStatusLabel } from "@/lib/careers-content";
 import { site } from "@/lib/site";
-import { storePrivateFile } from "@/lib/storage";
+import { DocumentStorageError, storePrivateFile } from "@/lib/storage";
 import { validateDocumentFile } from "@/lib/documents/validate";
 
 export const dynamic = "force-dynamic";
@@ -149,7 +149,22 @@ export async function POST(request: Request) {
     trackingNumber = createTrackingNumber();
   }
 
-  const storedResume = await storePrivateFile(resume);
+  let storedResume;
+  try {
+    storedResume = await storePrivateFile(resume);
+  } catch (error) {
+    if (error instanceof DocumentStorageError) {
+      return NextResponse.json(
+        {
+          error:
+            "Resume storage is temporarily unavailable. Your application draft is still saved in this browser. Please try again shortly.",
+          code: "DOCUMENT_STORAGE_UNAVAILABLE",
+        },
+        { status: 503 },
+      );
+    }
+    throw error;
+  }
 
   const application = await prisma.application.create({
     data: {
