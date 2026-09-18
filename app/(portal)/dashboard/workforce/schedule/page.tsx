@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { createShift, deleteDraftShift, setShiftStatus } from "@/app/(portal)/dashboard/workforce/actions";
 import { prisma } from "@/lib/db";
 import { formatBusinessDateTime } from "@/lib/workforce-time";
@@ -58,6 +59,7 @@ export default async function SchedulePage() {
                 <td className="px-4 py-3">{shift.assignment ?? shift.location ?? "—"}</td>
                 <td className="px-4 py-3">{shift.status}</td>
                 {canManage ? <td className="px-4 py-3"><div className="flex flex-wrap gap-2">
+                  <Link href={`/dashboard/workforce/schedule/${shift.id}`} className="rounded-full border border-line px-3 py-1.5 text-xs font-semibold">Edit</Link>
                   {shift.status === "DRAFT" ? <form action={setShiftStatus.bind(null, shift.id, "PUBLISHED")}><button className="rounded-full border border-line px-3 py-1.5 text-xs font-semibold">Publish</button></form> : null}
                   {shift.status === "PUBLISHED" ? <form action={setShiftStatus.bind(null, shift.id, "CANCELLED")}><button className="rounded-full border border-line px-3 py-1.5 text-xs font-semibold">Cancel</button></form> : null}
                   {shift.status === "PUBLISHED" ? <form action={setShiftStatus.bind(null, shift.id, "COMPLETED")}><button className="rounded-full border border-line px-3 py-1.5 text-xs font-semibold">Complete</button></form> : null}
