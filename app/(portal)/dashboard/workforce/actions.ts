@@ -166,3 +166,72 @@ export async function acknowledgeCallOff(callOffId: string) {
   await writeAuditLog({ actorId: ctx.user.id, actorEmail: ctx.user.email, action: "workforce.calloff.acknowledged", targetType: "call_off_request", targetId: callOffId });
   revalidatePath("/dashboard/workforce/time-off");
 }
+
+
+export async function updateShift(shiftId: string, formData: FormData) {
+  const ctx = await requirePermission("scheduling.manage");
+  const employeeId = required(formData.get("employeeId"), "Employee");
+  const startsAt = businessLocalToUtc(required(formData.get("startsAt"), "Start"));
+  const endsAt = businessLocalToUtc(required(formData.get("endsAt"), "End"));
+  if (!startsAt || !endsAt || endsAt <= startsAt) throw new Error("Shift end must be after the start.");
+  const current = await prisma.employeeShift.findUnique({ where: { id: shiftId } });
+  if (!current) throw new Error("Shift not found.");
+  await prisma.employeeShift.update({
+    where: { id: shiftId },
+    data: {
+      employeeId,
+      startsAt,
+      endsAt,
+      breakMinutes: nonNegativeInt(formData.get("breakMinutes")),
+      assignment: String(formData.get("assignment") ?? "").trim() || null,
+      location: String(formData.get("location") ?? "").trim() || null,
+      notes: String(formData.get("notes") ?? "").trim() || null,
+    },
+  });
+  await writeAuditLog({
+    actorId: ctx.user.id,
+    actorEmail: ctx.user.email,
+    action: "workforce.shift.updated",
+    targetType: "employee_shift",
+    targetId: shiftId,
+    metadata: { previousEmployeeId: current.employeeId },
+  });
+  revalidatePath("/dashboard/workforce/schedule");
+  revalidatePath(`/dashboard/workforce/schedule/${shiftId}`);
+  revalidatePath("/employee/schedule");
+}
+
+export async function updateTimeEntry(entryId: string, formData: FormData) {
+  const ctx = await requirePermission("timecards.manage");
+  const clockIn = businessLocalToUtc(required(formData.get("clockIn"), "Clock in"));
+  const clockOutRaw = String(formData.get("clockOut") ?? "");
+  const clockOut = clockOutRaw ? businessLocalToUtc(clockOutRaw) : null;
+  if (!clockIn || (clockOutRaw && !clockOut) || (clockOut && clockOut <= clockIn)) {
+    throw new Error("Timecard dates are invalid.");
+  }
+  const current = await prisma.timeEntry.findUnique({ where: { id: entryId } });
+  if (!current) throw new Error("Time entry not found.");
+  await prisma.timeEntry.update({
+    where: { id: entryId },
+    data: {
+      clockIn,
+      clockOut,
+      breakMinutes: nonNegativeInt(formData.get("breakMinutes")),
+      managerNote: String(formData.get("managerNote") ?? "").trim() || null,
+      status: clockOut ? "SUBMITTED" : "OPEN",
+      approvedBy: null,
+      approvedAt: null,
+    },
+  });
+  await writeAuditLog({
+    actorId: ctx.user.id,
+    actorEmail: ctx.user.email,
+    action: "workforce.timecard.updated",
+    targetType: "time_entry",
+    targetId: entryId,
+    metadata: { previousStatus: current.status },
+  });
+  revalidatePath("/dashboard/workforce/timecards");
+  revalidatePath(`/dashboard/workforce/timecards/${entryId}`);
+  revalidatePath("/employee/timecards");
+}
