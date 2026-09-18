@@ -20,7 +20,7 @@ export const DOCUMENT_ACCESS_INCLUDE = {
 export type DocumentAccessRecord = {
   id: string;
   isSensitive: boolean;
-  applicantLinks: { applicationId: string }[];
+  applicantLinks?: { applicationId: string }[];
   employeeLinks: { employeeId: string }[];
   customerLinks: { customerId: string }[];
   contractLinks: { contract: { customerId: string } }[];
@@ -95,7 +95,7 @@ function associatedCustomerIds(document: DocumentAccessRecord) {
 
 function isUnlinked(document: DocumentAccessRecord) {
   return (
-    document.applicantLinks.length === 0 &&
+    (document.applicantLinks ?? []).length === 0 &&
     document.employeeLinks.length === 0 &&
     document.customerLinks.length === 0 &&
     document.contractLinks.length === 0 &&
@@ -160,7 +160,7 @@ export function canAccessManagedDocument(
     return hasRole(ctx, UNLINKED_DOC_ROLES);
   }
 
-  if (document.applicantLinks.length && hasRole(ctx, APPLICANT_DOC_ROLES) && hasPermission(ctx, "applicants.view")) {
+  if ((document.applicantLinks ?? []).length && hasRole(ctx, APPLICANT_DOC_ROLES) && hasPermission(ctx, "applicants.view")) {
     return true;
   }
   if (document.employeeLinks.length && hasRole(ctx, EMPLOYEE_DOC_ROLES) && hasPermission(ctx, "employees.view")) {
