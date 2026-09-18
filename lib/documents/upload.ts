@@ -1,6 +1,11 @@
 import type { DocumentCategory } from "@prisma/client";
 import type { DocumentActor } from "@/lib/documents/access";
-import { DUPLICATE_FILE_WARNING, isDocumentType } from "@/lib/documents/catalog";
+import {
+  DUPLICATE_FILE_WARNING,
+  TYPES_BY_CATEGORY,
+  isDocumentType,
+} from "@/lib/documents/catalog";
+import { SENSITIVE_ONBOARDING_DOCUMENT_TYPES } from "@/lib/onboarding-documents";
 import { findVisibleDuplicates } from "@/lib/documents/operations";
 import { startDocumentExtraction } from "@/lib/documents/extraction/run";
 import { persistManagedDocument } from "@/lib/documents/persist";
@@ -49,22 +54,50 @@ export async function processDocumentUpload(ctx: DocumentActor, formData: FormDa
         };
       }
     }
-    const stored = await storePrivateFile(file);
     const documentTypeRaw = String(formData.get("documentType") ?? "").trim();
+    const category = String(formData.get("category") ?? "CORPORATE") as DocumentCategory;
+    const employeeId = optionalId(formData.get("employeeId"));
+    const customerId = optionalId(formData.get("customerId"));
+    const contractId = optionalId(formData.get("contractId"));
+    const deliveryId = optionalId(formData.get("deliveryId"));
+    const selfServiceEmployee = ctx.roles.includes("EMPLOYEE") || ctx.roles.includes("DRIVER");
+
+    if (selfServiceEmployee) {
+      const allowedCategories: DocumentCategory[] = [
+        "EMPLOYEE_DOCUMENTS",
+        "DRIVER_DOCUMENTS",
+        "TRAINING",
+        "VEHICLE",
+      ];
+      if (!allowedCategories.includes(category)) {
+        return { error: "That document category is not available for employee self-service." };
+      }
+      if (!ctx.user.employeeId || employeeId !== ctx.user.employeeId || customerId || contractId || deliveryId) {
+        return { error: "Employee uploads can only be attached to your own profile." };
+      }
+      const categoryTypes = TYPES_BY_CATEGORY[category] ?? [];
+      if (!documentTypeRaw || !(categoryTypes as readonly string[]).includes(documentTypeRaw)) {
+        return { error: "Choose a valid document type for this category." };
+      }
+    }
+
+    const stored = await storePrivateFile(file);
     const result = await persistManagedDocument({
       actor: ctx,
       stored,
       name: String(formData.get("name") ?? stored.originalFileName),
-      category: String(formData.get("category") ?? "CORPORATE") as DocumentCategory,
+      category,
       documentType: documentTypeRaw && isDocumentType(documentTypeRaw) ? documentTypeRaw : null,
       effectiveDate: optionalDate(formData.get("effectiveDate")),
       expirationDate: optionalDate(formData.get("expirationDate")),
       notes: String(formData.get("notes") ?? "") || null,
-      isSensitive: String(formData.get("isSensitive") ?? "") === "1",
-      employeeId: optionalId(formData.get("employeeId")),
-      customerId: optionalId(formData.get("customerId")),
-      contractId: optionalId(formData.get("contractId")),
-      deliveryId: optionalId(formData.get("deliveryId")),
+      isSensitive:
+        String(formData.get("isSensitive") ?? "") === "1" ||
+        SENSITIVE_ONBOARDING_DOCUMENT_TYPES.has(documentTypeRaw),
+      employeeId,
+      customerId,
+      contractId,
+      deliveryId,
       supersedesId: optionalId(formData.get("supersedesId")),
     });
     if ("error" in result && result.error) return { error: result.error };

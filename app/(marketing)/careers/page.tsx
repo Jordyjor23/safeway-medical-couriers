@@ -4,7 +4,13 @@ import { ArrowRight } from "lucide-react";
 import { Container } from "@/components/Container";
 import { SectionHeading } from "@/components/SectionHeading";
 import { WHY_WORK_ITEMS } from "@/lib/careers-content";
-import { compensationLabel, getCareerCategories, getPublishedJobs } from "@/lib/jobs";
+import {
+  compensationLabel,
+  EVERGREEN_INDEPENDENT_COURIER_PUBLIC_ID,
+  EVERGREEN_MEDICAL_COURIER_PUBLIC_ID,
+  getCareerCategories,
+  getPublishedJobs,
+} from "@/lib/jobs";
 import { getCurrentLegalDocument, getSetting } from "@/lib/settings";
 import { site, publishedContactEmail } from "@/lib/site";
 
@@ -35,6 +41,8 @@ export default async function CareersPage() {
   const contractorJobs = jobs.filter((job) => job.workerClassification === "INDEPENDENT_CONTRACTOR");
   const employmentCategories = categories.filter((item) => item.opportunityType === "EMPLOYMENT");
   const contractorCategories = categories.filter((item) => item.opportunityType === "INDEPENDENT_CONTRACTOR");
+  const evergreenMedical = jobs.find((job) => job.publicId === EVERGREEN_MEDICAL_COURIER_PUBLIC_ID);
+  const evergreenContractor = jobs.find((job) => job.publicId === EVERGREEN_INDEPENDENT_COURIER_PUBLIC_ID);
 
   return (
     <>
@@ -99,13 +107,28 @@ export default async function CareersPage() {
             description="These categories can be configured by Safeway Couriers administration. Open jobs are listed below when a position is published."
           />
           <div className="mt-10 grid gap-4 md:grid-cols-2">
-            {employmentCategories.map((category) => (
-              <article key={category.id} className="rounded-2xl border border-white/10 bg-graphite p-5">
-                <h3 className="font-semibold text-mist">{category.name}</h3>
-                <p className="mt-2 text-sm text-mist-soft">{category.summary}</p>
-                <p className="mt-3 text-sm font-medium text-medical-bright">{category.compensationDisplay}</p>
-              </article>
-            ))}
+            {employmentCategories.map((category) => {
+              const evergreen = category.slug === "medical-courier" ? evergreenMedical : null;
+              return (
+                <article key={category.id} className="rounded-2xl border border-white/10 bg-graphite p-5">
+                  <h3 className="font-semibold text-mist">{category.name}</h3>
+                  <p className="mt-2 text-sm text-mist-soft">{category.summary}</p>
+                  <p className="mt-3 text-sm font-medium text-medical-bright">{category.compensationDisplay}</p>
+                  {evergreen ? (
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <Link href={`/careers/jobs/${evergreen.publicId}`} className="mkt-btn mkt-btn-secondary">
+                        View opportunity
+                      </Link>
+                      <Link href={`/careers/apply/${evergreen.publicId}`} className="mkt-btn mkt-btn-primary">
+                        Apply now
+                      </Link>
+                    </div>
+                  ) : (
+                    <p className="mt-4 text-xs text-mist-soft">Specific openings are posted below when available.</p>
+                  )}
+                </article>
+              );
+            })}
           </div>
         </Container>
       </section>
@@ -124,6 +147,16 @@ export default async function CareersPage() {
                 <h3 className="font-semibold text-mist">{category.name}</h3>
                 <p className="mt-2 text-sm text-mist-soft">{category.summary}</p>
                 <p className="mt-3 text-sm font-medium text-medical-bright">{category.compensationDisplay}</p>
+                {category.slug === "independent-courier-partner" && evergreenContractor ? (
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <Link href={`/careers/jobs/${evergreenContractor.publicId}`} className="mkt-btn mkt-btn-secondary">
+                      View opportunity
+                    </Link>
+                    <Link href={`/careers/apply/${evergreenContractor.publicId}`} className="mkt-btn mkt-btn-primary">
+                      Apply now
+                    </Link>
+                  </div>
+                ) : null}
               </article>
             ))}
           </div>
@@ -136,7 +169,7 @@ export default async function CareersPage() {
             light
             eyebrow="Open positions"
             title="Current openings"
-            description="Job listings are managed in the business portal. This page does not hard-code openings."
+            description="Medical Courier and Independent Courier Partner applications remain open year-round. Other roles appear here only when Safeway publishes a specific opening."
           />
           <div className="mt-10 space-y-8">
             <div>

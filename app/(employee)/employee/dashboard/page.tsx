@@ -1,10 +1,13 @@
 import Link from "next/link";
 import { createIncident } from "@/app/(portal)/deliveries/actions";
 import { EntityDocumentsSection } from "@/components/portal/EntityDocumentsSection";
+import { DocumentUploader } from "@/components/portal/DocumentUploader";
 import { employeeDocumentBuckets, missingRequirementLabels } from "@/lib/documents/buckets";
 import { DOCUMENT_LIST_INCLUDE, documentLibraryWhere } from "@/lib/documents/query";
 import { prisma } from "@/lib/db";
 import { getLeaveSummary } from "@/lib/leave";
+import { employeeOnboardingDocumentRequirements } from "@/lib/onboarding-documents";
+import { isPrivateStorageConfigured } from "@/lib/storage";
 import { assertSameEmployee, hasPermission, requirePortal } from "@/lib/rbac";
 import { formatBusinessDate, formatBusinessDateTime } from "@/lib/workforce-time";
 
@@ -75,6 +78,17 @@ export default async function EmployeeDashboardPage() {
 
   const buckets = employeeDocumentBuckets(documents);
   const missing = missingRequirementLabels({ rules, records, documents });
+  const canUploadDocuments = hasPermission(ctx, "documents.upload") && isPrivateStorageConfigured();
+  const requestedDocuments = employeeOnboardingDocumentRequirements({
+    classification: employee.classification,
+    isDriver: employee.isDriver,
+  });
+  const activeDocumentTypes = new Set(
+    documents
+      .filter((document) => document.lifecycleStatus !== "ARCHIVED" && document.verificationStatus !== "REJECTED")
+      .map((document) => document.documentType)
+      .filter((type): type is string => Boolean(type)),
+  );
 
   return (
     <div className="space-y-6">
@@ -147,21 +161,66 @@ export default async function EmployeeDashboardPage() {
       </section>
 
       {canViewDocuments ? (
-        <EntityDocumentsSection
-          title="Your documents"
-          documents={documents}
-          canDownload={hasPermission(ctx, "documents.download")}
-          canOpenDetails={false}
-          missing={missing}
-          sections={[
-            { label: "Your documents", documents: buckets.uploaded, empty: "No current files." },
-            { label: "Expiring soon", documents: buckets.expiringSoon, empty: "None." },
-            { label: "Expired", documents: buckets.expired, empty: "None." },
-            { label: "Rejected", documents: buckets.rejected, empty: "None." },
-            { label: "Needs action", documents: buckets.needsAction, empty: "Nothing needs action." },
-          ]}
-          emptyBody="No assigned handbook, policy, or other files yet."
-        />
+        <>
+          <section className="rounded-2xl border border-line bg-paper p-5">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="font-semibold text-navy">Onboarding documents</h2>
+                <p className="mt-1 text-sm text-muted">
+                  Upload requested documents here. Submitted files remain pending until Safeway reviews them.
+                </p>
+              </div>
+              {canUploadDocuments ? (
+                <DocumentUploader
+                  associations={{ employee: false, customer: false, contract: false, delivery: false }}
+                  preset={{
+                    employeeId: employee.id,
+                    employeeLabel: `${employee.legalFirstName} ${employee.legalLastName}`,
+                    category: "EMPLOYEE_DOCUMENTS",
+                  }}
+                  triggerLabel="Upload document"
+                  allowedCategories={["EMPLOYEE_DOCUMENTS", "DRIVER_DOCUMENTS", "TRAINING", "VEHICLE"]}
+                  redirectOnSuccess={false}
+                />
+              ) : null}
+            </div>
+            <div className="mt-4 grid gap-2 sm:grid-cols-2">
+              {requestedDocuments.map((item) => {
+                const submitted = activeDocumentTypes.has(item.type);
+                return (
+                  <div key={item.type} className="flex items-center justify-between rounded-xl border border-line px-3 py-2 text-sm">
+                    <div>
+                      <p className="font-medium text-navy">{item.label}</p>
+                      {item.sensitive ? <p className="text-xs text-muted">Sensitive document</p> : null}
+                    </div>
+                    <span className={submitted ? "font-semibold text-emerald-700" : "font-semibold text-amber-700"}>
+                      {submitted ? "Submitted" : "Needed"}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+            <p className="mt-3 text-xs text-muted">
+              “Submitted” means a file is on record; it does not mean the document has been verified or approved.
+            </p>
+          </section>
+
+          <EntityDocumentsSection
+            title="Your documents"
+            documents={documents}
+            canDownload={hasPermission(ctx, "documents.download")}
+            canOpenDetails={false}
+            missing={missing}
+            sections={[
+              { label: "Your documents", documents: buckets.uploaded, empty: "No current files." },
+              { label: "Expiring soon", documents: buckets.expiringSoon, empty: "None." },
+              { label: "Expired", documents: buckets.expired, empty: "None." },
+              { label: "Rejected", documents: buckets.rejected, empty: "None." },
+              { label: "Needs action", documents: buckets.needsAction, empty: "Nothing needs action." },
+            ]}
+            emptyBody="No assigned handbook, policy, or other files yet."
+          />
+        </>
       ) : null}
 
       <section className="rounded-2xl border border-line bg-paper p-5">

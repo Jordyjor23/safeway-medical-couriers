@@ -1,4 +1,9 @@
 import { prisma } from "@/lib/db";
+export {
+  EVERGREEN_INDEPENDENT_COURIER_PUBLIC_ID,
+  EVERGREEN_MEDICAL_COURIER_PUBLIC_ID,
+} from "@/lib/evergreen-jobs";
+
 
 export async function getPublishedJobs() {
   return prisma.jobOpening.findMany({

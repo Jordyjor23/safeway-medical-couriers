@@ -8,6 +8,7 @@ export type DocumentActor = {
 };
 
 export const DOCUMENT_ACCESS_INCLUDE = {
+  applicantLinks: { select: { applicationId: true } },
   employeeLinks: { select: { employeeId: true } },
   customerLinks: { select: { customerId: true } },
   contractLinks: { select: { contract: { select: { customerId: true } } } },
@@ -19,6 +20,7 @@ export const DOCUMENT_ACCESS_INCLUDE = {
 export type DocumentAccessRecord = {
   id: string;
   isSensitive: boolean;
+  applicantLinks?: { applicationId: string }[];
   employeeLinks: { employeeId: string }[];
   customerLinks: { customerId: string }[];
   contractLinks: { contract: { customerId: string } }[];
@@ -26,6 +28,13 @@ export type DocumentAccessRecord = {
 };
 
 export type DocumentAccessAction = "view" | "download" | "edit" | "verify" | "archive";
+
+const APPLICANT_DOC_ROLES = new Set([
+  "OWNER",
+  "ADMIN",
+  "HR_RECRUITER",
+  "COMPLIANCE_ADMIN",
+]);
 
 const EMPLOYEE_DOC_ROLES = new Set([
   "OWNER",
@@ -86,6 +95,7 @@ function associatedCustomerIds(document: DocumentAccessRecord) {
 
 function isUnlinked(document: DocumentAccessRecord) {
   return (
+    (document.applicantLinks ?? []).length === 0 &&
     document.employeeLinks.length === 0 &&
     document.customerLinks.length === 0 &&
     document.contractLinks.length === 0 &&
@@ -150,6 +160,9 @@ export function canAccessManagedDocument(
     return hasRole(ctx, UNLINKED_DOC_ROLES);
   }
 
+  if ((document.applicantLinks ?? []).length && hasRole(ctx, APPLICANT_DOC_ROLES) && hasPermission(ctx, "applicants.view")) {
+    return true;
+  }
   if (document.employeeLinks.length && hasRole(ctx, EMPLOYEE_DOC_ROLES) && hasPermission(ctx, "employees.view")) {
     return true;
   }
@@ -216,12 +229,16 @@ export function documentsListWhere(ctx: DocumentActor): Prisma.ManagedDocumentWh
     if (hasRole(ctx, UNLINKED_DOC_ROLES)) {
       clauses.push({
         AND: [
+          { applicantLinks: { none: {} } },
           { employeeLinks: { none: {} } },
           { customerLinks: { none: {} } },
           { contractLinks: { none: {} } },
           { deliveryLinks: { none: {} } },
         ],
       });
+    }
+    if (hasRole(ctx, APPLICANT_DOC_ROLES) && hasPermission(ctx, "applicants.view")) {
+      clauses.push({ applicantLinks: { some: {} } });
     }
     if (hasRole(ctx, EMPLOYEE_DOC_ROLES) && hasPermission(ctx, "employees.view")) {
       clauses.push({ employeeLinks: { some: {} } });

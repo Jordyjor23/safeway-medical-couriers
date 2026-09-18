@@ -162,6 +162,17 @@ export function documentLibraryWhere(
 }
 
 export const DOCUMENT_LIST_INCLUDE = {
+  applicantLinks: {
+    include: {
+      application: {
+        select: {
+          id: true,
+          trackingNumber: true,
+          applicant: { select: { legalFirstName: true, legalLastName: true } },
+        },
+      },
+    },
+  },
   employeeLinks: {
     include: { employee: { select: { id: true, legalFirstName: true, legalLastName: true, employeeNumber: true } } },
   },

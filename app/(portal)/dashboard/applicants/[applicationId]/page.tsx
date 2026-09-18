@@ -3,10 +3,13 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   addApplicationNote,
+  sendApplicantOnboardingLink,
   updateApplicationStatus,
   updateInterview,
 } from "@/app/(portal)/dashboard/applicants/actions";
 import { prisma } from "@/lib/db";
+import { labelDocumentType } from "@/lib/documents/catalog";
+import { documentFileHref } from "@/lib/documents/display";
 import { formatBusinessDateTime } from "@/lib/workforce-time";
 import { hasPermission, requirePermission } from "@/lib/rbac";
 import type { ApplicationStatus } from "@prisma/client";
@@ -46,6 +49,10 @@ export default async function ApplicantProfilePage({
       communications: { orderBy: { createdAt: "desc" } },
       screening: { include: { events: { orderBy: { createdAt: "desc" } } } },
       acknowledgements: { include: { legalDocument: true } },
+      documents: {
+        include: { document: true },
+        orderBy: { createdAt: "desc" },
+      },
     },
   });
   if (!application) notFound();
@@ -70,25 +77,39 @@ export default async function ApplicantProfilePage({
       </div>
 
       {canEdit ? (
-        <form
-          action={async (formData) => {
-            "use server";
-            await updateApplicationStatus(applicationId, String(formData.get("status")) as ApplicationStatus);
-          }}
-          className="flex flex-wrap items-end gap-3"
-        >
-          <label className="text-sm font-semibold text-navy">
-            Status
-            <select name="status" defaultValue={application.status} className="mt-1.5 rounded-lg border border-line px-3 py-2 text-sm">
-              {statuses.map((status) => (
-                <option key={status} value={status}>
-                  {status.replaceAll("_", " ")}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button className="rounded-full bg-navy px-4 py-2 text-sm font-semibold text-white">Update status</button>
-        </form>
+        <div className="flex flex-wrap items-end gap-3">
+          <form
+            action={async (formData) => {
+              "use server";
+              await updateApplicationStatus(applicationId, String(formData.get("status")) as ApplicationStatus);
+            }}
+            className="flex flex-wrap items-end gap-3"
+          >
+            <label className="text-sm font-semibold text-navy">
+              Status
+              <select name="status" defaultValue={application.status} className="mt-1.5 rounded-lg border border-line px-3 py-2 text-sm">
+                {statuses.map((status) => (
+                  <option key={status} value={status}>
+                    {status.replaceAll("_", " ")}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button className="rounded-full bg-navy px-4 py-2 text-sm font-semibold text-white">Update status</button>
+          </form>
+          {["CONDITIONAL_OFFER", "BACKGROUND_SCREENING", "ONBOARDING"].includes(application.status) ? (
+            <form
+              action={async () => {
+                "use server";
+                await sendApplicantOnboardingLink(applicationId);
+              }}
+            >
+              <button className="rounded-full border border-navy px-4 py-2 text-sm font-semibold text-navy">
+                Resend onboarding upload link
+              </button>
+            </form>
+          ) : null}
+        </div>
       ) : null}
 
       <section className="rounded-2xl border border-line bg-paper p-5">
@@ -109,6 +130,36 @@ export default async function ApplicantProfilePage({
             <li key={row.id}>{row.employerName} — {row.positionTitle}</li>
           ))}
         </ul>
+      </section>
+
+      <section className="rounded-2xl border border-line bg-paper p-5">
+        <h2 className="text-lg font-semibold text-navy">Candidate documents</h2>
+        <p className="mt-1 text-sm text-muted">
+          Files submitted through the secure onboarding link remain unverified until reviewed.
+        </p>
+        {application.documents.length ? (
+          <ul className="mt-4 divide-y divide-line rounded-xl border border-line">
+            {application.documents.map(({ document }) => (
+              <li key={document.id} className="flex flex-wrap items-center justify-between gap-3 px-3 py-3 text-sm">
+                <div>
+                  <p className="font-semibold text-navy">{document.name}</p>
+                  <p className="text-muted">
+                    {labelDocumentType(document.documentType)} · {document.verificationStatus.replaceAll("_", " ")}
+                  </p>
+                  {document.rejectionReason ? <p className="text-red-700">Rejected: {document.rejectionReason}</p> : null}
+                </div>
+                <a
+                  href={documentFileHref(document.id)}
+                  className="rounded-full border border-line px-3 py-1.5 text-xs font-semibold text-navy"
+                >
+                  View / Download
+                </a>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-3 text-sm text-muted">No candidate documents uploaded yet.</p>
+        )}
       </section>
 
       {canEdit ? (
@@ -154,6 +205,28 @@ export default async function ApplicantProfilePage({
           </ul>
         </section>
       ) : null}
+
+      <section className="rounded-2xl border border-line bg-paper p-5">
+        <h2 className="text-lg font-semibold text-navy">Candidate communications</h2>
+        <p className="mt-1 text-sm text-muted">
+          Outbound onboarding emails are recorded here so HR can confirm whether the email provider accepted the send.
+        </p>
+        {application.communications.length ? (
+          <ul className="mt-3 space-y-2 text-sm">
+            {application.communications.map((item) => (
+              <li key={item.id} className="rounded-xl border border-line bg-ice p-3">
+                <p className="font-semibold text-navy">{item.subject ?? item.channel}</p>
+                <p className="mt-1 text-muted">{item.body}</p>
+                <p className="mt-1 text-xs text-muted">
+                  {formatBusinessDateTime(item.createdAt)} · {item.direction}
+                </p>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-3 text-sm text-muted">No communications recorded yet.</p>
+        )}
+      </section>
 
       <section className="rounded-2xl border border-line bg-paper p-5">
         <h2 className="text-lg font-semibold text-navy">Audit history</h2>

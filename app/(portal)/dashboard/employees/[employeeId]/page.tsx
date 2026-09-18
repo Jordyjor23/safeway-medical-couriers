@@ -176,6 +176,19 @@ export default async function EmployeeProfilePage({
               Hire date
               <input name="hireDate" type="date" defaultValue={isoDate(employee.hireDate)} className={fieldClass} />
             </label>
+            <label className="flex items-center gap-3 rounded-xl border border-line bg-ice px-3 py-3 text-sm font-semibold text-navy sm:col-span-2">
+              <input
+                name="isDriver"
+                type="checkbox"
+                value="1"
+                defaultChecked={employee.isDriver}
+                className="h-4 w-4"
+              />
+              Courier / driver worker
+              <span className="font-normal text-muted">
+                Include this person in route qualification and courier assignment checks.
+              </span>
+            </label>
             <button className="h-fit self-end rounded-full bg-navy px-4 py-2 text-sm font-semibold text-white">
               Save profile
             </button>
