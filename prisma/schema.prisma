@@ -806,6 +806,8 @@ model EmployeeShift {
   id           String      @id @default(uuid())
   employeeId   String
   employee     Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  deliveryId   String?     @unique
+  delivery     Delivery?   @relation(fields: [deliveryId], references: [id], onDelete: SetNull)
   startsAt     DateTime
   endsAt       DateTime
   breakMinutes Int         @default(0)
@@ -823,6 +825,7 @@ model EmployeeShift {
 
   @@index([employeeId, startsAt])
   @@index([status, startsAt])
+  @@index([deliveryId])
 }
 
 enum TimeEntryStatus {
@@ -1614,6 +1617,7 @@ model Delivery {
   documents DeliveryDocument[]
   checklistItems DeliveryChecklistItem[]
   signoffs DeliverySignoff[]
+  shift EmployeeShift?
 
   @@index([customerId, status])
   @@index([contractId, status])
