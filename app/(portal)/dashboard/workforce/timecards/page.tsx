@@ -18,7 +18,8 @@ export default async function TimecardsPage() {
 
   return (
     <div>
-      <h1 className="text-3xl font-semibold text-navy">Timecards</h1>
+      <Link href="/dashboard/workforce" className="text-sm font-semibold text-medical hover:underline">← Workforce</Link>
+      <h1 className="mt-3 text-3xl font-semibold text-navy">Timecards</h1>
       <p className="mt-2 text-sm text-muted">Review submitted hours, open punches, breaks and approval status.</p>
       {canManage ? (
         <form action={createManualTimeEntry} className="mt-6 grid gap-3 rounded-2xl border border-line bg-paper p-5 md:grid-cols-2">
