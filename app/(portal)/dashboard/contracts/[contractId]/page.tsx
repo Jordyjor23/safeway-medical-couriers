@@ -10,6 +10,7 @@ import { canAssociateContract } from "@/lib/documents/access";
 import { CONTRACT_DOCUMENT_GROUPS } from "@/lib/documents/groups";
 import { DOCUMENT_LIST_INCLUDE, documentLibraryWhere } from "@/lib/documents/query";
 import { prisma } from "@/lib/db";
+import { formatBusinessDate } from "@/lib/workforce-time";
 import { hasPermission, requirePermission } from "@/lib/rbac";
 
 export const metadata: Metadata = { title: "Contract" };
@@ -160,7 +161,7 @@ export default async function ContractDetailPage({
         ) : (
           <div className="space-y-1 text-sm">
             <p>Type: {contract.contractType.replaceAll("_", " ")}</p>
-            <p>Expires: {contract.expirationDate?.toLocaleDateString() ?? "—"}</p>
+            <p>Expires: {contract.expirationDate ? formatBusinessDate(contract.expirationDate) : "—"}</p>
             <p>{contract.notes ?? "No notes."}</p>
           </div>
         )}
