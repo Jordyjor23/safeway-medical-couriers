@@ -4,8 +4,9 @@ import { EntityDocumentsSection } from "@/components/portal/EntityDocumentsSecti
 import { employeeDocumentBuckets, missingRequirementLabels } from "@/lib/documents/buckets";
 import { DOCUMENT_LIST_INCLUDE, documentLibraryWhere } from "@/lib/documents/query";
 import { prisma } from "@/lib/db";
+import { getLeaveSummary } from "@/lib/leave";
 import { assertSameEmployee, hasPermission, requirePortal } from "@/lib/rbac";
-import { formatBusinessDateTime } from "@/lib/workforce-time";
+import { formatBusinessDate, formatBusinessDateTime } from "@/lib/workforce-time";
 
 export default async function EmployeeDashboardPage() {
   const ctx = await requirePortal("employee");
@@ -50,6 +51,7 @@ export default async function EmployeeDashboardPage() {
 
   if (!employee) return null;
   assertSameEmployee(ctx, employee.id);
+  const leaveSummary = await getLeaveSummary(employee.id);
 
   const canViewDocuments = hasPermission(ctx, "documents.view");
   const [documents, rules, records] = await Promise.all([
@@ -102,6 +104,13 @@ export default async function EmployeeDashboardPage() {
           <p className="mt-2 text-2xl font-semibold text-navy">{pendingTimeOff}</p>
         </Link>
       </div>
+
+      {leaveSummary.length ? (
+        <section className="rounded-2xl border border-line bg-paper p-5">
+          <div className="flex items-center justify-between gap-3"><h2 className="font-semibold text-navy">My leave balances</h2><Link href="/employee/time-off" className="text-sm font-semibold text-medical hover:underline">Request time off</Link></div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">{leaveSummary.map(bank=><div key={bank.type} className="rounded-xl border border-line p-4"><p className="text-xs font-semibold uppercase text-muted">{bank.type}</p><p className="mt-1 text-xl font-semibold text-navy">{bank.availableHours.toFixed(2)} hrs</p><p className="mt-1 text-xs text-muted">{bank.pendingHours.toFixed(2)} pending · {bank.usedHours.toFixed(2)} used</p></div>)}</div>
+        </section>
+      ) : null}
 
       <section className="rounded-2xl border border-line bg-paper p-5">
         <h2 className="font-semibold text-navy">My profile</h2>
@@ -161,7 +170,7 @@ export default async function EmployeeDashboardPage() {
           <ul className="mt-2 text-sm">
             {employee.trainings.map((training) => (
               <li key={training.id}>
-                {training.title} · expires {training.expiresAt?.toLocaleDateString() ?? "n/a"}
+                {training.title} · expires {training.expiresAt ? formatBusinessDate(training.expiresAt) : "n/a"}
               </li>
             ))}
           </ul>
@@ -176,7 +185,7 @@ export default async function EmployeeDashboardPage() {
           <ul className="mt-2 text-sm">
             {employee.tasks.map((task) => (
               <li key={task.id}>
-                {task.title} {task.dueAt ? `· due ${task.dueAt.toLocaleDateString()}` : ""}{" "}
+                {task.title} {task.dueAt ? `· due ${formatBusinessDate(task.dueAt)}` : ""}{" "}
                 {task.completedAt ? "· done" : ""}
               </li>
             ))}
@@ -215,7 +224,7 @@ export default async function EmployeeDashboardPage() {
         <ul className="mt-4 text-sm">
           {incidents.map((incident) => (
             <li key={incident.id}>
-              {incident.title} · {incident.status} · {incident.createdAt.toLocaleDateString()}
+              {incident.title} · {incident.status} · {formatBusinessDate(incident.createdAt)}
             </li>
           ))}
         </ul>
