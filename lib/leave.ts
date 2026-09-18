@@ -164,7 +164,10 @@ export async function applyTimeOffDecision({
     }
 
     let balanceAppliedAt = status === "APPROVED" ? current.balanceAppliedAt : null;
-    let balanceHoursApplied = status === "APPROVED" ? current.balanceHoursApplied : null;
+    let balanceHoursApplied: number | null =
+      status === "APPROVED" && current.balanceHoursApplied !== null
+        ? Number(current.balanceHoursApplied)
+        : null;
 
     if (bankType && status === "APPROVED" && !current.balanceAppliedAt) {
       const bank = await tx.leaveBank.findUnique({
