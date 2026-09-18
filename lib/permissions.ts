@@ -232,7 +232,7 @@ export const ROLE_PERMISSIONS: Record<RoleKey, readonly PermissionKey[]> = {
     "documents.view",
     "documents.download",
   ],
-  DRIVER: ["delivery.view", "delivery.update", "scheduling.view", "timecards.view", "timeoff.view", "incident.view", "training.view", "documents.view", "documents.download"],
+  DRIVER: ["delivery.view", "delivery.update", "scheduling.view", "timecards.view", "timeoff.view", "incident.view", "training.view", "documents.view", "documents.upload", "documents.download"],
   COMPLIANCE_ADMIN: [
     "compliance.view",
     "compliance.edit",
@@ -263,7 +263,7 @@ export const ROLE_PERMISSIONS: Record<RoleKey, readonly PermissionKey[]> = {
     "documents.download",
     "documents.editMetadata",
   ],
-  EMPLOYEE: ["scheduling.view", "timecards.view", "timeoff.view", "training.view", "documents.view", "documents.download", "incident.view"],
+  EMPLOYEE: ["scheduling.view", "timecards.view", "timeoff.view", "training.view", "documents.view", "documents.upload", "documents.download", "incident.view"],
   CUSTOMER: ["delivery.view", "contracts.view", "documents.view", "documents.download"],
 };
 
