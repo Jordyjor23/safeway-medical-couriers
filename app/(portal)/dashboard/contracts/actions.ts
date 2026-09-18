@@ -6,6 +6,7 @@ import { writeAuditLog } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { createContractNumber } from "@/lib/ids";
 import { requirePermission } from "@/lib/rbac";
+import { parseBusinessDate } from "@/lib/workforce-time";
 import type { ContractStatus, ContractType } from "@prisma/client";
 
 export async function createContract(formData: FormData) {
@@ -16,8 +17,8 @@ export async function createContract(formData: FormData) {
       customerId: String(formData.get("customerId") ?? ""),
       contractType: String(formData.get("contractType") ?? "MASTER_SERVICE") as ContractType,
       serviceType: String(formData.get("serviceType") ?? "") || null,
-      effectiveDate: formData.get("effectiveDate") ? new Date(String(formData.get("effectiveDate"))) : null,
-      expirationDate: formData.get("expirationDate") ? new Date(String(formData.get("expirationDate"))) : null,
+      effectiveDate: formData.get("effectiveDate") ? parseBusinessDate(String(formData.get("effectiveDate"))) : null,
+      expirationDate: formData.get("expirationDate") ? parseBusinessDate(String(formData.get("expirationDate"))) : null,
       billingTerms: String(formData.get("billingTerms") ?? "") || null,
       paymentTerms: String(formData.get("paymentTerms") ?? "") || null,
       status: String(formData.get("status") ?? "DRAFT") as ContractStatus,
@@ -46,9 +47,9 @@ export async function updateContract(contractId: string, formData: FormData) {
       customerId: String(formData.get("customerId") ?? ""),
       contractType: String(formData.get("contractType") ?? "MASTER_SERVICE") as ContractType,
       serviceType: String(formData.get("serviceType") ?? "") || null,
-      effectiveDate: formData.get("effectiveDate") ? new Date(String(formData.get("effectiveDate"))) : null,
-      expirationDate: formData.get("expirationDate") ? new Date(String(formData.get("expirationDate"))) : null,
-      renewalDate: formData.get("renewalDate") ? new Date(String(formData.get("renewalDate"))) : null,
+      effectiveDate: formData.get("effectiveDate") ? parseBusinessDate(String(formData.get("effectiveDate"))) : null,
+      expirationDate: formData.get("expirationDate") ? parseBusinessDate(String(formData.get("expirationDate"))) : null,
+      renewalDate: formData.get("renewalDate") ? parseBusinessDate(String(formData.get("renewalDate"))) : null,
       billingTerms: String(formData.get("billingTerms") ?? "") || null,
       paymentTerms: String(formData.get("paymentTerms") ?? "") || null,
       status: String(formData.get("status") ?? "DRAFT") as ContractStatus,
@@ -78,16 +79,18 @@ export async function deleteContract(contractId: string) {
   const ctx = await requirePermission("contracts.delete");
   const contract = await prisma.contract.findUnique({
     where: { id: contractId },
-    include: { _count: { select: { documents: true, amendments: true } } },
+    include: { _count: { select: { documents: true, amendments: true, routeTemplates: true, deliveries: true } } },
   });
   if (!contract) redirect("/dashboard/contracts");
   if (
     contract.status !== "DRAFT" ||
     contract._count.documents > 0 ||
-    contract._count.amendments > 0
+    contract._count.amendments > 0 ||
+    contract._count.routeTemplates > 0 ||
+    contract._count.deliveries > 0
   ) {
     throw new Error(
-      "Only draft contracts with no documents or amendments can be deleted. Use a terminated/expired status to preserve contract history.",
+      "Only empty draft contracts can be deleted. Contracts with documents, routes, amendments, or delivery history must be retained and moved to an appropriate inactive status.",
     );
   }
   await prisma.contract.delete({ where: { id: contractId } });
