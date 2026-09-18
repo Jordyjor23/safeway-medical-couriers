@@ -9,9 +9,13 @@ export const metadata: Metadata = { title: "Contracts" };
 
 export default async function ContractsPage() {
   const ctx = await requirePermission("contracts.view");
-  const [contracts, customers] = await Promise.all([
+  const [contracts, customers, genericTemplates] = await Promise.all([
     prisma.contract.findMany({ include: { customer: true }, orderBy: { updatedAt: "desc" } }),
     prisma.customer.findMany({ orderBy: { legalName: "asc" } }),
+    prisma.routeTemplate.findMany({
+      where: { scope: "GENERIC", active: true },
+      orderBy: { name: "asc" },
+    }),
   ]);
 
   return (
@@ -56,6 +60,12 @@ export default async function ContractsPage() {
             ))}
           </select>
           <input name="serviceType" placeholder="Service type" className="rounded-lg border border-line px-3 py-2 text-sm" />
+          <select name="starterRouteTemplateId" className="rounded-lg border border-line px-3 py-2 text-sm">
+            <option value="">Starter route setup (optional)</option>
+            {genericTemplates.map((template) => (
+              <option key={template.id} value={template.id}>{template.name}</option>
+            ))}
+          </select>
           <select name="status" className="rounded-lg border border-line px-3 py-2 text-sm">
             {["DRAFT", "UNDER_REVIEW", "SENT", "NEGOTIATING", "AWAITING_SIGNATURE", "ACTIVE"].map((status) => (
               <option key={status}>{status}</option>
