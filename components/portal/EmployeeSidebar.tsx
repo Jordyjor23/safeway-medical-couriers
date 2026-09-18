@@ -10,7 +10,7 @@ const items = [
   { href: "/employee/schedule", label: "My schedule", icon: CalendarDays },
   { href: "/employee/timecards", label: "My timecards", icon: Clock3 },
   { href: "/employee/time-off", label: "PTO & call-offs", icon: CalendarOff },
-  { href: "/dashboard/security", label: "Security", icon: KeyRound },
+  { href: "/employee/security", label: "Security", icon: KeyRound },
 ];
 
 export function EmployeeSidebar({ userName, userEmail }: { userName: string; userEmail: string }) {
