@@ -233,7 +233,7 @@ export const ROLE_PERMISSIONS: Record<RoleKey, readonly PermissionKey[]> = {
     "documents.view",
     "documents.download",
   ],
-  DRIVER: ["delivery.view", "delivery.update", "scheduling.view", "timecards.view", "timeoff.view", "incident.view", "training.view", "documents.view", "documents.upload", "documents.download"],
+  DRIVER: ["delivery.view", "delivery.update", "scheduling.view", "timecards.view", "timeoff.view", "incident.view", "training.view", "documents.view", "documents.download"],
   COMPLIANCE_ADMIN: [
     "compliance.view",
     "compliance.edit",
@@ -335,9 +335,9 @@ export type PortalKind = "staff" | "admin" | "operations" | "dispatch" | "driver
 
 export function homePathForRoles(roles: string[]) {
   if (roles.includes("OWNER")) return "/dashboard";
-  if (roles.includes("ADMIN")) return "/dashboard";
-  if (roles.includes("OPERATIONS_MANAGER")) return "/dashboard";
-  if (roles.includes("DISPATCHER")) return "/dashboard";
+  if (roles.includes("ADMIN")) return "/admin/dashboard";
+  if (roles.includes("OPERATIONS_MANAGER")) return "/operations/dashboard";
+  if (roles.includes("DISPATCHER")) return "/dispatch/dashboard";
   if (roles.includes("DRIVER")) return "/driver/dashboard";
   if (
     roles.includes("HR_RECRUITER") ||
@@ -402,8 +402,6 @@ export function canAccessPortal(roles: string[], kind: PortalKind) {
     case "staff":
       return (
         roles.includes("ADMIN") ||
-        roles.includes("OPERATIONS_MANAGER") ||
-        roles.includes("DISPATCHER") ||
         roles.includes("HR_RECRUITER") ||
         roles.includes("OPERATIONS_ADMIN") ||
         roles.includes("COMPLIANCE_ADMIN") ||
