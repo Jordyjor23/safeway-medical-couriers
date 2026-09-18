@@ -1542,6 +1542,7 @@ model RouteTemplate {
   handlingInstructions     String?
   requiredTrainingKeys     String?
   requiredCertificationNames String?
+  requiredDocumentTypes    String?
   vehicleRequirement       String?
   estimatedRouteHours      Decimal?           @db.Decimal(6, 2)
   routePay                 Decimal?           @db.Decimal(10, 2)
