@@ -52,11 +52,13 @@ export async function resolveRouteCourier({
   pickupAt,
   deliverBy,
   explicitEmployeeId,
+  excludeDeliveryId,
 }: {
   routeTemplateId: string;
   pickupAt: Date;
   deliverBy: Date;
   explicitEmployeeId?: string | null;
+  excludeDeliveryId?: string | null;
 }) {
   const template = await prisma.routeTemplate.findUnique({ where: { id: routeTemplateId } });
   if (!template) throw new Error("Route template not found.");
@@ -89,11 +91,21 @@ export async function resolveRouteCourier({
           status: { in: ["REPORTED", "ACKNOWLEDGED"] },
         },
       },
+      shifts: {
+        where: {
+          status: "PUBLISHED",
+          startsAt: { lt: deliverBy },
+          endsAt: { gt: pickupAt },
+          ...(excludeDeliveryId ? { NOT: { deliveryId: excludeDeliveryId } } : {}),
+        },
+        select: { id: true },
+      },
       deliveries: {
         where: {
           status: { in: [...ACTIVE_DELIVERY_STATUSES] },
           pickupAt: { lt: deliverBy },
           deliverBy: { gt: pickupAt },
+          ...(excludeDeliveryId ? { id: { not: excludeDeliveryId } } : {}),
         },
         select: { id: true },
       },
@@ -105,6 +117,7 @@ export async function resolveRouteCourier({
     const failures: string[] = [];
     if (candidate.timeOffRequests.length) failures.push("approved time off");
     if (candidate.callOffs.length) failures.push("call-off recorded");
+    if (candidate.shifts.length) failures.push("overlapping published shift");
     if (candidate.deliveries.length) failures.push("overlapping route");
 
     for (const key of requiredTrainingKeys) {
