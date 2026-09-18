@@ -1,5 +1,6 @@
 import Link from "next/link";
 import {
+  assignDeliveryCourier,
   createDelivery,
   createDeliveryFromRouteTemplate,
 } from "@/app/(portal)/deliveries/actions";
@@ -212,7 +213,28 @@ export default async function DispatchDashboardPage() {
                     <p className="text-xs text-muted">{delivery.customer.legalName}</p>
                   </td>
                   <td className="px-4 py-3">
-                    {delivery.driver ? delivery.driver.legalFirstName + " " + delivery.driver.legalLastName : <span className="font-semibold text-amber-700">UNASSIGNED</span>}
+                    <p>
+                      {delivery.driver ? delivery.driver.legalFirstName + " " + delivery.driver.legalLastName : <span className="font-semibold text-amber-700">UNASSIGNED</span>}
+                    </p>
+                    {canCreate && ["DRAFT", "ASSIGNED"].includes(delivery.status) ? (
+                      <form action={assignDeliveryCourier.bind(null, delivery.id)} className="mt-2 grid gap-1">
+                        <select
+                          name="driverEmployeeId"
+                          defaultValue={delivery.driverEmployeeId ?? (delivery.routeTemplateId ? "AUTO" : "")}
+                          className="rounded-lg border border-line px-2 py-1.5 text-xs"
+                        >
+                          {delivery.routeTemplateId ? <option value="AUTO">Auto assign</option> : <option value="">Choose courier</option>}
+                          {drivers.map((driver) => (
+                            <option key={driver.id} value={driver.id}>
+                              {driver.legalFirstName} {driver.legalLastName}
+                            </option>
+                          ))}
+                        </select>
+                        <button className="w-fit rounded-full border border-navy px-2.5 py-1 text-xs font-semibold text-navy">
+                          {delivery.driver ? "Reassign" : "Assign"}
+                        </button>
+                      </form>
+                    ) : null}
                   </td>
                   <td className="px-4 py-3">
                     <p>{delivery.pickupBusinessName ?? delivery.pickupAddress}</p>
