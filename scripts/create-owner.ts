@@ -39,19 +39,28 @@ async function main() {
     throw new Error("OWNER_SETUP_SECRET is not set in .env.local");
   }
 
+  const existingOwner = await prisma.userRole.findFirst({
+    where: { role: { key: "OWNER" } },
+    select: { id: true },
+  });
+  if (existingOwner) {
+    throw new Error("An owner already exists. This script only bootstraps an empty install.");
+  }
+
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
     const { setCredentialPassword } = await import("../lib/portal-account");
     await setCredentialPassword(existing.id, password);
     const ownerRole = await prisma.role.findUnique({ where: { key: "OWNER" } });
-    if (ownerRole) {
-      await prisma.userRole.upsert({
-        where: { userId_roleId: { userId: existing.id, roleId: ownerRole.id } },
-        update: {},
-        create: { userId: existing.id, roleId: ownerRole.id },
-      });
+    if (!ownerRole) {
+      throw new Error("Roles have not been seeded. Run prisma db seed first.");
     }
-    console.log(`Owner password updated: ${email}`);
+    await prisma.userRole.upsert({
+      where: { userId_roleId: { userId: existing.id, roleId: ownerRole.id } },
+      update: {},
+      create: { userId: existing.id, roleId: ownerRole.id },
+    });
+    console.log(`Owner role assigned to existing user: ${email}`);
     return;
   }
 

@@ -9,6 +9,7 @@ import {
   portalHost,
 } from "@/lib/app-url";
 import { corsPreflight, withCors } from "@/lib/cors";
+import { REQUEST_PATHNAME_HEADER } from "@/lib/request-path";
 
 function applySecurityHeaders(request: NextRequest, response: NextResponse) {
   const https =
@@ -16,6 +17,13 @@ function applySecurityHeaders(request: NextRequest, response: NextResponse) {
   if (https) {
     response.headers.set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
   }
+  return response;
+}
+
+function nextWithPathname(request: NextRequest, pathname: string) {
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set(REQUEST_PATHNAME_HEADER, pathname);
+  const response = NextResponse.next({ request: { headers: requestHeaders } });
   return response;
 }
 
@@ -68,15 +76,11 @@ export function proxy(request: NextRequest) {
     return applySecurityHeaders(request, NextResponse.redirect(login));
   }
 
-  if (pathname === "/login" && sessionCookie) {
-    return applySecurityHeaders(request, NextResponse.redirect(new URL("/portal", request.url)));
-  }
-
   if (pathname === "/setup" && sessionCookie) {
     return applySecurityHeaders(request, NextResponse.redirect(new URL("/portal", request.url)));
   }
 
-  const response = NextResponse.next();
+  const response = nextWithPathname(request, pathname);
   if (pathname.startsWith("/api/")) {
     withCors(request, response);
   }

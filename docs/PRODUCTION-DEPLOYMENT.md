@@ -7,7 +7,7 @@ The public marketing site remains `https://www.safewaycouriers.com`. It is not r
 ## What changed
 
 - App origin, auth callbacks, and activation emails now come from environment variables (`BETTER_AUTH_URL` / `NEXT_PUBLIC_APP_URL`), not a hard-coded localhost URL. Localhost is only a development fallback when those variables are unset and the app is not on Vercel.
-- Production uses HTTPS-only cookies, HSTS, and security headers. `X-Powered-By` is disabled.
+- Production uses HTTPS-only cookies, HSTS, CSP, and security headers. `X-Powered-By` is disabled.
 - CORS for `/api/*` allows only the configured origins (portal, www, optional extras).
 - Generic error pages hide stack traces.
 - Unauthenticated users hitting the portal hostname `/` go to `/login`. Signed-in users go to `/portal`.
@@ -38,7 +38,7 @@ Set these on the **Production** environment. Preview must use a **separate** Neo
 | `NEXT_PUBLIC_APP_URL` | `https://portal.safewaycouriers.com` |
 | `NEXT_PUBLIC_SITE_URL` | `https://portal.safewaycouriers.com` |
 | `PORTAL_HOST` | `portal.safewaycouriers.com` |
-| `OWNER_SETUP_SECRET` | Long random string (only if you still need `/setup`) |
+| `OWNER_SETUP_SECRET` | Long random string (empty-install `/setup` only; remove after Owner MFA) |
 | `DATA_ENCRYPTION_KEY` | `openssl rand -base64 32` |
 | `BLOB_READ_WRITE_TOKEN` | Vercel Blob token |
 | `RESEND_API_KEY` | Resend API key |
@@ -123,8 +123,8 @@ If you later add Google/Microsoft OAuth, register the callback:
 2. Add the `portal.safewaycouriers.com` domain in Vercel and create the DNS CNAME.
 3. Point Production `DATABASE_URL` at hosted Postgres (build-time). Migrations run automatically on **Production** deploys (`VERCEL_ENV=production`). Preview must not share that URL.
 4. Confirm Resend can send from `EMAIL_FROM`.
-5. Sign in as Owner at `https://portal.safewaycouriers.com/login`. If no Owner exists, use `/setup` with `OWNER_SETUP_SECRET` once.
-6. Change the Owner password if it is still a temporary local value.
+5. Sign in as Owner at `https://portal.safewaycouriers.com/login`. If no Owner exists, use `/setup` with `OWNER_SETUP_SECRET` once, then enable MFA. `/setup` cannot reset an existing Owner password.
+6. Enable Owner MFA at `/dashboard/security`. After that, remove `OWNER_SETUP_SECRET` from Production.
 7. Optional: Vercel Blob token for document uploads.
 
 Until those steps are done, production login and email will not work even though the code is deployment-ready.
@@ -138,3 +138,15 @@ npm run dev
 ```
 
 Open `http://localhost:3000`. Do not use production `BETTER_AUTH_URL` in `.env.local`.
+
+## Secret rotation (ops — do not commit values)
+
+This app does not rotate live Vercel secrets. In the Vercel project (Production first, then Preview if it shares the secret):
+
+1. Generate a new signing secret: `openssl rand -base64 32`
+2. Set `BETTER_AUTH_SECRET` for Production. Redeploy so runtime picks it up.
+3. Every existing session, bearer token, and password-reset token signed with the old secret becomes invalid. Owners and staff must sign in again.
+4. Confirm Production runtime is not using the build placeholder `unconfigured-local-secret-not-for-production-use` and that the value is at least 32 characters.
+5. After the first Owner exists and MFA is enabled, delete `OWNER_SETUP_SECRET` from Production. Keep it only in a password manager if you still need a brand-new empty-environment bootstrap.
+
+Preview should use its own `BETTER_AUTH_SECRET` and `BETTER_AUTH_URL` (the preview origin). Do not reuse the Production secret on Preview.
