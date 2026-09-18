@@ -11,6 +11,8 @@ import { createTrackingNumber } from "@/lib/ids";
 import { prisma } from "@/lib/db";
 import { publicStatusLabel } from "@/lib/careers-content";
 import { site } from "@/lib/site";
+import { storePrivateFile } from "@/lib/storage";
+import { validateDocumentFile } from "@/lib/documents/validate";
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +35,26 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Too many applications from this network. Try again later." }, { status: 429 });
   }
 
-  const body = await request.json().catch(() => null);
+  const contentType = request.headers.get("content-type") ?? "";
+  if (!contentType.includes("multipart/form-data")) {
+    return NextResponse.json({ error: "A resume upload is required with the application." }, { status: 400 });
+  }
+
+  const formData = await request.formData().catch(() => null);
+  if (!formData) {
+    return NextResponse.json({ error: "Invalid application." }, { status: 400 });
+  }
+
+  const applicationJson = formData.get("application");
+  const resume = formData.get("resume");
+  if (typeof applicationJson !== "string") {
+    return NextResponse.json({ error: "Invalid application." }, { status: 400 });
+  }
+  if (!(resume instanceof File) || resume.size === 0) {
+    return NextResponse.json({ error: "Please upload your resume." }, { status: 400 });
+  }
+
+  const body = JSON.parse(applicationJson);
   if (!body || typeof body !== "object") {
     return NextResponse.json({ error: "Invalid application." }, { status: 400 });
   }
@@ -47,6 +68,14 @@ export async function POST(request: Request) {
   const parsed = applicationInputSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: "Please check the required fields and try again." }, { status: 400 });
+  }
+
+  const resumeValidation = await validateDocumentFile(resume);
+  if (!resumeValidation.ok) {
+    return NextResponse.json({ error: resumeValidation.error }, { status: 400 });
+  }
+  if (!["pdf", "docx"].includes(resumeValidation.kind)) {
+    return NextResponse.json({ error: "Resume must be a PDF or DOCX file." }, { status: 400 });
   }
 
   const data = parsed.data;
@@ -98,6 +127,8 @@ export async function POST(request: Request) {
     trackingNumber = createTrackingNumber();
   }
 
+  const storedResume = await storePrivateFile(resume);
+
   const application = await prisma.application.create({
     data: {
       trackingNumber,
@@ -146,6 +177,7 @@ export async function POST(request: Request) {
       proofOfInsurance: data.proofOfInsurance,
       canUseGpsApps: data.canUseGpsApps,
       relevantCourierDrivingExperience: data.relevantCourierDrivingExperience,
+      resumeFileKey: storedResume.blobKey,
       submittedAt: new Date(),
       ipAddress: ip,
       userAgent,
@@ -178,6 +210,28 @@ export async function POST(request: Request) {
       statusHistory: {
         create: { toStatus: "SUBMITTED", note: "Application submitted" },
       },
+      documents: {
+        create: {
+          document: {
+            create: {
+              name: "Resume",
+              category: "APPLICANT_DOCUMENTS",
+              documentType: "RESUME",
+              blobKey: storedResume.blobKey,
+              mimeType: storedResume.mimeType,
+              sizeBytes: storedResume.sizeBytes,
+              originalFileName: storedResume.originalFileName,
+              storedFileName: storedResume.storedFileName,
+              contentSha256: storedResume.contentSha256,
+              isSensitive: true,
+              lifecycleStatus: "UPLOADED",
+              verificationStatus: "UNVERIFIED",
+              extractionStatus: "OCR_DISABLED",
+              notes: "Resume submitted with public job application.",
+            },
+          },
+        },
+      },
     },
     include: {
       applicant: true,
@@ -191,7 +245,7 @@ export async function POST(request: Request) {
     targetId: application.id,
     ipAddress: ip,
     userAgent,
-    metadata: { trackingNumber, jobPublicId: job.publicId },
+    metadata: { trackingNumber, jobPublicId: job.publicId, resumeAttached: true },
   });
 
   try {
