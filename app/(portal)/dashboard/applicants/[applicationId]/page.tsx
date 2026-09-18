@@ -98,7 +98,12 @@ export default async function ApplicantProfilePage({
             <button className="rounded-full bg-navy px-4 py-2 text-sm font-semibold text-white">Update status</button>
           </form>
           {["CONDITIONAL_OFFER", "BACKGROUND_SCREENING", "ONBOARDING"].includes(application.status) ? (
-            <form action={sendApplicantOnboardingLink.bind(null, applicationId)}>
+            <form
+              action={async () => {
+                "use server";
+                await sendApplicantOnboardingLink(applicationId);
+              }}
+            >
               <button className="rounded-full border border-navy px-4 py-2 text-sm font-semibold text-navy">
                 Resend onboarding upload link
               </button>
