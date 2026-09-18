@@ -13,6 +13,7 @@ import {
   FileText,
   KeyRound,
   LayoutDashboard,
+  Route,
   ScrollText,
   Settings,
   Shield,
@@ -37,6 +38,7 @@ const items: NavItem[] = [
   { href: "/dashboard/payroll", label: "Payroll", permission: "payroll.view", icon: CircleDollarSign },
   { href: "/dashboard/customers", label: "Customers", permission: "customers.view", icon: Building2 },
   { href: "/dashboard/contracts", label: "Contracts", permission: "contracts.view", icon: FileText },
+  { href: "/dashboard/contracts/routes", label: "Route templates", permission: "contracts.view", icon: Route },
   { href: "/dashboard/contracts/operating-model", label: "Operating model", permission: "finance.view", icon: Calculator },
   { href: "/dashboard/documents", label: "Documents", permission: "documents.view", icon: ScrollText },
   { href: "/dashboard/documents/alerts", label: "Document alerts", permission: "documents.view", icon: Bell },
@@ -77,7 +79,8 @@ export function PortalSidebar({
               ? pathname === "/dashboard"
               : item.href === "/dashboard/contracts"
                 ? (pathname === item.href || pathname.startsWith(`${item.href}/`)) &&
-                  !pathname.startsWith("/dashboard/contracts/operating-model")
+                  !pathname.startsWith("/dashboard/contracts/operating-model") &&
+                  !pathname.startsWith("/dashboard/contracts/routes")
                 : pathname === item.href || pathname.startsWith(`${item.href}/`);
           return (
             <Link
