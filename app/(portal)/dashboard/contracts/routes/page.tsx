@@ -45,6 +45,7 @@ export default async function RouteTemplatesPage() {
           <label className={label}>Temperature requirement<input name="temperatureRequired" placeholder="Configure per shipment" className={field} /></label>
           <label className={label}>Required training keys<input name="requiredTrainingKeys" placeholder="HIPAA,BLOODBORNE_PATHOGENS" className={field} /></label>
           <label className={label}>Required certifications<input name="requiredCertificationNames" placeholder="Certification names, comma separated" className={field} /></label>
+          <label className={label}>Required route documents<input name="requiredDocumentTypes" placeholder="ROUTE_SPECIFICATION,PICKUP_INSTRUCTIONS" className={field} /></label>
           <label className={label}>Vehicle requirement<input name="vehicleRequirement" placeholder="SUV / cargo van / any" className={field} /></label>
           <label className={label}>Estimated route hours<input name="estimatedRouteHours" type="number" min="0" step="0.25" className={field} /></label>
           <label className={label}>Route pay<input name="routePay" type="number" min="0" step="0.01" className={field} /></label>
@@ -89,6 +90,7 @@ export default async function RouteTemplatesPage() {
                 <label className={label}>Temperature<input name="temperatureRequired" defaultValue={template.temperatureRequired ?? ""} className={field} /></label>
                 <label className={label}>Training keys<input name="requiredTrainingKeys" defaultValue={template.requiredTrainingKeys ?? ""} className={field} /></label>
                 <label className={label}>Certifications<input name="requiredCertificationNames" defaultValue={template.requiredCertificationNames ?? ""} className={field} /></label>
+                <label className={label}>Required route documents<input name="requiredDocumentTypes" defaultValue={template.requiredDocumentTypes ?? ""} className={field} /></label>
                 <label className={label}>Vehicle requirement<input name="vehicleRequirement" defaultValue={template.vehicleRequirement ?? ""} className={field} /></label>
                 <label className={label}>Estimated hours<input name="estimatedRouteHours" type="number" min="0" step="0.25" defaultValue={template.estimatedRouteHours?.toString() ?? ""} className={field} /></label>
                 <label className={label}>Route pay<input name="routePay" type="number" min="0" step="0.01" defaultValue={template.routePay?.toString() ?? ""} className={field} /></label>
