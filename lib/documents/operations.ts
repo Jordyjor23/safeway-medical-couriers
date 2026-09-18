@@ -11,6 +11,7 @@ import {
   type DocumentActor,
 } from "@/lib/documents/access";
 import { prisma } from "@/lib/db";
+import { notifyUser } from "@/lib/notifications";
 import { notifyDocumentRejected } from "@/lib/documents/notification-scheduler";
 
 function forbidden() {
@@ -150,6 +151,34 @@ export async function verifyManagedDocument(args: { documentId: string; actor: D
     targetType: "document",
     targetId: document.id,
   });
+
+  try {
+    const employeeUsers = await prisma.employee.findMany({
+      where: {
+        id: { in: document.employeeLinks.map((link) => link.employeeId) },
+        userId: { not: null },
+      },
+      select: { userId: true },
+    });
+    await Promise.all(
+      employeeUsers
+        .map((employee) => employee.userId)
+        .filter((userId): userId is string => Boolean(userId))
+        .map((userId) =>
+          notifyUser({
+            userId,
+            type: "SYSTEM",
+            title: "Document verified",
+            body: `${document.name} was reviewed and verified by Safeway.`,
+            href: "/employee/dashboard",
+            dedupeKey: `document-verified:${document.id}:${userId}`,
+          }),
+        ),
+    );
+  } catch {
+    // Verification must still succeed if notification delivery fails.
+  }
+
   return { document: updated };
 }
 
