@@ -14,12 +14,89 @@ const careerCategories = [
   { slug: "independent-courier-partner", name: "Independent Courier Partner", opportunityType: "INDEPENDENT_CONTRACTOR" as const, compensationDisplay: "Compensation varies by route, mileage, assignment type, urgency, specialty handling requirements and other applicable factors.", summary: "Independent contractor opportunities. This is not an hourly employment position.", sortOrder: 90, requiresDriving: true, isMedicalCourier: true },
 ];
 
+const routeTemplates = [
+  {
+    templateCode: "GEN-MEDICAL-STANDARD",
+    scope: "GENERIC" as const,
+    name: "Standard Medical Courier Route",
+    pickupBusinessName: "Pickup Facility",
+    deliveryBusinessName: "Receiving Facility",
+    operatingDays: "Mon-Fri",
+    shipmentType: "Medical specimens / supplies",
+    chainOfCustodyRequired: false,
+    proofOfDeliveryRequired: true,
+    requiredTrainingKeys: "HIPAA,BLOODBORNE_PATHOGENS",
+    handlingInstructions: "Follow customer SOPs and assignment-specific handling instructions.",
+  },
+  {
+    templateCode: "GEN-STAT-ONCALL",
+    scope: "GENERIC" as const,
+    name: "STAT / On-Call Medical Route",
+    pickupBusinessName: "Pickup Facility",
+    deliveryBusinessName: "Receiving Facility",
+    operatingDays: "On demand",
+    shipmentType: "STAT medical delivery",
+    chainOfCustodyRequired: true,
+    proofOfDeliveryRequired: true,
+    requiredTrainingKeys: "HIPAA,BLOODBORNE_PATHOGENS,CHAIN_OF_CUSTODY",
+    handlingInstructions: "Time-critical assignment. Confirm pickup, chain of custody, and delivery handoff.",
+  },
+  {
+    templateCode: "GEN-TEMP-CONTROLLED",
+    scope: "GENERIC" as const,
+    name: "Temperature-Controlled Medical Route",
+    pickupBusinessName: "Pickup Facility",
+    deliveryBusinessName: "Receiving Facility",
+    operatingDays: "Configure per contract",
+    shipmentType: "Temperature-controlled medical materials",
+    temperatureRequired: "Configure per customer / shipment",
+    chainOfCustodyRequired: true,
+    proofOfDeliveryRequired: true,
+    requiredTrainingKeys: "HIPAA,BLOODBORNE_PATHOGENS,CHAIN_OF_CUSTODY",
+    handlingInstructions: "Verify required temperature range before dispatch and document exceptions.",
+  },
+  {
+    templateCode: "GEN-CHAIN-CUSTODY",
+    scope: "GENERIC" as const,
+    name: "Chain-of-Custody Route",
+    pickupBusinessName: "Pickup Facility",
+    deliveryBusinessName: "Receiving Facility",
+    operatingDays: "Configure per contract",
+    shipmentType: "Controlled chain-of-custody delivery",
+    chainOfCustodyRequired: true,
+    proofOfDeliveryRequired: true,
+    requiredTrainingKeys: "HIPAA,CHAIN_OF_CUSTODY",
+    handlingInstructions: "Document every required custody transfer and receiving-party sign-off.",
+  },
+  {
+    templateCode: "GEN-SPECIALTY-ORGAN",
+    scope: "GENERIC" as const,
+    name: "Specialty / Organ & Tissue Transport",
+    pickupBusinessName: "Origin / Recovery Facility",
+    deliveryBusinessName: "Transplant / Receiving Facility",
+    operatingDays: "On demand",
+    shipmentType: "Specialty organ / tissue transport",
+    chainOfCustodyRequired: true,
+    proofOfDeliveryRequired: true,
+    requiredTrainingKeys: "HIPAA,BLOODBORNE_PATHOGENS,CHAIN_OF_CUSTODY",
+    handlingInstructions: "Configure all timing, packaging, temperature, custody, communication, and receiving requirements to the governing client/OPO protocol before use.",
+  },
+];
+
 async function main() {
   for (const category of careerCategories) {
     await prisma.careerCategory.upsert({
       where: { slug: category.slug },
       update: {},
       create: category,
+    });
+  }
+
+  for (const template of routeTemplates) {
+    await prisma.routeTemplate.upsert({
+      where: { templateCode: template.templateCode },
+      update: {},
+      create: template,
     });
   }
 }
