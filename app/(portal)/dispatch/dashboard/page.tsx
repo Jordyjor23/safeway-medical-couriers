@@ -43,15 +43,20 @@ export default async function DispatchDashboardPage() {
           </select>
           <input name="pickupAddress" required placeholder="Pickup address" className="rounded-lg border border-line px-3 py-2 text-sm" />
           <input name="deliveryAddress" required placeholder="Delivery address" className="rounded-lg border border-line px-3 py-2 text-sm" />
-          <label className="text-sm">Pickup <input name="pickupAt" type="datetime-local" className="mt-1 w-full rounded-lg border border-line px-3 py-2" /></label>
-          <label className="text-sm">Deliver by <input name="deliverBy" type="datetime-local" className="mt-1 w-full rounded-lg border border-line px-3 py-2" /></label>
+          <label className="text-sm">Pickup (Eastern Time) <input name="pickupAt" type="datetime-local" className="mt-1 w-full rounded-lg border border-line px-3 py-2" /></label>
+          <label className="text-sm">Deliver by (Eastern Time) <input name="deliverBy" type="datetime-local" className="mt-1 w-full rounded-lg border border-line px-3 py-2" /></label>
           <input name="shipmentType" placeholder="Shipment type" className="rounded-lg border border-line px-3 py-2 text-sm" />
           <input name="temperatureRequired" placeholder="Temperature requirements" className="rounded-lg border border-line px-3 py-2 text-sm" />
           <input name="customerInstructions" placeholder="Customer instructions" className="rounded-lg border border-line px-3 py-2 text-sm sm:col-span-2" />
           <input name="handlingInstructions" placeholder="Handling / chain-of-custody notes" className="rounded-lg border border-line px-3 py-2 text-sm sm:col-span-2" />
-          <label className="flex items-center gap-2 text-sm sm:col-span-2">
-            <input name="chainOfCustodyRequired" type="checkbox" /> Chain of custody required
-          </label>
+          <div className="grid gap-2 sm:col-span-2 sm:grid-cols-2">
+            <label className="flex items-center gap-2 text-sm">
+              <input name="chainOfCustodyRequired" type="checkbox" /> Chain of custody required
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input name="proofOfDeliveryRequired" type="checkbox" defaultChecked /> Recipient / proof-of-delivery sign-off required
+            </label>
+          </div>
           <button className="rounded-full bg-navy px-4 py-2 text-sm font-semibold text-white sm:w-fit">Create assignment</button>
         </form>
       ) : null}
