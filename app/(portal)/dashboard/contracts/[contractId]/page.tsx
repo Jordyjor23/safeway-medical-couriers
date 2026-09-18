@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { updateContract } from "@/app/(portal)/dashboard/contracts/actions";
+import { deleteContract, updateContract } from "@/app/(portal)/dashboard/contracts/actions";
 import { documentUploadCapabilities } from "@/app/(portal)/dashboard/documents/actions";
+import { ConfirmSubmitButton } from "@/components/portal/ConfirmSubmitButton";
 import { DocumentUploader } from "@/components/portal/DocumentUploader";
 import { EntityDocumentsSection } from "@/components/portal/EntityDocumentsSection";
 import { canAssociateContract } from "@/lib/documents/access";
@@ -42,12 +43,17 @@ export default async function ContractDetailPage({
   const [contract, customers] = await Promise.all([
     prisma.contract.findUnique({
       where: { id: contractId },
-      include: { customer: true },
+      include: { customer: true, _count: { select: { documents: true, amendments: true } } },
     }),
     prisma.customer.findMany({ orderBy: { legalName: "asc" } }),
   ]);
   if (!contract) notFound();
   const canEdit = hasPermission(ctx, "contracts.edit");
+  const canDelete =
+    hasPermission(ctx, "contracts.delete") &&
+    contract.status === "DRAFT" &&
+    contract._count.documents === 0 &&
+    contract._count.amendments === 0;
   const canViewDocs = hasPermission(ctx, "documents.view");
   const [documents, capabilities] = canViewDocs
     ? await Promise.all([
@@ -149,6 +155,15 @@ export default async function ContractDetailPage({
           </div>
         )}
       </section>
+
+      {canDelete ? (
+        <form action={deleteContract.bind(null, contract.id)}>
+          <ConfirmSubmitButton
+            label="Delete draft contract"
+            confirmText="Permanently delete this draft contract? This cannot be undone."
+          />
+        </form>
+      ) : null}
 
       {canViewDocs ? (
         <EntityDocumentsSection
