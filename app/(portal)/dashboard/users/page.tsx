@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { CreateStaffForm } from "@/components/portal/CreateStaffForm";
 import { prisma } from "@/lib/db";
+import { formatBusinessDate, formatBusinessDateTime } from "@/lib/workforce-time";
 import { isOwnerRole, roleLabel } from "@/lib/permissions";
 import { requirePermission } from "@/lib/rbac";
 
@@ -74,9 +75,9 @@ export default async function UsersPage() {
                 </td>
                 <td className="px-4 py-3">{user.employee?.department ?? "—"}</td>
                 <td className="px-4 py-3">{user.accountStatus.replaceAll("_", " ")}</td>
-                <td className="px-4 py-3">{user.lastLoginAt?.toLocaleString() ?? "Never"}</td>
+                <td className="px-4 py-3">{user.lastLoginAt ? formatBusinessDateTime(user.lastLoginAt) : "Never"}</td>
                 <td className="px-4 py-3">{user.twoFactorEnabled ? "On" : "Off"}</td>
-                <td className="px-4 py-3">{user.createdAt.toLocaleDateString()}</td>
+                <td className="px-4 py-3">{formatBusinessDate(user.createdAt)}</td>
               </tr>
             ))}
           </tbody>
