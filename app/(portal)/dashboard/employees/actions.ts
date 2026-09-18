@@ -14,6 +14,7 @@ import { ONBOARDING_STEPS } from "@/lib/onboarding";
 import { provisionEmployeePortalUser } from "@/lib/portal-account";
 import { requirePermission } from "@/lib/rbac";
 import { parseBusinessDate } from "@/lib/workforce-time";
+import { notifyEmployee } from "@/lib/notifications";
 import type {
   EmployeeStatus,
   EmploymentClassification,
@@ -150,6 +151,31 @@ export async function updateEmployee(employeeId: string, formData: FormData) {
     throw new Error("Choose a valid employee status.");
   }
 
+  const currentEmployee = await prisma.employee.findUnique({
+    where: { id: employeeId },
+    select: {
+      status: true,
+      onboarding: {
+        select: {
+          steps: {
+            where: { key: "READY_FOR_ASSIGNMENT" },
+            select: { status: true },
+          },
+        },
+      },
+    },
+  });
+  if (!currentEmployee) throw new Error("Employee not found.");
+
+  if (currentEmployee.status !== "ACTIVE" && statusValue === "ACTIVE") {
+    const readyStep = currentEmployee.onboarding?.steps[0];
+    if (!readyStep || !["COMPLETED", "NOT_APPLICABLE"].includes(readyStep.status)) {
+      throw new Error(
+        "Complete the READY FOR ASSIGNMENT onboarding step before changing this worker to Active.",
+      );
+    }
+  }
+
   const employee = await prisma.employee.update({
     where: { id: employeeId },
     data: {
@@ -187,6 +213,15 @@ export async function updateEmployee(employeeId: string, formData: FormData) {
       isDriver: employee.isDriver,
     },
   });
+  if (currentEmployee.status !== "ACTIVE" && employee.status === "ACTIVE") {
+    await notifyEmployee({
+      employeeId,
+      title: "Safeway onboarding complete",
+      body: "Your Safeway worker profile is now Active. You can use the employee portal to review your schedule, timecards, pay, documents, and time-off information.",
+      href: "/employee/dashboard",
+      dedupeKey: `employee-activated:${employeeId}`,
+    });
+  }
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/employees");
   revalidatePath(`/dashboard/employees/${employeeId}`);
