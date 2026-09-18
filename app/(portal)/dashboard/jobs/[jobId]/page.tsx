@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { setJobStatus } from "@/app/(portal)/dashboard/jobs/actions";
+import { deleteJob, setJobStatus } from "@/app/(portal)/dashboard/jobs/actions";
+import { ConfirmSubmitButton } from "@/components/portal/ConfirmSubmitButton";
 import { JobForm } from "@/components/portal/JobForm";
 import { prisma } from "@/lib/db";
 import { hasPermission, requirePermission } from "@/lib/rbac";
@@ -16,7 +17,7 @@ export default async function EditJobPage({
   const ctx = await requirePermission("jobs.view");
   const { jobId } = await params;
   const [job, categories] = await Promise.all([
-    prisma.jobOpening.findUnique({ where: { id: jobId } }),
+    prisma.jobOpening.findUnique({ where: { id: jobId }, include: { _count: { select: { applications: true } } } }),
     prisma.careerCategory.findMany({ orderBy: { sortOrder: "asc" } }),
   ]);
   if (!job) notFound();
@@ -41,6 +42,15 @@ export default async function EditJobPage({
         ) : null}
       </div>
       {hasPermission(ctx, "jobs.edit") ? <JobForm job={job} categories={categories} /> : null}
+      {hasPermission(ctx, "jobs.delete") && job.status === "DRAFT" && job._count.applications === 0 ? (
+        <form action={deleteJob.bind(null, job.id)} className="mt-6">
+          <ConfirmSubmitButton
+            label="Delete draft job"
+            confirmText="Permanently delete this draft job posting? This cannot be undone."
+          />
+        </form>
+      ) : null}
+
     </div>
   );
 }
