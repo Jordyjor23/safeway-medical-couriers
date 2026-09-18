@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { createManualTimeEntry, setTimeEntryStatus } from "@/app/(portal)/dashboard/workforce/actions";
 import { prisma } from "@/lib/db";
 import { formatBusinessDateTime, hoursBetween } from "@/lib/workforce-time";
@@ -37,7 +38,7 @@ export default async function TimecardsPage() {
             <td className="px-4 py-3 font-medium text-navy">{entry.employee.legalFirstName} {entry.employee.legalLastName}</td>
             <td className="px-4 py-3">{formatBusinessDateTime(entry.clockIn)}</td><td className="px-4 py-3">{formatBusinessDateTime(entry.clockOut)}</td>
             <td className="px-4 py-3">{entry.clockOut ? hoursBetween(entry.clockIn, entry.clockOut, entry.breakMinutes).toFixed(2) : "Open"}</td><td className="px-4 py-3">{entry.status}</td>
-            {canManage?<td className="px-4 py-3"><div className="flex gap-2">{entry.status!=="APPROVED" && entry.clockOut ? <form action={setTimeEntryStatus.bind(null, entry.id, "APPROVED")}><button className="rounded-full border border-line px-3 py-1.5 text-xs font-semibold">Approve</button></form>:null}{entry.status!=="REJECTED"?<form action={setTimeEntryStatus.bind(null, entry.id, "REJECTED")}><button className="rounded-full border border-line px-3 py-1.5 text-xs font-semibold">Reject</button></form>:null}</div></td>:null}
+            {canManage?<td className="px-4 py-3"><div className="flex gap-2"><Link href={`/dashboard/workforce/timecards/${entry.id}`} className="rounded-full border border-line px-3 py-1.5 text-xs font-semibold">Edit</Link>{entry.status!=="APPROVED" && entry.clockOut ? <form action={setTimeEntryStatus.bind(null, entry.id, "APPROVED")}><button className="rounded-full border border-line px-3 py-1.5 text-xs font-semibold">Approve</button></form>:null}{entry.status!=="REJECTED"?<form action={setTimeEntryStatus.bind(null, entry.id, "REJECTED")}><button className="rounded-full border border-line px-3 py-1.5 text-xs font-semibold">Reject</button></form>:null}</div></td>:null}
           </tr>
         ))}</tbody></table>
       </div>
