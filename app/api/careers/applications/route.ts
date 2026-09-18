@@ -72,7 +72,21 @@ export async function POST(request: Request) {
 
   const parsed = applicationInputSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: "Please check the required fields and try again." }, { status: 400 });
+    const fields = Array.from(
+      new Set(
+        parsed.error.issues
+          .map((issue) => issue.path[0])
+          .filter((field): field is string | number => field !== undefined)
+          .map(String),
+      ),
+    );
+    return NextResponse.json(
+      {
+        error: "Please complete the missing or invalid application fields.",
+        fields,
+      },
+      { status: 400 },
+    );
   }
 
   const resumeValidation = await validateDocumentFile(resume);
@@ -97,7 +111,10 @@ export async function POST(request: Request) {
     prisma.legalDocument.findFirst({ where: { slug: "applicant-privacy", isCurrent: true } }),
   ]);
   if (!ackDoc || !privacyDoc) {
-    return NextResponse.json({ error: "Application notices are not configured." }, { status: 503 });
+    return NextResponse.json(
+      { error: "We could not submit your application because the hiring notices are temporarily unavailable. Your saved application has not been lost. Please try again shortly." },
+      { status: 503 },
+    );
   }
 
   const applicant = await prisma.applicant.upsert({
