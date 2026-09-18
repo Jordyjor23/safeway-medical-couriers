@@ -24,7 +24,8 @@ export default async function SchedulePage() {
 
   return (
     <div>
-      <h1 className="text-3xl font-semibold text-navy">Employee schedule</h1>
+      <Link href="/dashboard/workforce" className="text-sm font-semibold text-medical hover:underline">← Workforce</Link>
+      <h1 className="mt-3 text-3xl font-semibold text-navy">Employee schedule</h1>
       <p className="mt-2 text-sm text-muted">Times are shown in Safeway’s America/New_York business timezone.</p>
 
       {canManage ? (
