@@ -175,12 +175,22 @@ export function ApplicationForm({
 
     if (raw && form) {
       try {
-        const parsed = JSON.parse(raw) as DraftState;
+        const parsed = JSON.parse(raw) as DraftState & Record<string, unknown>;
         if (parsed.employment?.length) {
           // eslint-disable-next-line react-hooks/set-state-in-effect -- restoring an intentional browser draft
           setEmployment(parsed.employment);
         }
-        if (parsed.fields) restoreFormFields(form, parsed.fields);
+        if (parsed.fields) {
+          restoreFormFields(form, parsed.fields);
+        } else {
+          // Backward compatibility for drafts saved before structured field snapshots.
+          const legacyFields: Record<string, string[]> = {};
+          for (const [key, value] of Object.entries(parsed)) {
+            if (key === "employment" || value === undefined || value === null) continue;
+            legacyFields[key] = [String(value)];
+          }
+          restoreFormFields(form, legacyFields);
+        }
       } catch {
         localStorage.removeItem(storageKey);
       }
@@ -602,7 +612,12 @@ export function ApplicationForm({
         <label className="mt-4 flex items-start gap-2 text-sm font-semibold text-mist">
           <input type="checkbox" name="privacyReviewed" required className="mt-1 h-4 w-4" />
           I have reviewed the{" "}
-          <Link href={privacyHref} className="text-medical underline">
+          <Link
+            href={privacyHref}
+            target="_blank"
+            rel="noreferrer"
+            className="text-medical underline"
+          >
             applicant privacy notice
           </Link>
           .
