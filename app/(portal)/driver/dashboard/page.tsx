@@ -11,19 +11,10 @@ import { employeeDocumentBuckets, missingRequirementLabels } from "@/lib/documen
 import { labelDocumentType } from "@/lib/documents/catalog";
 import { DOCUMENT_LIST_INCLUDE, documentLibraryWhere } from "@/lib/documents/query";
 import { prisma } from "@/lib/db";
+import { driverProgressActions } from "@/lib/delivery-lifecycle";
 import { courierSignoffRole } from "@/lib/route-packet";
 import { hasPermission, requirePortal } from "@/lib/rbac";
 import { formatBusinessDateTime } from "@/lib/workforce-time";
-
-const progressActions = [
-  ["ACCEPTED", "Accept"],
-  ["EN_ROUTE_PICKUP", "Start route"],
-  ["ARRIVED_PICKUP", "Arrived pickup"],
-  ["PICKED_UP", "Confirm pickup"],
-  ["IN_TRANSIT", "In transit"],
-  ["ARRIVED_DELIVERY", "Arrived delivery"],
-  ["EXCEPTION", "Report issue"],
-] as const;
 
 export default async function DriverDashboardPage() {
   const ctx = await requirePortal("driver");
@@ -240,7 +231,7 @@ export default async function DriverDashboardPage() {
               </div>
 
               <div className="mt-5 grid grid-cols-2 gap-2">
-                {progressActions.map(([status, label]) => (
+                {driverProgressActions(delivery.status).map(([status, label]) => (
                   <form action={updateDeliveryStatus} key={status}>
                     <input type="hidden" name="deliveryId" value={delivery.id} />
                     <input type="hidden" name="status" value={status} />
