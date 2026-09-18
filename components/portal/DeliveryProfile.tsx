@@ -25,7 +25,11 @@ export function DeliveryProfile({
     status: string;
     pickupAddress: string;
     deliveryAddress: string;
+    pickupBusinessName: string | null;
+    deliveryBusinessName: string | null;
     customer: { id: string; legalName: string };
+    contract: { contractNumber: string } | null;
+    routeTemplate: { name: string; templateCode: string } | null;
     driver: { id: string; legalFirstName: string; legalLastName: string } | null;
     checklistItems: Array<{ id: string; label: string; required: boolean; status: string; completedAt: Date | null; note: string | null }>;
     signoffs: Array<{ id: string; role: string; signerName: string; signerTitle: string | null; signedAt: Date; attested: boolean }>;
@@ -48,8 +52,16 @@ export function DeliveryProfile({
           {delivery.customer.legalName}
           {delivery.driver ? ` · ${delivery.driver.legalFirstName} ${delivery.driver.legalLastName}` : ""}
         </p>
+        {delivery.contract || delivery.routeTemplate ? (
+          <p className="mt-1 text-xs text-muted">
+            {delivery.contract?.contractNumber ?? "Contract route"}
+            {delivery.routeTemplate ? ` · ${delivery.routeTemplate.name} (${delivery.routeTemplate.templateCode})` : ""}
+          </p>
+        ) : null}
         <p className="mt-2 text-sm">
-          {delivery.pickupAddress} → {delivery.deliveryAddress}
+          {delivery.pickupBusinessName ? `${delivery.pickupBusinessName} · ` : ""}{delivery.pickupAddress}
+          {" → "}
+          {delivery.deliveryBusinessName ? `${delivery.deliveryBusinessName} · ` : ""}{delivery.deliveryAddress}
         </p>
       </div>
       <section className="rounded-2xl border border-line bg-paper p-5">
