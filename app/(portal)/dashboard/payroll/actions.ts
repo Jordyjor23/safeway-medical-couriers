@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { writeAuditLog } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { requirePermission } from "@/lib/rbac";
-import { parseBusinessDate } from "@/lib/workforce-time";
+import { formatBusinessDate, parseBusinessDate } from "@/lib/workforce-time";
 import type { PayrollEntryStatus, PayrollPeriodStatus } from "@prisma/client";
 
 function amount(value: FormDataEntryValue | null) {
@@ -20,7 +20,7 @@ export async function createPayrollPeriod(formData: FormData) {
   if (!startsOn || !endsOn || !payDate || endsOn < startsOn) throw new Error("Payroll period dates are invalid.");
   const period = await prisma.payrollPeriod.create({
     data: {
-      label: String(formData.get("label") ?? "").trim() || `${startsOn.toLocaleDateString()} – ${endsOn.toLocaleDateString()}`,
+      label: String(formData.get("label") ?? "").trim() || `${formatBusinessDate(startsOn)} – ${formatBusinessDate(endsOn)}`,
       startsOn,
       endsOn,
       payDate,
