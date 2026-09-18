@@ -20,6 +20,22 @@ function csv(value: string | null | undefined) {
     .filter(Boolean);
 }
 
+function normalizeRequirement(value: string) {
+  return value
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+function requirementMatches(required: string, values: string[]) {
+  const wanted = normalizeRequirement(required);
+  const base = wanted.replace(/_TRAINING$/, "");
+  return values.some((value) => {
+    const normalized = normalizeRequirement(value);
+    return normalized === wanted || normalized === base || normalized.includes(base) || base.includes(normalized);
+  });
+}
+
 function sameBusinessDateBounds(value: Date) {
   const dateKey = businessDateKey(value);
   const parsed = parseBusinessDate(dateKey);
@@ -58,6 +74,7 @@ export async function resolveRouteCourier({
     include: {
       trainings: true,
       certifications: true,
+      complianceRecords: { include: { requirement: true } },
       vehicle: true,
       timeOffRequests: {
         where: {
@@ -91,13 +108,19 @@ export async function resolveRouteCourier({
     if (candidate.deliveries.length) failures.push("overlapping route");
 
     for (const key of requiredTrainingKeys) {
-      const match = candidate.trainings.find(
+      const trainingMatch = candidate.trainings.find(
         (training) =>
-          training.requirementKey.toUpperCase() === key &&
+          requirementMatches(key, [training.requirementKey, training.title]) &&
           Boolean(training.completedAt) &&
           (!training.expiresAt || training.expiresAt >= pickupAt),
       );
-      if (!match) failures.push(`missing/expired training: ${key}`);
+      const complianceMatch = candidate.complianceRecords.find(
+        (record) =>
+          requirementMatches(key, [record.requirement.key, record.requirement.name]) &&
+          ["CURRENT", "EXPIRING_SOON"].includes(record.status) &&
+          (!record.expiresAt || record.expiresAt >= pickupAt),
+      );
+      if (!trainingMatch && !complianceMatch) failures.push(`missing/expired training: ${key}`);
     }
 
     for (const name of requiredCertificationNames) {
