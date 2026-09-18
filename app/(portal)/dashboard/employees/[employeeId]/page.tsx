@@ -25,11 +25,16 @@ function isoDate(value: Date | null | undefined) {
 
 export default async function EmployeeProfilePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ employeeId: string }>;
+  searchParams: Promise<{ saved?: string; status?: string }>;
 }) {
   const ctx = await requirePermission("employees.view");
   const { employeeId } = await params;
+  const query = await searchParams;
+  const saved = query.saved === "1";
+  const savedStatus = query.status?.replaceAll("_", " ");
   const employee = await prisma.employee.findUnique({
     where: { id: employeeId },
     include: {
@@ -116,6 +121,11 @@ export default async function EmployeeProfilePage({
 
       <section className="rounded-2xl border border-line bg-paper p-5">
         <h2 className="font-semibold text-navy">Profile</h2>
+        {saved ? (
+          <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800" role="status">
+            Profile saved successfully{savedStatus ? ` · Status: ${savedStatus}` : ""}.
+          </div>
+        ) : null}
         {canEdit ? (
           <form action={updateProfile} className="mt-4 grid gap-3 sm:grid-cols-2">
             <label className="text-sm font-semibold text-navy">
