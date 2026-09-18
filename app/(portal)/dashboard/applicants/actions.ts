@@ -2,6 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { issueActivation } from "@/lib/activation";
+import {
+  issueCandidateOnboardingLink,
+  revokeCandidateOnboardingLinks,
+} from "@/lib/candidate-onboarding";
 import { writeAuditLog } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { nextScopedId } from "@/lib/ids";
@@ -14,7 +18,12 @@ export async function updateApplicationStatus(applicationId: string, status: App
   const ctx = await requirePermission("applicants.edit");
   const current = await prisma.application.findUnique({
     where: { id: applicationId },
-    include: { applicant: true, jobOpening: true, employee: true },
+    include: {
+      applicant: true,
+      jobOpening: true,
+      employee: true,
+      documents: { include: { document: true } },
+    },
   });
   if (!current) return { error: "Application not found." };
 
@@ -38,6 +47,26 @@ export async function updateApplicationStatus(applicationId: string, status: App
     targetId: applicationId,
     metadata: { from: current.status, to: status },
   });
+
+  if (status === "ONBOARDING" && current.status !== "ONBOARDING") {
+    const onboarding = await issueCandidateOnboardingLink({
+      applicationId: current.id,
+      email: current.applicant.email,
+      name: current.applicant.preferredName || current.applicant.legalFirstName,
+    });
+    await writeAuditLog({
+      actorId: ctx.user.id,
+      actorEmail: ctx.user.email,
+      action: "applicant.onboarding_link.issued",
+      targetType: "application",
+      targetId: current.id,
+      metadata: { emailSent: onboarding.emailSent, expiresAt: onboarding.expiresAt.toISOString() },
+    });
+  }
+
+  if (["HIRED", "WITHDRAWN", "NOT_SELECTED", "POSITION_FILLED"].includes(status)) {
+    await revokeCandidateOnboardingLinks(current.id);
+  }
 
   if (status === "HIRED" && !current.employee) {
     const employee = await prisma.employee.create({
@@ -71,6 +100,21 @@ export async function updateApplicationStatus(applicationId: string, status: App
     await prisma.newHireReport.create({
       data: { employeeId: employee.id, dateHired: new Date() },
     });
+
+    const transferableDocuments = current.documents.filter(
+      ({ document }) =>
+        document.lifecycleStatus !== "ARCHIVED" &&
+        document.lifecycleStatus !== "REJECTED" &&
+        document.verificationStatus !== "REJECTED",
+    );
+    if (transferableDocuments.length) {
+      await prisma.employeeDocument.createMany({
+        data: transferableDocuments.map(({ documentId }) => ({
+          employeeId: employee.id,
+          documentId,
+        })),
+      });
+    }
     const email = current.applicant.email.trim().toLowerCase();
     if (email) {
       const provisioned = await provisionEmployeePortalUser({
@@ -140,4 +184,35 @@ export async function updateInterview(applicationId: string, formData: FormData)
     targetId: applicationId,
   });
   revalidatePath(`/dashboard/applicants/${applicationId}`);
+}
+
+
+export async function sendApplicantOnboardingLink(applicationId: string) {
+  const ctx = await requirePermission("applicants.edit");
+  const application = await prisma.application.findUnique({
+    where: { id: applicationId },
+    include: { applicant: true },
+  });
+  if (!application) return { error: "Application not found." };
+  if (!["CONDITIONAL_OFFER", "BACKGROUND_SCREENING", "ONBOARDING"].includes(application.status)) {
+    return { error: "Move the candidate to conditional offer, background screening, or onboarding first." };
+  }
+
+  const result = await issueCandidateOnboardingLink({
+    applicationId,
+    email: application.applicant.email,
+    name: application.applicant.preferredName || application.applicant.legalFirstName,
+  });
+  await writeAuditLog({
+    actorId: ctx.user.id,
+    actorEmail: ctx.user.email,
+    action: "applicant.onboarding_link.resent",
+    targetType: "application",
+    targetId: applicationId,
+    metadata: { emailSent: result.emailSent, expiresAt: result.expiresAt.toISOString() },
+  });
+  revalidatePath(`/dashboard/applicants/${applicationId}`);
+  return result.emailSent
+    ? { ok: true as const }
+    : { error: "The secure onboarding link was created, but the email could not be sent." };
 }
