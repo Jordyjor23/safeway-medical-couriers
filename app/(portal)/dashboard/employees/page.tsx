@@ -45,16 +45,22 @@ export default async function EmployeesPage({
     ...(worker === "DRIVER" ? { isDriver: true } : worker === "NON_DRIVER" ? { isDriver: false } : {}),
     ...(q
       ? {
-          OR: [
-            { employeeNumber: { contains: q, mode: "insensitive" } },
-            { legalFirstName: { contains: q, mode: "insensitive" } },
-            { legalLastName: { contains: q, mode: "insensitive" } },
-            { preferredName: { contains: q, mode: "insensitive" } },
-            { email: { contains: q, mode: "insensitive" } },
-            { phone: { contains: q, mode: "insensitive" } },
-            { jobTitle: { contains: q, mode: "insensitive" } },
-            { department: { contains: q, mode: "insensitive" } },
-          ],
+          AND: q
+            .split(/\s+/)
+            .map((part) => part.trim())
+            .filter(Boolean)
+            .map((part) => ({
+              OR: [
+                { employeeNumber: { contains: part, mode: "insensitive" as const } },
+                { legalFirstName: { contains: part, mode: "insensitive" as const } },
+                { legalLastName: { contains: part, mode: "insensitive" as const } },
+                { preferredName: { contains: part, mode: "insensitive" as const } },
+                { email: { contains: part, mode: "insensitive" as const } },
+                { phone: { contains: part, mode: "insensitive" as const } },
+                { jobTitle: { contains: part, mode: "insensitive" as const } },
+                { department: { contains: part, mode: "insensitive" as const } },
+              ],
+            })),
         }
       : {}),
   };
