@@ -40,11 +40,15 @@ export function DocumentUploader({
   preset,
   triggerLabel = "Upload Document",
   detailBasePath = "/dashboard/documents",
+  allowedCategories,
+  redirectOnSuccess = true,
 }: {
   associations: { employee: boolean; customer: boolean; contract: boolean; delivery: boolean };
   preset?: Preset;
   triggerLabel?: string;
   detailBasePath?: string;
+  allowedCategories?: DocumentCategory[];
+  redirectOnSuccess?: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -72,6 +76,7 @@ export function DocumentUploader({
   const photoRef = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
 
+  const categoryOptions = allowedCategories?.length ? allowedCategories : DOCUMENT_CATEGORIES;
   const types = TYPES_BY_CATEGORY[category] ?? ["OTHER"];
 
   function reset() {
@@ -169,7 +174,7 @@ export function DocumentUploader({
           setStatus("success");
           setProgress(100);
           router.refresh();
-          if (payload.documentId) router.push(`${detailBasePath}/${payload.documentId}`);
+          if (redirectOnSuccess && payload.documentId) router.push(`${detailBasePath}/${payload.documentId}`);
         } catch {
           setError("The document could not be uploaded. Try again.");
           setStatus("error");
@@ -302,7 +307,7 @@ export function DocumentUploader({
             <label className="text-sm font-semibold text-navy">
               Category
               <select className={fieldClass} value={category} onChange={(event) => { setCategory(event.target.value as DocumentCategory); setDocumentType(""); }}>
-                {DOCUMENT_CATEGORIES.map((item) => (
+                {categoryOptions.map((item) => (
                   <option key={item} value={item}>
                     {DOCUMENT_CATEGORY_LABELS[item]}
                   </option>
