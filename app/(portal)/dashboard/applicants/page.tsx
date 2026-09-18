@@ -50,20 +50,32 @@ export default async function ApplicantsPage({
               <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3">Reviewer</th>
               <th className="px-4 py-3">Interview</th>
+              <th className="px-4 py-3">Action</th>
             </tr>
           </thead>
           <tbody>
             {applications.length === 0 ? (
               <tr>
-                <td className="px-4 py-8 text-muted" colSpan={7}>No applicants match these filters.</td>
+                <td className="px-4 py-8 text-muted" colSpan={8}>No applicants match these filters.</td>
               </tr>
             ) : (
               applications.map((application) => (
-                <tr key={application.id} className="border-b border-line last:border-0">
+                <tr key={application.id} className="border-b border-line last:border-0 hover:bg-ice/60">
                   <td className="px-4 py-3">
-                    <Link href={`/dashboard/applicants/${application.id}`} className="font-medium text-navy hover:text-medical">
+                    <Link
+                      href={`/dashboard/applicants/${application.id}`}
+                      className="font-semibold text-navy underline-offset-2 hover:text-medical hover:underline"
+                    >
                       {application.applicant.legalFirstName} {application.applicant.legalLastName}
                     </Link>
+                    <div className="mt-1">
+                      <Link
+                        href={`/dashboard/applicants/${application.id}`}
+                        className="text-xs font-semibold text-medical hover:underline"
+                      >
+                        View application →
+                      </Link>
+                    </div>
                   </td>
                   <td className="px-4 py-3">{application.jobOpening.title}</td>
                   <td className="px-4 py-3">{application.submittedAt ? formatBusinessDate(application.submittedAt) : "—"}</td>
@@ -71,6 +83,14 @@ export default async function ApplicantsPage({
                   <td className="px-4 py-3">{application.status.replaceAll("_", " ")}</td>
                   <td className="px-4 py-3">{application.assignedReviewer?.name ?? "—"}</td>
                   <td className="px-4 py-3">{application.interviewStatus.replaceAll("_", " ")}</td>
+                  <td className="px-4 py-3">
+                    <Link
+                      href={`/dashboard/applicants/${application.id}`}
+                      className="inline-flex rounded-full bg-navy px-3 py-1.5 text-xs font-semibold text-white hover:bg-medical"
+                    >
+                      Open application
+                    </Link>
+                  </td>
                 </tr>
               ))
             )}

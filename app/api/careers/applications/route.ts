@@ -285,6 +285,50 @@ export async function POST(request: Request) {
     metadata: { trackingNumber, jobPublicId: job.publicId, resumeAttached: true },
   });
 
+  const recruitingRecipients = await prisma.user.findMany({
+    where: {
+      disabled: false,
+      accountStatus: "ACTIVE",
+      roles: {
+        some: {
+          role: {
+            key: { in: ["OWNER", "ADMIN", "HR_RECRUITER"] },
+          },
+        },
+      },
+    },
+    select: { id: true, email: true, name: true },
+  });
+
+  if (recruitingRecipients.length) {
+    await prisma.notification.createMany({
+      data: recruitingRecipients.map((recipient) => ({
+        userId: recipient.id,
+        type: "APPLICATION_RECEIVED",
+        title: `New application: ${applicant.legalFirstName} ${applicant.legalLastName}`,
+        body: `${job.title} · ${job.location} · ${trackingNumber}`,
+        href: `/dashboard/applicants/${application.id}`,
+        dedupeKey: `application-received:${application.id}:${recipient.id}`,
+      })),
+      skipDuplicates: true,
+    });
+
+    await Promise.allSettled(
+      recruitingRecipients.map((recipient) =>
+        sendTransactionalEmail({
+          to: recipient.email,
+          subject: `New Safeway application — ${applicant.legalFirstName} ${applicant.legalLastName}`,
+          html: `<p>Hello ${recipient.name || "Safeway team"},</p>
+<p>A new application was submitted for <strong>${job.title}</strong>.</p>
+<p><strong>Applicant:</strong> ${applicant.legalFirstName} ${applicant.legalLastName}<br />
+<strong>Location:</strong> ${job.location}<br />
+<strong>Reference:</strong> ${trackingNumber}</p>
+<p><a href="${site.url}/dashboard/applicants/${application.id}">Open the application</a></p>`,
+        }),
+      ),
+    );
+  }
+
   try {
     await sendTransactionalEmail({
       to: applicant.email,
