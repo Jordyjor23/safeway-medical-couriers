@@ -6,9 +6,21 @@ import { hasPermission, requirePermission } from "@/lib/rbac";
 
 export const metadata: Metadata = { title: "Employees" };
 
-export default async function EmployeesPage() {
+export default async function EmployeesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ status?: string }>;
+}) {
   const ctx = await requirePermission("employees.view");
-  const employees = await prisma.employee.findMany({ orderBy: { createdAt: "desc" } });
+  const params = await searchParams;
+  const allowedStatuses = ["PENDING_ONBOARDING", "ACTIVE", "INACTIVE", "TERMINATED"] as const;
+  const status = allowedStatuses.includes(params.status as (typeof allowedStatuses)[number])
+    ? (params.status as (typeof allowedStatuses)[number])
+    : undefined;
+  const employees = await prisma.employee.findMany({
+    where: status ? { status } : undefined,
+    orderBy: { createdAt: "desc" },
+  });
   const canEdit = hasPermission(ctx, "employees.edit");
 
   return (
@@ -17,6 +29,16 @@ export default async function EmployeesPage() {
       <p className="mt-2 max-w-2xl text-sm text-muted">
         Add staff records here, or mark an applicant Hired to create an onboarding file.
       </p>
+      <form className="mt-4 flex flex-wrap gap-2" method="get">
+        <select name="status" defaultValue={status ?? ""} className="rounded-lg border border-line px-3 py-2 text-sm">
+          <option value="">All statuses</option>
+          <option value="PENDING_ONBOARDING">Pending onboarding</option>
+          <option value="ACTIVE">Active</option>
+          <option value="INACTIVE">Inactive</option>
+          <option value="TERMINATED">Terminated</option>
+        </select>
+        <button className="rounded-full border border-navy px-4 py-2 text-sm font-semibold text-navy">Filter</button>
+      </form>
       {canEdit ? <CreateEmployeeForm /> : null}
       {employees.length === 0 ? (
         <div className="mt-6 rounded-2xl border border-line bg-paper px-4 py-8 text-sm text-muted">
