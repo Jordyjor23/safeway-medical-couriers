@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import {
   ACTIVATION_EMAIL_FAILED_MESSAGE,
   issueActivation,
@@ -12,6 +13,7 @@ import { setLeaveBankBalance } from "@/lib/leave";
 import { ONBOARDING_STEPS } from "@/lib/onboarding";
 import { provisionEmployeePortalUser } from "@/lib/portal-account";
 import { requirePermission } from "@/lib/rbac";
+import { parseBusinessDate } from "@/lib/workforce-time";
 import type {
   EmployeeStatus,
   EmploymentClassification,
@@ -127,32 +129,65 @@ export async function createEmployee(formData: FormData) {
 
 export async function updateEmployee(employeeId: string, formData: FormData) {
   const ctx = await requirePermission("employees.edit");
-  const hireDateValue = String(formData.get("hireDate") ?? "");
-  await prisma.employee.update({
+  const legalFirstName = String(formData.get("legalFirstName") ?? "").trim();
+  const legalLastName = String(formData.get("legalLastName") ?? "").trim();
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const jobTitle = String(formData.get("jobTitle") ?? "").trim();
+  const hireDateValue = String(formData.get("hireDate") ?? "").trim();
+  const classificationValue = String(formData.get("classification") ?? "");
+  const statusValue = String(formData.get("status") ?? "");
+
+  const classifications = ["W2_EMPLOYEE", "INDEPENDENT_CONTRACTOR"] as const;
+  const statuses = ["PENDING_ONBOARDING", "ACTIVE", "INACTIVE", "TERMINATED"] as const;
+
+  if (!legalFirstName || !legalLastName || !email || !jobTitle) {
+    throw new Error("First name, last name, email, and job title are required.");
+  }
+  if (!classifications.includes(classificationValue as (typeof classifications)[number])) {
+    throw new Error("Choose a valid employee classification.");
+  }
+  if (!statuses.includes(statusValue as (typeof statuses)[number])) {
+    throw new Error("Choose a valid employee status.");
+  }
+
+  const employee = await prisma.employee.update({
     where: { id: employeeId },
     data: {
-      legalFirstName: String(formData.get("legalFirstName") ?? "").trim(),
-      legalLastName: String(formData.get("legalLastName") ?? "").trim(),
-      preferredName: String(formData.get("preferredName") ?? "") || null,
-      email: String(formData.get("email") ?? "").trim(),
-      phone: String(formData.get("phone") ?? "") || null,
-      jobTitle: String(formData.get("jobTitle") ?? "").trim(),
-      department: String(formData.get("department") ?? "") || null,
-      classification: String(formData.get("classification") ?? "W2_EMPLOYEE") as EmploymentClassification,
-      hireDate: hireDateValue ? new Date(hireDateValue) : null,
-      status: String(formData.get("status") ?? "PENDING_ONBOARDING") as EmployeeStatus,
+      legalFirstName,
+      legalLastName,
+      preferredName: String(formData.get("preferredName") ?? "").trim() || null,
+      email,
+      phone: String(formData.get("phone") ?? "").trim() || null,
+      jobTitle,
+      department: String(formData.get("department") ?? "").trim() || null,
+      classification: classificationValue as EmploymentClassification,
+      hireDate: hireDateValue ? parseBusinessDate(hireDateValue) : null,
+      status: statusValue as EmployeeStatus,
+    },
+    select: {
+      id: true,
+      status: true,
+      classification: true,
+      legalFirstName: true,
+      legalLastName: true,
     },
   });
+
   await writeAuditLog({
     actorId: ctx.user.id,
     actorEmail: ctx.user.email,
     action: "employee.updated",
     targetType: "employee",
     targetId: employeeId,
+    metadata: {
+      status: employee.status,
+      classification: employee.classification,
+    },
   });
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/employees");
   revalidatePath(`/dashboard/employees/${employeeId}`);
+  redirect(`/dashboard/employees/${employeeId}?saved=1&status=${encodeURIComponent(employee.status)}`);
 }
 
 export async function updateOnboardingStep(employeeId: string, formData: FormData) {
