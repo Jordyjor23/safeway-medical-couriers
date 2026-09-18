@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata } from "next";\nimport Link from "next/link";
 import { acknowledgeCallOff, createTimeOffForEmployee, recordCallOff, setTimeOffStatus } from "@/app/(portal)/dashboard/workforce/actions";
 import { prisma } from "@/lib/db";
 import { formatBusinessDate } from "@/lib/workforce-time";
@@ -16,7 +16,7 @@ export default async function TimeOffPage() {
   ]);
   return (
     <div className="space-y-8">
-      <div><h1 className="text-3xl font-semibold text-navy">PTO, leave & call-offs</h1><p className="mt-2 text-sm text-muted">Employees can submit requests from self-service; managers can review them here.</p></div>
+      <div><h1 className="text-3xl font-semibold text-navy">PTO, leave & call-offs</h1><p className="mt-2 text-sm text-muted">Employees can submit requests from self-service; managers can review them here.</p>\n      </div>
       {canManage ? <div className="grid gap-5 xl:grid-cols-2">
         <form action={createTimeOffForEmployee} className="grid gap-3 rounded-2xl border border-line bg-paper p-5 sm:grid-cols-2"><h2 className="text-lg font-semibold text-navy sm:col-span-2">Record time-off request</h2>
           <select name="employeeId" required className="rounded-lg border border-line px-3 py-2 text-sm sm:col-span-2"><option value="">Employee</option>{employees.map(e=><option key={e.id} value={e.id}>{e.legalFirstName} {e.legalLastName}</option>)}</select>
