@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { writeAuditLog } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { requirePermission } from "@/lib/rbac";
+import { notifyEmployee } from "@/lib/notifications";
 import { formatBusinessDate, parseBusinessDate } from "@/lib/workforce-time";
 import type { PayrollEntryStatus, PayrollPeriodStatus } from "@prisma/client";
 
@@ -33,16 +34,34 @@ export async function createPayrollPeriod(formData: FormData) {
 
 export async function setPayrollPeriodStatus(periodId: string, status: PayrollPeriodStatus) {
   const ctx = await requirePermission("payroll.manage");
-  await prisma.payrollPeriod.update({
+  const period = await prisma.payrollPeriod.update({
     where: { id: periodId },
     data: {
       status,
       finalizedAt: status === "FINALIZED" ? new Date() : undefined,
       paidAt: status === "PAID" ? new Date() : undefined,
     },
+    include: { entries: { select: { id: true, employeeId: true } } },
   });
   await writeAuditLog({ actorId: ctx.user.id, actorEmail: ctx.user.email, action: `payroll.period.${status.toLowerCase()}`, targetType: "payroll_period", targetId: periodId });
+  if (status === "FINALIZED" || status === "PAID") {
+    await Promise.all(
+      period.entries.map((entry) =>
+        notifyEmployee({
+          employeeId: entry.employeeId,
+          title: status === "PAID" ? "Payroll marked paid" : "Payroll finalized",
+          body:
+            status === "PAID"
+              ? `${period.label} has been marked paid. Open My pay to review your payroll record.`
+              : `${period.label} has been finalized. Open My pay to review your payroll record.`,
+          href: "/employee/pay",
+          dedupeKey: `payroll-period:${periodId}:${status}:${entry.employeeId}`,
+        }),
+      ),
+    );
+  }
   revalidatePath("/dashboard/payroll");
+  revalidatePath("/employee/pay");
 }
 
 export async function upsertPayrollEntry(periodId: string, formData: FormData) {
