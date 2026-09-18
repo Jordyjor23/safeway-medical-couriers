@@ -152,6 +152,7 @@ export async function createStaffUser(formData: FormData) {
     targetId: user.id,
     metadata: { email, roleKey, username, employeeNumber: displayId, emailSent: activation.emailSent },
   });
+  revalidatePath("/dashboard");
   revalidatePath("/dashboard/users");
   revalidatePath("/dashboard/employees");
   return {
@@ -266,7 +267,9 @@ export async function terminateUserAccess(formData: FormData) {
     action: "user.terminated",
     targetId: userId,
   });
+  revalidatePath("/dashboard");
   revalidatePath("/dashboard/users");
+  revalidatePath("/dashboard/employees");
   revalidatePath(`/dashboard/users/${userId}`);
 }
 
