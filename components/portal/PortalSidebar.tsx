@@ -8,6 +8,7 @@ import {
   CalendarDays,
   CircleDollarSign,
   Building2,
+  Calculator,
   ClipboardCheck,
   FileText,
   KeyRound,
@@ -36,6 +37,7 @@ const items: NavItem[] = [
   { href: "/dashboard/payroll", label: "Payroll", permission: "payroll.view", icon: CircleDollarSign },
   { href: "/dashboard/customers", label: "Customers", permission: "customers.view", icon: Building2 },
   { href: "/dashboard/contracts", label: "Contracts", permission: "contracts.view", icon: FileText },
+  { href: "/dashboard/contracts/operating-model", label: "Operating model", permission: "finance.view", icon: Calculator },
   { href: "/dashboard/documents", label: "Documents", permission: "documents.view", icon: ScrollText },
   { href: "/dashboard/documents/alerts", label: "Document alerts", permission: "documents.view", icon: Bell },
   { href: "/dashboard/compliance", label: "Compliance tracking", permission: "compliance.view", icon: ClipboardCheck },
@@ -73,7 +75,10 @@ export function PortalSidebar({
           const active =
             item.href === "/dashboard"
               ? pathname === "/dashboard"
-              : pathname === item.href || pathname.startsWith(`${item.href}/`);
+              : item.href === "/dashboard/contracts"
+                ? (pathname === item.href || pathname.startsWith(`${item.href}/`)) &&
+                  !pathname.startsWith("/dashboard/contracts/operating-model")
+                : pathname === item.href || pathname.startsWith(`${item.href}/`);
           return (
             <Link
               key={item.href}
