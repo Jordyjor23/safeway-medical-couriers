@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { createContract } from "@/app/(portal)/dashboard/contracts/actions";
 import { prisma } from "@/lib/db";
+import { formatBusinessDate } from "@/lib/workforce-time";
 import { hasPermission, requirePermission } from "@/lib/rbac";
 
 export const metadata: Metadata = { title: "Contracts" };
@@ -94,7 +95,7 @@ export default async function ContractsPage() {
                     </Link>
                   </td>
                   <td className="px-4 py-3">{contract.status.replaceAll("_", " ")}</td>
-                  <td className="px-4 py-3">{contract.expirationDate?.toLocaleDateString() ?? "—"}</td>
+                  <td className="px-4 py-3">{contract.expirationDate ? formatBusinessDate(contract.expirationDate) : "—"}</td>
                 </tr>
               ))
             )}
