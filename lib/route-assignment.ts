@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { businessDateKey, parseBusinessDate } from "@/lib/workforce-time";
 
 const ACTIVE_DELIVERY_STATUSES = [
   "DRAFT",
@@ -19,10 +20,13 @@ function csv(value: string | null | undefined) {
     .filter(Boolean);
 }
 
-function sameDateBounds(value: Date) {
-  const start = new Date(value);
+function sameBusinessDateBounds(value: Date) {
+  const dateKey = businessDateKey(value);
+  const parsed = parseBusinessDate(dateKey);
+  if (!parsed) throw new Error("Unable to resolve route service date.");
+  const start = new Date(parsed);
   start.setUTCHours(0, 0, 0, 0);
-  const end = new Date(value);
+  const end = new Date(parsed);
   end.setUTCHours(23, 59, 59, 999);
   return { start, end };
 }
@@ -43,7 +47,7 @@ export async function resolveRouteCourier({
 
   const requiredTrainingKeys = csv(template.requiredTrainingKeys).map((value) => value.toUpperCase());
   const requiredCertificationNames = csv(template.requiredCertificationNames).map((value) => value.toUpperCase());
-  const { start: dayStart, end: dayEnd } = sameDateBounds(pickupAt);
+  const { start: dayStart, end: dayEnd } = sameBusinessDateBounds(pickupAt);
 
   const candidates = await prisma.employee.findMany({
     where: {
@@ -58,8 +62,8 @@ export async function resolveRouteCourier({
       timeOffRequests: {
         where: {
           status: "APPROVED",
-          startDate: { lte: deliverBy },
-          endDate: { gte: pickupAt },
+          startDate: { lte: dayEnd },
+          endDate: { gte: dayStart },
         },
       },
       callOffs: {
