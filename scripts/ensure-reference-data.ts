@@ -3,6 +3,14 @@ import {
   EVERGREEN_INDEPENDENT_COURIER_PUBLIC_ID,
   EVERGREEN_MEDICAL_COURIER_PUBLIC_ID,
 } from "../lib/evergreen-jobs";
+import {
+  DEFAULT_ACCOMMODATION_NOTICE,
+  DEFAULT_APPLICANT_PRIVACY,
+  DEFAULT_APPLICATION_ACKNOWLEDGEMENT,
+  DEFAULT_EEO_STATEMENT,
+  DEFAULT_FCRA_DISCLOSURE,
+  LEGAL_REVIEW_NOTE,
+} from "../lib/legal-copy";
 
 const prisma = new PrismaClient();
 
@@ -162,7 +170,32 @@ const routeTemplates = [
   },
 ];
 
+async function ensureLegal(slug: string, title: string, body: string) {
+  await prisma.legalDocument.upsert({
+    where: { slug_version: { slug, version: "1.0" } },
+    update: { title, body, isCurrent: true, reviewNotes: LEGAL_REVIEW_NOTE },
+    create: {
+      slug,
+      title,
+      version: "1.0",
+      body,
+      isCurrent: true,
+      reviewNotes: LEGAL_REVIEW_NOTE,
+    },
+  });
+}
+
 async function main() {
+  await ensureLegal("eeo", "Equal Employment Opportunity", DEFAULT_EEO_STATEMENT);
+  await ensureLegal("applicant-privacy", "Applicant Privacy Notice", DEFAULT_APPLICANT_PRIVACY);
+  await ensureLegal(
+    "application-acknowledgement",
+    "Application Acknowledgement",
+    DEFAULT_APPLICATION_ACKNOWLEDGEMENT,
+  );
+  await ensureLegal("accommodation", "Accessibility / Accommodation", DEFAULT_ACCOMMODATION_NOTICE);
+  await ensureLegal("fcra-disclosure", "Background Check Disclosure", DEFAULT_FCRA_DISCLOSURE);
+
   for (const category of careerCategories) {
     await prisma.careerCategory.upsert({
       where: { slug: category.slug },
