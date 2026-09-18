@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { setUserRole, updateUserProfile } from "@/app/(portal)/dashboard/users/actions";
 import { UserAccountActions } from "@/components/portal/UserAccountActions";
 import { prisma } from "@/lib/db";
+import { formatBusinessDateTime } from "@/lib/workforce-time";
 import { hasPermission, requirePermission } from "@/lib/rbac";
 import { ROLE_LABELS, SYSTEM_ROLE_KEYS, roleLabel } from "@/lib/permissions";
 
@@ -64,9 +65,9 @@ export default async function UserDetailPage({
             <input name="phone" defaultValue={user.phone ?? ""} className={fieldClass} />
           </label>
           <p className="text-sm text-muted sm:col-span-2">Email: {user.email}</p>
-          <p className="text-sm text-muted">Last login: {user.lastLoginAt?.toLocaleString() ?? "Never"}</p>
+          <p className="text-sm text-muted">Last login: {user.lastLoginAt ? formatBusinessDateTime(user.lastLoginAt) : "Never"}</p>
           <p className="text-sm text-muted">
-            Password last changed: {user.passwordChangedAt?.toLocaleString() ?? "Unknown"}
+            Password last changed: {user.passwordChangedAt ? formatBusinessDateTime(user.passwordChangedAt) : "Unknown"}
           </p>
           <button className="w-fit rounded-full bg-navy px-4 py-2 text-sm font-semibold text-white">
             Save profile

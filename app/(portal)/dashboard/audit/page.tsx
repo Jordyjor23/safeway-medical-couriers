@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { requirePermission } from "@/lib/rbac";
 import { prisma } from "@/lib/db";
+import { formatBusinessDateTime } from "@/lib/workforce-time";
 
 export const metadata: Metadata = { title: "Audit log" };
 
@@ -38,7 +39,7 @@ export default async function AuditPage() {
               logs.map((log) => (
                 <tr key={log.id} className="border-b border-line last:border-0">
                   <td className="px-4 py-3 whitespace-nowrap">
-                    {log.createdAt.toLocaleString()}
+                    {formatBusinessDateTime(log.createdAt)}
                   </td>
                   <td className="px-4 py-3">{log.actorEmail ?? "system"}</td>
                   <td className="px-4 py-3">{log.action}</td>

@@ -3,6 +3,7 @@ export const PERMISSIONS = [
   "jobs.create",
   "jobs.edit",
   "jobs.publish",
+  "jobs.delete",
   "applicants.view",
   "applicants.edit",
   "applicants.screening.view",
@@ -18,6 +19,7 @@ export const PERMISSIONS = [
   "customers.view",
   "customers.create",
   "customers.edit",
+  "customers.delete",
   "contracts.view",
   "contracts.create",
   "contracts.edit",
@@ -28,6 +30,14 @@ export const PERMISSIONS = [
   "delivery.view",
   "delivery.create",
   "delivery.update",
+  "scheduling.view",
+  "scheduling.manage",
+  "timecards.view",
+  "timecards.manage",
+  "timeoff.view",
+  "timeoff.manage",
+  "payroll.view",
+  "payroll.manage",
   "compliance.view",
   "compliance.edit",
   "compliance.manage",
@@ -117,6 +127,12 @@ const DAILY_ADMIN: PermissionKey[] = [
   "delivery.view",
   "delivery.create",
   "delivery.update",
+  "scheduling.view",
+  "scheduling.manage",
+  "timecards.view",
+  "timecards.manage",
+  "timeoff.view",
+  "timeoff.manage",
   "compliance.view",
   "training.view",
   "incident.view",
@@ -135,6 +151,12 @@ export const ROLE_PERMISSIONS: Record<RoleKey, readonly PermissionKey[]> = {
   ADMIN: DAILY_ADMIN,
   OPERATIONS_MANAGER: [
     "employees.view",
+    "scheduling.view",
+    "scheduling.manage",
+    "timecards.view",
+    "timecards.manage",
+    "timeoff.view",
+    "timeoff.manage",
     "driver.view",
     "driver.assign",
     "driver.manage",
@@ -163,6 +185,10 @@ export const ROLE_PERMISSIONS: Record<RoleKey, readonly PermissionKey[]> = {
     "employees.view",
     "employees.create",
     "employees.edit",
+    "scheduling.view",
+    "timecards.view",
+    "timeoff.view",
+    "timeoff.manage",
     "training.view",
     "documents.view",
     "documents.upload",
@@ -173,6 +199,11 @@ export const ROLE_PERMISSIONS: Record<RoleKey, readonly PermissionKey[]> = {
   ],
   OPERATIONS_ADMIN: [
     "employees.view",
+    "scheduling.view",
+    "scheduling.manage",
+    "timecards.view",
+    "timecards.manage",
+    "timeoff.view",
     "driver.view",
     "customers.view",
     "contracts.view",
@@ -185,6 +216,9 @@ export const ROLE_PERMISSIONS: Record<RoleKey, readonly PermissionKey[]> = {
     "documents.archive",
   ],
   DISPATCHER: [
+    "scheduling.view",
+    "timecards.view",
+    "timeoff.view",
     "driver.view",
     "driver.assign",
     "customers.view",
@@ -198,7 +232,7 @@ export const ROLE_PERMISSIONS: Record<RoleKey, readonly PermissionKey[]> = {
     "documents.view",
     "documents.download",
   ],
-  DRIVER: ["delivery.view", "delivery.update", "incident.view", "training.view", "documents.view", "documents.download"],
+  DRIVER: ["delivery.view", "delivery.update", "scheduling.view", "timecards.view", "timeoff.view", "incident.view", "training.view", "documents.view", "documents.download"],
   COMPLIANCE_ADMIN: [
     "compliance.view",
     "compliance.edit",
@@ -229,7 +263,7 @@ export const ROLE_PERMISSIONS: Record<RoleKey, readonly PermissionKey[]> = {
     "documents.download",
     "documents.editMetadata",
   ],
-  EMPLOYEE: ["training.view", "documents.view", "documents.download", "incident.view"],
+  EMPLOYEE: ["scheduling.view", "timecards.view", "timeoff.view", "training.view", "documents.view", "documents.download", "incident.view"],
   CUSTOMER: ["delivery.view", "contracts.view", "documents.view", "documents.download"],
 };
 
@@ -240,6 +274,8 @@ export const OWNER_ONLY_PERMISSIONS: readonly PermissionKey[] = [
   "roles.manage",
   "finance.view",
   "billing.manage",
+  "payroll.view",
+  "payroll.manage",
   "applicants.screening.view",
   "employees.sensitive.view",
 ];
@@ -298,9 +334,9 @@ export type PortalKind = "staff" | "admin" | "operations" | "dispatch" | "driver
 
 export function homePathForRoles(roles: string[]) {
   if (roles.includes("OWNER")) return "/dashboard";
-  if (roles.includes("ADMIN")) return "/admin/dashboard";
-  if (roles.includes("OPERATIONS_MANAGER")) return "/operations/dashboard";
-  if (roles.includes("DISPATCHER")) return "/dispatch/dashboard";
+  if (roles.includes("ADMIN")) return "/dashboard";
+  if (roles.includes("OPERATIONS_MANAGER")) return "/dashboard";
+  if (roles.includes("DISPATCHER")) return "/dashboard";
   if (roles.includes("DRIVER")) return "/driver/dashboard";
   if (
     roles.includes("HR_RECRUITER") ||
@@ -365,6 +401,8 @@ export function canAccessPortal(roles: string[], kind: PortalKind) {
     case "staff":
       return (
         roles.includes("ADMIN") ||
+        roles.includes("OPERATIONS_MANAGER") ||
+        roles.includes("DISPATCHER") ||
         roles.includes("HR_RECRUITER") ||
         roles.includes("OPERATIONS_ADMIN") ||
         roles.includes("COMPLIANCE_ADMIN") ||

@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { addCustomerContact, updateCustomer } from "@/app/(portal)/dashboard/customers/actions";
+import { addCustomerContact, deleteCustomer, deleteCustomerContact, updateCustomer, updateCustomerContact } from "@/app/(portal)/dashboard/customers/actions";
 import { documentUploadCapabilities } from "@/app/(portal)/dashboard/documents/actions";
+import { ConfirmSubmitButton } from "@/components/portal/ConfirmSubmitButton";
 import { DocumentUploader } from "@/components/portal/DocumentUploader";
 import { EntityDocumentsSection } from "@/components/portal/EntityDocumentsSection";
 import { canAssociateCustomer } from "@/lib/documents/access";
@@ -37,10 +38,17 @@ export default async function CustomerProfilePage({
   const { customerId } = await params;
   const customer = await prisma.customer.findUnique({
     where: { id: customerId },
-    include: { contacts: true, contracts: true },
+    include: {
+      contacts: true,
+      contracts: true,
+      _count: { select: { contracts: true, documents: true, users: true, deliveries: true } },
+    },
   });
   if (!customer) notFound();
   const canEdit = hasPermission(ctx, "customers.edit");
+  const canDelete =
+    hasPermission(ctx, "customers.delete") &&
+    Object.values(customer._count).every((count) => count === 0);
   const canViewDocs = hasPermission(ctx, "documents.view");
   const [documents, capabilities] = canViewDocs
     ? await Promise.all([
@@ -147,10 +155,33 @@ export default async function CustomerProfilePage({
             <li className="text-muted">No contacts yet.</li>
           ) : (
             customer.contacts.map((contact) => (
-              <li key={contact.id}>
-                {contact.name}
-                {contact.role ? ` · ${contact.role}` : ""} · {contact.email ?? "no email"} ·{" "}
-                {contact.phone ?? "no phone"}
+              <li key={contact.id} className="rounded-xl border border-line p-3">
+                {canEdit ? (
+                  <div className="space-y-3">
+                    <form
+                      action={updateCustomerContact.bind(null, customer.id, contact.id)}
+                      className="grid gap-2 sm:grid-cols-2"
+                    >
+                      <input name="name" required defaultValue={contact.name} className="rounded-lg border border-line px-3 py-2 text-sm" />
+                      <input name="role" defaultValue={contact.role ?? ""} placeholder="Role" className="rounded-lg border border-line px-3 py-2 text-sm" />
+                      <input name="email" type="email" defaultValue={contact.email ?? ""} placeholder="Email" className="rounded-lg border border-line px-3 py-2 text-sm" />
+                      <input name="phone" defaultValue={contact.phone ?? ""} placeholder="Phone" className="rounded-lg border border-line px-3 py-2 text-sm" />
+                      <label className="flex items-center gap-2 text-sm"><input name="isPrimary" type="checkbox" defaultChecked={contact.isPrimary} /> Primary</label>
+                      <label className="flex items-center gap-2 text-sm"><input name="isBilling" type="checkbox" defaultChecked={contact.isBilling} /> Billing</label>
+                      <label className="flex items-center gap-2 text-sm"><input name="isOperations" type="checkbox" defaultChecked={contact.isOperations} /> Operations</label>
+                      <button className="w-fit rounded-full border border-line px-3 py-2 text-xs font-semibold text-navy">Save contact</button>
+                    </form>
+                    <form action={deleteCustomerContact.bind(null, customer.id, contact.id)}>
+                      <ConfirmSubmitButton
+                        label="Delete contact"
+                        confirmText="Delete this customer contact?"
+                        className="text-xs font-semibold text-red-700"
+                      />
+                    </form>
+                  </div>
+                ) : (
+                  <p>{contact.name}{contact.role ? ` · ${contact.role}` : ""} · {contact.email ?? "no email"} · {contact.phone ?? "no phone"}</p>
+                )}
               </li>
             ))
           )}
@@ -199,6 +230,15 @@ export default async function CustomerProfilePage({
           )}
         </ul>
       </section>
+
+      {canDelete ? (
+        <form action={deleteCustomer.bind(null, customer.id)}>
+          <ConfirmSubmitButton
+            label="Delete empty customer record"
+            confirmText="Permanently delete this customer record? This cannot be undone."
+          />
+        </form>
+      ) : null}
 
       {canViewDocs ? (
         <EntityDocumentsSection

@@ -7,6 +7,7 @@ import {
   updateInterview,
 } from "@/app/(portal)/dashboard/applicants/actions";
 import { prisma } from "@/lib/db";
+import { formatBusinessDateTime } from "@/lib/workforce-time";
 import { hasPermission, requirePermission } from "@/lib/rbac";
 import type { ApplicationStatus } from "@prisma/client";
 
@@ -121,7 +122,7 @@ export default async function ApplicantProfilePage({
           </form>
           <ul className="mt-4 space-y-2 text-sm">
             {application.interviews.map((interview) => (
-              <li key={interview.id}>{interview.scheduledAt?.toLocaleString() ?? "Unscheduled"} · {interview.status}</li>
+              <li key={interview.id}>{interview.scheduledAt ? formatBusinessDateTime(interview.scheduledAt) : "Unscheduled"} · {interview.status}</li>
             ))}
           </ul>
         </section>
@@ -159,7 +160,7 @@ export default async function ApplicantProfilePage({
         <ul className="mt-3 space-y-1 text-sm text-muted">
           {application.statusHistory.map((item) => (
             <li key={item.id}>
-              {item.createdAt.toLocaleString()} · {item.fromStatus ?? "—"} → {item.toStatus}
+              {formatBusinessDateTime(item.createdAt)} · {item.fromStatus ?? "—"} → {item.toStatus}
             </li>
           ))}
         </ul>

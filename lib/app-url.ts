@@ -20,6 +20,10 @@ function configuredOrigin() {
   return configured ? stripSlash(configured) : null;
 }
 
+function vercelOrigin(host: string | undefined) {
+  return host ? stripSlash(fromHost(host)) : null;
+}
+
 const LOCAL_DEV_ORIGIN = "http://localhost:3000";
 
 export const PRODUCTION_PORTAL_HOST = "portal.safewaycouriers.com";
@@ -69,6 +73,9 @@ export function allowedOrigins() {
         appOrigin(),
         process.env.NEXT_PUBLIC_APP_URL,
         process.env.NEXT_PUBLIC_SITE_URL,
+        vercelOrigin(process.env.VERCEL_URL),
+        vercelOrigin(process.env.VERCEL_BRANCH_URL),
+        vercelOrigin(process.env.VERCEL_PROJECT_PRODUCTION_URL),
         PRODUCTION_PORTAL_ORIGIN,
         "https://www.safewaycouriers.com",
         "https://safewaycouriers.com",

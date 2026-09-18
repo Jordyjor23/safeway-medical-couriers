@@ -614,6 +614,10 @@ model Employee {
   jobTitle                 String
   department               String?
   classification           EmploymentClassification
+  compensationType         PayType?
+  basePayRate              Decimal?                 @db.Decimal(12, 2)
+  overtimeEligible         Boolean                  @default(true)
+  ptoBalanceHours          Decimal                  @default(0) @db.Decimal(8, 2)
   hireDate                 DateTime?
   status                   EmployeeStatus           @default(PENDING_ONBOARDING)
   isDriver                 Boolean                  @default(false)
@@ -634,8 +638,17 @@ model Employee {
   vehicle       EmployeeVehicle?
   notes         EmployeeNote[]
   complianceRecords ComplianceRecord[]
-  deliveries    Delivery[]
-  tasks         EmployeeTask[]
+  deliveries      Delivery[]
+  tasks           EmployeeTask[]
+  shifts          EmployeeShift[]
+  timeEntries     TimeEntry[]
+  timeOffRequests TimeOffRequest[]
+  callOffs        CallOffRequest[]
+  payrollEntries  PayrollEntry[]
+  leaveBanks      LeaveBank[]
+  leaveLedger     LeaveLedgerEntry[]
+  primaryRouteTemplates RouteTemplate[] @relation("PrimaryRouteCourier")
+  backupRouteTemplates  RouteTemplate[] @relation("BackupRouteCourier")
 
   @@index([managerId])
 }
@@ -781,6 +794,235 @@ model NewHireReport {
   transmitted           Boolean              @default(false)
 }
 
+
+enum ShiftStatus {
+  DRAFT
+  PUBLISHED
+  COMPLETED
+  CANCELLED
+}
+
+model EmployeeShift {
+  id           String      @id @default(uuid())
+  employeeId   String
+  employee     Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  deliveryId   String?     @unique
+  delivery     Delivery?   @relation(fields: [deliveryId], references: [id], onDelete: SetNull)
+  startsAt     DateTime
+  endsAt       DateTime
+  breakMinutes Int         @default(0)
+  assignment   String?
+  location     String?
+  notes        String?
+  status       ShiftStatus @default(DRAFT)
+  publishedAt  DateTime?
+  createdBy    String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  timeEntries TimeEntry[]
+  callOffs    CallOffRequest[]
+
+  @@index([employeeId, startsAt])
+  @@index([status, startsAt])
+  @@index([deliveryId])
+}
+
+enum TimeEntryStatus {
+  OPEN
+  SUBMITTED
+  APPROVED
+  REJECTED
+}
+
+model TimeEntry {
+  id          String          @id @default(uuid())
+  employeeId  String
+  employee    Employee        @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  shiftId     String?
+  shift       EmployeeShift?  @relation(fields: [shiftId], references: [id], onDelete: SetNull)
+  clockIn     DateTime
+  clockOut    DateTime?
+  breakMinutes Int            @default(0)
+  status      TimeEntryStatus @default(OPEN)
+  employeeNote String?
+  managerNote  String?
+  approvedBy  String?
+  approvedAt  DateTime?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([employeeId, clockIn])
+  @@index([status, clockIn])
+  @@index([shiftId])
+}
+
+enum TimeOffType {
+  PTO
+  SICK
+  VACATION
+  UNPAID
+  BEREAVEMENT
+  OTHER
+}
+
+enum TimeOffStatus {
+  PENDING
+  APPROVED
+  DENIED
+  CANCELLED
+}
+
+model TimeOffRequest {
+  id          String        @id @default(uuid())
+  employeeId  String
+  employee    Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  type        TimeOffType
+  startDate   DateTime
+  endDate     DateTime
+  hours       Decimal?      @db.Decimal(8, 2)
+  reason      String?
+  status      TimeOffStatus @default(PENDING)
+  managerNote String?
+  decidedBy          String?
+  decidedAt          DateTime?
+  balanceAppliedAt   DateTime?
+  balanceHoursApplied Decimal?      @db.Decimal(8, 2)
+  createdAt          DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([employeeId, startDate])
+  @@index([status, startDate])
+}
+
+enum LeaveBankType {
+  PTO
+  SICK
+  VACATION
+}
+
+enum LeaveLedgerKind {
+  INITIAL
+  ACCRUAL
+  ADJUSTMENT
+  USED
+  RESTORED
+}
+
+model LeaveBank {
+  id           String        @id @default(uuid())
+  employeeId   String
+  employee     Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  type         LeaveBankType
+  balanceHours Decimal       @default(0) @db.Decimal(8, 2)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@unique([employeeId, type])
+  @@index([employeeId])
+}
+
+model LeaveLedgerEntry {
+  id               String          @id @default(uuid())
+  employeeId       String
+  employee         Employee        @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  bankType         LeaveBankType
+  kind             LeaveLedgerKind
+  deltaHours       Decimal         @db.Decimal(8, 2)
+  balanceAfter     Decimal         @db.Decimal(8, 2)
+  timeOffRequestId String?
+  actorUserId      String?
+  note             String?
+  createdAt        DateTime        @default(now())
+
+  @@index([employeeId, bankType, createdAt])
+  @@index([timeOffRequestId])
+}
+
+enum CallOffStatus {
+  REPORTED
+  ACKNOWLEDGED
+  CANCELLED
+}
+
+model CallOffRequest {
+  id             String        @id @default(uuid())
+  employeeId     String
+  employee       Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  shiftId        String?
+  shift          EmployeeShift? @relation(fields: [shiftId], references: [id], onDelete: SetNull)
+  callOffDate    DateTime
+  reason         String
+  notes          String?
+  status         CallOffStatus @default(REPORTED)
+  reportedAt     DateTime      @default(now())
+  acknowledgedBy String?
+  acknowledgedAt DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([employeeId, callOffDate])
+  @@index([status, callOffDate])
+  @@index([shiftId])
+}
+
+enum PayrollPeriodStatus {
+  OPEN
+  PROCESSING
+  FINALIZED
+  PAID
+}
+
+model PayrollPeriod {
+  id          String              @id @default(uuid())
+  label       String
+  startsOn    DateTime
+  endsOn      DateTime
+  payDate     DateTime
+  status      PayrollPeriodStatus @default(OPEN)
+  createdBy   String?
+  finalizedAt DateTime?
+  paidAt      DateTime?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  entries PayrollEntry[]
+
+  @@index([startsOn, endsOn])
+  @@index([status, payDate])
+}
+
+enum PayrollEntryStatus {
+  DRAFT
+  APPROVED
+  PAID
+}
+
+model PayrollEntry {
+  id             String             @id @default(uuid())
+  payrollPeriodId String
+  payrollPeriod   PayrollPeriod      @relation(fields: [payrollPeriodId], references: [id], onDelete: Cascade)
+  employeeId      String
+  employee        Employee           @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  regularHours    Decimal            @default(0) @db.Decimal(8, 2)
+  overtimeHours   Decimal            @default(0) @db.Decimal(8, 2)
+  regularRate     Decimal            @default(0) @db.Decimal(12, 2)
+  overtimeRate    Decimal            @default(0) @db.Decimal(12, 2)
+  grossPay        Decimal            @default(0) @db.Decimal(14, 2)
+  deductions      Decimal            @default(0) @db.Decimal(14, 2)
+  reimbursements  Decimal            @default(0) @db.Decimal(14, 2)
+  netPay          Decimal            @default(0) @db.Decimal(14, 2)
+  status           PayrollEntryStatus @default(DRAFT)
+  externalReference String?
+  notes            String?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  @@unique([payrollPeriodId, employeeId])
+  @@index([employeeId])
+  @@index([status])
+}
+
 // ---------------------------------------------------------------------------
 // Customers / CRM
 // ---------------------------------------------------------------------------
@@ -836,6 +1078,7 @@ model Customer {
   users     CustomerUser[]
   notesList CustomerNote[]
   deliveries Delivery[]
+  routeTemplates RouteTemplate[]
 
   @@index([status])
   @@index([accountOwnerId])
@@ -934,9 +1177,53 @@ model Contract {
 
   documents  ContractDocument[]
   amendments ContractAmendment[]
+  operatingModels ContractOperatingModel[]
+  routeTemplates RouteTemplate[]
+  deliveries Delivery[]
 
   @@index([customerId, status])
   @@index([expirationDate])
+}
+
+/// Internal bid and award economics. This contains planning assumptions, not invoices or payroll records.
+model ContractOperatingModel {
+  id                              String    @id @default(uuid())
+  name                            String
+  contractId                      String?
+  contract                        Contract? @relation(fields: [contractId], references: [id], onDelete: SetNull)
+  annualRevenue                   Decimal   @db.Decimal(14, 2)
+  contractMonths                  Int       @default(12)
+  routeCount                      Int
+  operatingDaysPerWeek            Decimal   @db.Decimal(5, 2)
+  averageRouteHoursPerDay         Decimal   @db.Decimal(5, 2)
+  reliefCoveragePercent           Decimal   @db.Decimal(5, 2)
+  driverHourlyRate                Decimal   @db.Decimal(8, 2)
+  payrollBurdenPercent            Decimal   @db.Decimal(5, 2)
+  operationsManagerCount          Int
+  operationsManagerAnnualSalary  Decimal   @db.Decimal(12, 2)
+  dispatcherCount                 Int
+  dispatcherAnnualSalary         Decimal   @db.Decimal(12, 2)
+  activeVehicleCount              Int
+  reserveVehicleCount             Int
+  vehicleMonthlyCost              Decimal   @db.Decimal(10, 2)
+  fuelMonthlyPerVehicle           Decimal   @db.Decimal(10, 2)
+  insuranceMonthlyPerVehicle      Decimal   @db.Decimal(10, 2)
+  maintenanceMonthlyPerVehicle    Decimal   @db.Decimal(10, 2)
+  technologyMonthly               Decimal   @db.Decimal(10, 2)
+  complianceMonthly               Decimal   @db.Decimal(10, 2)
+  officeAdminMonthly              Decimal   @db.Decimal(10, 2)
+  otherMonthly                    Decimal   @db.Decimal(10, 2)
+  startupOneTimeCosts             Decimal   @db.Decimal(12, 2)
+  accountsReceivableDays          Int
+  cashReserveMonths               Decimal   @db.Decimal(5, 2)
+  availableStartupCapital         Decimal   @db.Decimal(12, 2)
+  notes                           String?
+  createdById                     String?
+  createdAt                       DateTime  @default(now())
+  updatedAt                       DateTime  @updatedAt
+
+  @@index([contractId])
+  @@index([updatedAt])
 }
 
 model ContractAmendment {
@@ -1226,6 +1513,60 @@ model IdSequence {
   value Int    @default(0)
 }
 
+enum RouteTemplateScope {
+  GENERIC
+  CONTRACT
+}
+
+model RouteTemplate {
+  id                       String             @id @default(uuid())
+  templateCode             String             @unique
+  scope                    RouteTemplateScope @default(GENERIC)
+  name                     String
+  contractId               String?
+  contract                 Contract?          @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  customerId               String?
+  customer                 Customer?          @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  sourceTemplateId         String?
+  sourceTemplate           RouteTemplate?     @relation("RouteTemplateCopies", fields: [sourceTemplateId], references: [id], onDelete: SetNull)
+  copies                   RouteTemplate[]    @relation("RouteTemplateCopies")
+  pickupBusinessName       String?
+  pickupAddress            String?
+  deliveryBusinessName     String?
+  deliveryAddress          String?
+  pickupTimeLocal          String?
+  deliverByTimeLocal       String?
+  operatingDays            String?
+  shipmentType             String?
+  temperatureRequired      String?
+  chainOfCustodyRequired   Boolean            @default(false)
+  proofOfDeliveryRequired  Boolean            @default(true)
+  customerInstructions     String?
+  handlingInstructions     String?
+  requiredTrainingKeys     String?
+  requiredCertificationNames String?
+  requiredDocumentTypes    String?
+  vehicleRequirement       String?
+  estimatedRouteHours      Decimal?           @db.Decimal(6, 2)
+  routePay                 Decimal?           @db.Decimal(10, 2)
+  primaryDriverEmployeeId  String?
+  primaryDriver            Employee?          @relation("PrimaryRouteCourier", fields: [primaryDriverEmployeeId], references: [id], onDelete: SetNull)
+  backupDriverEmployeeId   String?
+  backupDriver             Employee?          @relation("BackupRouteCourier", fields: [backupDriverEmployeeId], references: [id], onDelete: SetNull)
+  active                   Boolean            @default(true)
+  createdById              String?
+  createdAt                DateTime           @default(now())
+  updatedAt                DateTime           @updatedAt
+
+  deliveries Delivery[]
+
+  @@index([scope, active])
+  @@index([contractId, active])
+  @@index([customerId])
+  @@index([primaryDriverEmployeeId])
+  @@index([backupDriverEmployeeId])
+}
+
 enum DeliveryStatus {
   DRAFT
   ASSIGNED
@@ -1245,6 +1586,12 @@ model Delivery {
   deliveryNumber          String         @unique
   customerId              String
   customer                Customer       @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  contractId              String?
+  contract                Contract?       @relation(fields: [contractId], references: [id], onDelete: SetNull)
+  routeTemplateId         String?
+  routeTemplate           RouteTemplate?  @relation(fields: [routeTemplateId], references: [id], onDelete: SetNull)
+  pickupBusinessName      String?
+  deliveryBusinessName    String?
   driverEmployeeId        String?
   driver                  Employee?      @relation(fields: [driverEmployeeId], references: [id], onDelete: SetNull)
   assignedById            String?
@@ -1268,9 +1615,64 @@ model Delivery {
   events DeliveryEvent[]
   incidents IncidentReport[]
   documents DeliveryDocument[]
+  checklistItems DeliveryChecklistItem[]
+  signoffs DeliverySignoff[]
+  shift EmployeeShift?
 
   @@index([customerId, status])
+  @@index([contractId, status])
+  @@index([routeTemplateId, status])
   @@index([driverEmployeeId, status])
+}
+
+enum DeliveryChecklistStatus {
+  PENDING
+  COMPLETED
+  WAIVED
+}
+
+enum DeliverySignoffRole {
+  COURIER
+  CONTRACTOR
+  RECIPIENT
+  CUSTOMER
+  STAFF
+}
+
+model DeliveryChecklistItem {
+  id                String                  @id @default(uuid())
+  deliveryId        String
+  delivery          Delivery                @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  key               String
+  label             String
+  required          Boolean                 @default(true)
+  status            DeliveryChecklistStatus @default(PENDING)
+  sortOrder         Int                     @default(0)
+  completedAt       DateTime?
+  completedByUserId String?
+  note              String?
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+
+  @@unique([deliveryId, key])
+  @@index([deliveryId, status])
+}
+
+model DeliverySignoff {
+  id             String              @id @default(uuid())
+  deliveryId     String
+  delivery       Delivery            @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  role           DeliverySignoffRole
+  signerName     String
+  signerTitle    String?
+  signatureText  String
+  attested       Boolean             @default(false)
+  formVersion    String              @default("1.0")
+  notes          String?
+  signedByUserId String?
+  signedAt       DateTime            @default(now())
+
+  @@index([deliveryId, role, signedAt])
 }
 
 model DeliveryEvent {

@@ -93,6 +93,8 @@ function main() {
     run("node", ["scripts/migrate-deploy.mjs"]);
     console.log("Ensuring additive RBAC permission keys…");
     run("npx", ["tsx", "scripts/ensure-rbac.ts"]);
+    console.log("Ensuring additive portal reference data…");
+    run("npx", ["tsx", "scripts/ensure-reference-data.ts"]);
   }
 
   console.log("Building Next.js…");

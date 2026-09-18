@@ -2,23 +2,48 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { createContract } from "@/app/(portal)/dashboard/contracts/actions";
 import { prisma } from "@/lib/db";
+import { formatBusinessDate } from "@/lib/workforce-time";
 import { hasPermission, requirePermission } from "@/lib/rbac";
 
 export const metadata: Metadata = { title: "Contracts" };
 
 export default async function ContractsPage() {
   const ctx = await requirePermission("contracts.view");
-  const [contracts, customers] = await Promise.all([
+  const [contracts, customers, genericTemplates] = await Promise.all([
     prisma.contract.findMany({ include: { customer: true }, orderBy: { updatedAt: "desc" } }),
     prisma.customer.findMany({ orderBy: { legalName: "asc" } }),
+    prisma.routeTemplate.findMany({
+      where: { scope: "GENERIC", active: true },
+      orderBy: { name: "asc" },
+    }),
   ]);
 
   return (
     <div>
-      <h1 className="text-3xl font-semibold text-navy">Contracts</h1>
-      <p className="mt-2 text-sm text-muted">
-        E-signature is architected for a future provider. This screen tracks status, dates, and files.
-      </p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-semibold text-navy">Contracts</h1>
+          <p className="mt-2 text-sm text-muted">
+            Track agreements, dates, files, and the operating economics behind each opportunity.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href="/dashboard/contracts/routes"
+            className="rounded-full border border-navy px-4 py-2 text-sm font-semibold text-navy hover:bg-navy hover:text-white"
+          >
+            Route templates
+          </Link>
+        {hasPermission(ctx, "finance.view") ? (
+          <Link
+            href="/dashboard/contracts/operating-model"
+            className="rounded-full bg-navy px-4 py-2 text-sm font-semibold text-white hover:bg-medical"
+          >
+            Open $1.1M operating model
+          </Link>
+        ) : null}
+        </div>
+      </div>
       {hasPermission(ctx, "contracts.edit") ? (
         <form action={createContract} className="mt-6 grid gap-3 rounded-2xl border border-line bg-paper p-5 sm:grid-cols-2">
           <select name="customerId" required className="rounded-lg border border-line px-3 py-2 text-sm">
@@ -35,6 +60,12 @@ export default async function ContractsPage() {
             ))}
           </select>
           <input name="serviceType" placeholder="Service type" className="rounded-lg border border-line px-3 py-2 text-sm" />
+          <select name="starterRouteTemplateId" className="rounded-lg border border-line px-3 py-2 text-sm">
+            <option value="">Starter route setup (optional)</option>
+            {genericTemplates.map((template) => (
+              <option key={template.id} value={template.id}>{template.name}</option>
+            ))}
+          </select>
           <select name="status" className="rounded-lg border border-line px-3 py-2 text-sm">
             {["DRAFT", "UNDER_REVIEW", "SENT", "NEGOTIATING", "AWAITING_SIGNATURE", "ACTIVE"].map((status) => (
               <option key={status}>{status}</option>
@@ -82,7 +113,7 @@ export default async function ContractsPage() {
                     </Link>
                   </td>
                   <td className="px-4 py-3">{contract.status.replaceAll("_", " ")}</td>
-                  <td className="px-4 py-3">{contract.expirationDate?.toLocaleDateString() ?? "—"}</td>
+                  <td className="px-4 py-3">{contract.expirationDate ? formatBusinessDate(contract.expirationDate) : "—"}</td>
                 </tr>
               ))
             )}

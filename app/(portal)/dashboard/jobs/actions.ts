@@ -49,6 +49,7 @@ export async function createJob(formData: FormData) {
     targetType: "job",
     targetId: job.id,
   });
+  revalidatePath("/dashboard");
 
   revalidatePath("/careers");
   revalidatePath("/dashboard/jobs");
@@ -93,6 +94,7 @@ export async function updateJob(jobId: string, formData: FormData) {
     targetType: "job",
     targetId: jobId,
   });
+  revalidatePath("/dashboard");
   revalidatePath("/careers");
   revalidatePath("/dashboard/jobs");
   revalidatePath(`/dashboard/jobs/${jobId}`);
@@ -115,7 +117,35 @@ export async function setJobStatus(jobId: string, status: JobStatus) {
     targetType: "job",
     targetId: jobId,
   });
+  revalidatePath("/dashboard");
   revalidatePath("/careers");
   revalidatePath("/dashboard/jobs");
   revalidatePath(`/dashboard/jobs/${jobId}`);
+}
+
+
+export async function deleteJob(jobId: string) {
+  const ctx = await requirePermission("jobs.delete");
+  const job = await prisma.jobOpening.findUnique({
+    where: { id: jobId },
+    include: { _count: { select: { applications: true } } },
+  });
+  if (!job) redirect("/dashboard/jobs");
+  if (job.status !== "DRAFT" || job._count.applications > 0) {
+    throw new Error(
+      "Only draft jobs with no applications can be deleted. Close or archive jobs that already have applicant history.",
+    );
+  }
+  await prisma.jobOpening.delete({ where: { id: jobId } });
+  await writeAuditLog({
+    actorId: ctx.user.id,
+    actorEmail: ctx.user.email,
+    action: "job.deleted",
+    targetType: "job",
+    targetId: jobId,
+  });
+  revalidatePath("/dashboard");
+  revalidatePath("/careers");
+  revalidatePath("/dashboard/jobs");
+  redirect("/dashboard/jobs");
 }

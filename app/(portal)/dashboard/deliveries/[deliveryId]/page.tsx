@@ -18,7 +18,7 @@ export default async function StaffDeliveryPage({
   const { deliveryId } = await params;
   const delivery = await prisma.delivery.findUnique({
     where: { id: deliveryId },
-    include: { customer: true, driver: true },
+    include: { customer: true, driver: true, contract: { select: { contractNumber: true } }, routeTemplate: { select: { name: true, templateCode: true } }, checklistItems: { orderBy: { sortOrder: "asc" } }, signoffs: { orderBy: { signedAt: "asc" } } },
   });
   if (!delivery) notFound();
   const canViewDocs = hasPermission(ctx, "documents.view");

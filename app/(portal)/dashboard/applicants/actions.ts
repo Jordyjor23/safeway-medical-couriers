@@ -92,6 +92,7 @@ export async function updateApplicationStatus(applicationId: string, status: App
     }
   }
 
+  revalidatePath("/dashboard");
   revalidatePath("/dashboard/applicants");
   revalidatePath(`/dashboard/applicants/${applicationId}`);
   return { ok: true };

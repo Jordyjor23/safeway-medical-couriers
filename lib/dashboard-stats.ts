@@ -10,13 +10,19 @@ export async function getDashboardOverview() {
   const expiringBefore = soon(30);
 
   const [
+    employeeRecords,
+    pendingOnboardingEmployees,
     activeEmployees,
     activeCouriers,
+    applicationRecords,
     pendingApplicants,
     applicationsThisMonth,
+    jobRecords,
     openPositions,
+    customerRecords,
     activeCustomers,
     prospectiveCustomers,
+    contractRecords,
     activeContracts,
     contractsExpiringSoon,
     pendingContracts,
@@ -25,6 +31,8 @@ export async function getDashboardOverview() {
     upcomingTrainingExpirations,
     recentActivity,
   ] = await Promise.all([
+    prisma.employee.count(),
+    prisma.employee.count({ where: { status: "PENDING_ONBOARDING" } }),
     prisma.employee.count({ where: { status: "ACTIVE" } }),
     prisma.employee.count({
       where: {
@@ -35,6 +43,7 @@ export async function getDashboardOverview() {
         ],
       },
     }),
+    prisma.application.count(),
     prisma.application.count({
       where: {
         status: {
@@ -57,11 +66,14 @@ export async function getDashboardOverview() {
         },
       },
     }),
+    prisma.jobOpening.count(),
     prisma.jobOpening.count({ where: { status: "PUBLISHED" } }),
+    prisma.customer.count(),
     prisma.customer.count({ where: { status: "ACTIVE" } }),
     prisma.customer.count({
       where: { status: { in: ["PROSPECT", "LEAD", "PROPOSAL_SENT", "NEGOTIATION"] } },
     }),
+    prisma.contract.count(),
     prisma.contract.count({ where: { status: "ACTIVE" } }),
     prisma.contract.count({
       where: {
@@ -102,13 +114,19 @@ export async function getDashboardOverview() {
   ]);
 
   return {
+    employeeRecords,
+    pendingOnboardingEmployees,
     activeEmployees,
     activeCouriers,
+    applicationRecords,
     pendingApplicants,
     applicationsThisMonth,
+    jobRecords,
     openPositions,
+    customerRecords,
     activeCustomers,
     prospectiveCustomers,
+    contractRecords,
     activeContracts,
     contractsExpiringSoon,
     pendingContracts,

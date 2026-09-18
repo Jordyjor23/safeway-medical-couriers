@@ -30,21 +30,17 @@ export async function ensureSystemRoles(db: PrismaClient) {
       },
     });
 
-    const existingLinks = await db.rolePermission.count({ where: { roleId: role.id } });
-    if (existingLinks === 0) {
-      const permissionKeys = ROLE_PERMISSIONS[key];
-      if (permissionKeys.length === 0) continue;
-      const permissions = await db.permission.findMany({
-        where: { key: { in: [...permissionKeys] } },
+    const permissionKeys = ROLE_PERMISSIONS[key];
+    if (permissionKeys.length === 0) continue;
+    const permissions = await db.permission.findMany({
+      where: { key: { in: [...permissionKeys] } },
+    });
+    for (const permission of permissions) {
+      await db.rolePermission.upsert({
+        where: { roleId_permissionId: { roleId: role.id, permissionId: permission.id } },
+        create: { roleId: role.id, permissionId: permission.id },
+        update: {},
       });
-      await db.rolePermission.createMany({
-        data: permissions.map((permission) => ({
-          roleId: role.id,
-          permissionId: permission.id,
-        })),
-      });
-    } else {
-      await ensureNewDocumentPermissions(db, role.id, ROLE_PERMISSIONS[key]);
     }
   }
 
@@ -57,27 +53,3 @@ export async function ensureSystemRoles(db: PrismaClient) {
   }
 }
 
-const NEW_DOCUMENT_PERMISSIONS = [
-  "documents.editMetadata",
-  "documents.verify",
-  "documents.archive",
-  "documents.download",
-  "documents.viewSensitive",
-] as const;
-
-async function ensureNewDocumentPermissions(
-  db: PrismaClient,
-  roleId: string,
-  rolePermissions: readonly string[],
-) {
-  const keys = NEW_DOCUMENT_PERMISSIONS.filter((key) => rolePermissions.includes(key));
-  if (!keys.length) return;
-  const permissions = await db.permission.findMany({ where: { key: { in: [...keys] } } });
-  for (const permission of permissions) {
-    await db.rolePermission.upsert({
-      where: { roleId_permissionId: { roleId, permissionId: permission.id } },
-      create: { roleId, permissionId: permission.id },
-      update: {},
-    });
-  }
-}

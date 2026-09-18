@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { upsertComplianceRecord } from "@/app/(portal)/dashboard/compliance/actions";
 import { prisma } from "@/lib/db";
+import { formatBusinessDate } from "@/lib/workforce-time";
 import { hasPermission, requirePermission } from "@/lib/rbac";
 
 export const metadata: Metadata = { title: "Compliance tracking" };
@@ -117,7 +118,7 @@ export default async function ComplianceDashboardPage() {
                   </td>
                   <td className="px-4 py-3">{record.requirement.name}</td>
                   <td className="px-4 py-3">{record.status.replaceAll("_", " ")}</td>
-                  <td className="px-4 py-3">{record.expiresAt?.toLocaleDateString() ?? "—"}</td>
+                  <td className="px-4 py-3">{record.expiresAt ? formatBusinessDate(record.expiresAt) : "—"}</td>
                 </tr>
               ))
             )}

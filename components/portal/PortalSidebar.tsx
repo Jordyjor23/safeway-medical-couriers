@@ -5,11 +5,15 @@ import { usePathname } from "next/navigation";
 import {
   Bell,
   Briefcase,
+  CalendarDays,
+  CircleDollarSign,
   Building2,
+  Calculator,
   ClipboardCheck,
   FileText,
   KeyRound,
   LayoutDashboard,
+  Route,
   ScrollText,
   Settings,
   Shield,
@@ -30,8 +34,12 @@ const items: NavItem[] = [
   { href: "/dashboard/applicants", label: "Applicants", permission: "applicants.view", icon: UserRound },
   { href: "/dashboard/jobs", label: "Job postings", permission: "jobs.view", icon: Briefcase },
   { href: "/dashboard/employees", label: "Employees", permission: "employees.view", icon: Users },
+  { href: "/dashboard/workforce", label: "Workforce", permission: "scheduling.view", icon: CalendarDays },
+  { href: "/dashboard/payroll", label: "Payroll", permission: "payroll.view", icon: CircleDollarSign },
   { href: "/dashboard/customers", label: "Customers", permission: "customers.view", icon: Building2 },
   { href: "/dashboard/contracts", label: "Contracts", permission: "contracts.view", icon: FileText },
+  { href: "/dashboard/contracts/routes", label: "Route templates", permission: "contracts.view", icon: Route },
+  { href: "/dashboard/contracts/operating-model", label: "Operating model", permission: "finance.view", icon: Calculator },
   { href: "/dashboard/documents", label: "Documents", permission: "documents.view", icon: ScrollText },
   { href: "/dashboard/documents/alerts", label: "Document alerts", permission: "documents.view", icon: Bell },
   { href: "/dashboard/compliance", label: "Compliance tracking", permission: "compliance.view", icon: ClipboardCheck },
@@ -69,7 +77,11 @@ export function PortalSidebar({
           const active =
             item.href === "/dashboard"
               ? pathname === "/dashboard"
-              : pathname === item.href || pathname.startsWith(`${item.href}/`);
+              : item.href === "/dashboard/contracts"
+                ? (pathname === item.href || pathname.startsWith(`${item.href}/`)) &&
+                  !pathname.startsWith("/dashboard/contracts/operating-model") &&
+                  !pathname.startsWith("/dashboard/contracts/routes")
+                : pathname === item.href || pathname.startsWith(`${item.href}/`);
           return (
             <Link
               key={item.href}

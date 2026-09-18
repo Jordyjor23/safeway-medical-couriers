@@ -40,6 +40,7 @@ export async function upsertComplianceRecord(formData: FormData) {
     targetType: "employee",
     targetId: employeeId,
   });
+  revalidatePath("/dashboard");
   revalidatePath("/dashboard/compliance");
   revalidatePath(`/dashboard/employees/${employeeId}`);
 }

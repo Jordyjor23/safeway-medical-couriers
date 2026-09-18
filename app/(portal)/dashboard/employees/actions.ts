@@ -8,6 +8,7 @@ import {
 import { writeAuditLog } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { nextScopedId } from "@/lib/ids";
+import { setLeaveBankBalance } from "@/lib/leave";
 import { ONBOARDING_STEPS } from "@/lib/onboarding";
 import { provisionEmployeePortalUser } from "@/lib/portal-account";
 import { requirePermission } from "@/lib/rbac";
@@ -16,6 +17,7 @@ import type {
   EmploymentClassification,
   NewHireReportStatus,
   OnboardingStepStatus,
+  LeaveBankType,
 } from "@prisma/client";
 
 async function createOnboardingRecords(employeeId: string, hireDate?: Date | null) {
@@ -87,6 +89,7 @@ export async function createEmployee(formData: FormData) {
       targetId: employee.id,
       metadata: { email, portalError: provisioned.error },
     });
+  revalidatePath("/dashboard");
     revalidatePath("/dashboard/employees");
     return {
       ok: true as const,
@@ -110,6 +113,7 @@ export async function createEmployee(formData: FormData) {
     targetId: employee.id,
     metadata: { email, userId: provisioned.userId, emailSent: activation.emailSent },
   });
+  revalidatePath("/dashboard");
   revalidatePath("/dashboard/employees");
   revalidatePath("/dashboard/users");
   return {
@@ -146,6 +150,7 @@ export async function updateEmployee(employeeId: string, formData: FormData) {
     targetType: "employee",
     targetId: employeeId,
   });
+  revalidatePath("/dashboard");
   revalidatePath("/dashboard/employees");
   revalidatePath(`/dashboard/employees/${employeeId}`);
 }
@@ -169,6 +174,7 @@ export async function updateOnboardingStep(employeeId: string, formData: FormDat
     targetType: "employee",
     targetId: employeeId,
   });
+  revalidatePath("/dashboard");
   revalidatePath(`/dashboard/employees/${employeeId}`);
 }
 
@@ -193,6 +199,7 @@ export async function addEmployeeTraining(employeeId: string, formData: FormData
     targetType: "employee",
     targetId: employeeId,
   });
+  revalidatePath("/dashboard");
   revalidatePath(`/dashboard/employees/${employeeId}`);
   revalidatePath("/dashboard/compliance");
 }
@@ -224,5 +231,113 @@ export async function updateNewHireReport(employeeId: string, formData: FormData
     targetType: "employee",
     targetId: employeeId,
   });
+  revalidatePath("/dashboard");
   revalidatePath(`/dashboard/employees/${employeeId}`);
+}
+
+
+export async function setEmployeePortalAccess(employeeId: string, enabled: boolean) {
+  const ctx = await requirePermission("employees.disable");
+  const employee = await prisma.employee.findUnique({ where: { id: employeeId } });
+  if (!employee) throw new Error("Employee not found.");
+  if (enabled && employee.status === "TERMINATED") {
+    throw new Error("A terminated employee must be rehired through an authorized workflow before access is restored.");
+  }
+
+  if (employee.userId) {
+    await prisma.user.update({
+      where: { id: employee.userId },
+      data: {
+        disabled: !enabled,
+        accountStatus: enabled ? "ACTIVE" : "INACTIVE",
+        terminatedAt: enabled ? null : new Date(),
+        terminatedBy: enabled ? null : ctx.user.id,
+      },
+    });
+  }
+  await prisma.employee.update({
+    where: { id: employeeId },
+    data: {
+      status:
+        enabled && employee.status === "INACTIVE"
+          ? "ACTIVE"
+          : enabled
+            ? employee.status
+            : "INACTIVE",
+    },
+  });
+  await writeAuditLog({
+    actorId: ctx.user.id,
+    actorEmail: ctx.user.email,
+    action: enabled ? "employee.access.enabled" : "employee.access.disabled",
+    targetType: "employee",
+    targetId: employeeId,
+  });
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/employees");
+  revalidatePath(`/dashboard/employees/${employeeId}`);
+  revalidatePath("/dashboard/users");
+}
+
+export async function deleteEmployee(employeeId: string) {
+  const ctx = await requirePermission("employees.disable");
+  const employee = await prisma.employee.findUnique({
+    where: { id: employeeId },
+    include: {
+      _count: {
+        select: {
+          deliveries: true,
+          documents: true,
+          complianceRecords: true,
+          shifts: true,
+          timeEntries: true,
+          timeOffRequests: true,
+          callOffs: true,
+          payrollEntries: true,
+          tasks: true,
+        },
+      },
+    },
+  });
+  if (!employee) return;
+  const linkedHistory =
+    Boolean(employee.applicationId) ||
+    Boolean(employee.userId) ||
+    Object.values(employee._count).some((count) => count > 0);
+  if (linkedHistory) {
+    throw new Error(
+      "This employee has linked account or operational history and cannot be hard-deleted. Disable access or set the employee status to inactive/terminated instead.",
+    );
+  }
+  await prisma.employee.delete({ where: { id: employeeId } });
+  await writeAuditLog({
+    actorId: ctx.user.id,
+    actorEmail: ctx.user.email,
+    action: "employee.deleted",
+    targetType: "employee",
+    targetId: employeeId,
+  });
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/employees");
+}
+
+
+export async function adjustLeaveBalance(employeeId: string, formData: FormData) {
+  const ctx = await requirePermission("employees.edit");
+  const type = String(formData.get("type") ?? "PTO") as LeaveBankType;
+  const balanceHours = Number(formData.get("balanceHours") ?? 0);
+  const note = String(formData.get("note") ?? "").trim() || null;
+  await setLeaveBankBalance({ employeeId, type, balanceHours, actorUserId: ctx.user.id, note });
+  await writeAuditLog({
+    actorId: ctx.user.id,
+    actorEmail: ctx.user.email,
+    action: "employee.leave_balance.adjusted",
+    targetType: "employee",
+    targetId: employeeId,
+    metadata: { type, balanceHours },
+  });
+  revalidatePath(`/dashboard/employees/${employeeId}`);
+  revalidatePath("/dashboard/workforce/time-off");
+  revalidatePath("/employee/dashboard");
+  revalidatePath("/employee/time-off");
 }

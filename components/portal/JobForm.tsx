@@ -4,6 +4,18 @@ import { createJob, updateJob } from "@/app/(portal)/dashboard/jobs/actions";
 const fieldClass =
   "mt-1.5 w-full rounded-lg border border-line bg-white px-3 py-2.5 text-sm text-ink outline-none ring-medical/25 focus:border-medical focus:ring-2";
 
+const departmentOptions = [
+  "Medical Courier Operations",
+  "Specialty Transport",
+  "Dispatch & Logistics",
+  "Operations",
+  "Compliance & Quality",
+  "Customer Support",
+  "Sales & Business Development",
+  "Technology",
+  "Administration / HR",
+];
+
 export function JobForm({
   job,
   categories,
@@ -23,7 +35,15 @@ export function JobForm({
       </label>
       <label className="text-sm font-semibold text-navy">
         Department
-        <input name="department" required defaultValue={job?.department} className={fieldClass} />
+        <select name="department" required defaultValue={job?.department ?? ""} className={fieldClass}>
+          <option value="">Select department</option>
+          {job?.department && !departmentOptions.includes(job.department) ? (
+            <option value={job.department}>{job.department}</option>
+          ) : null}
+          {departmentOptions.map((department) => (
+            <option key={department} value={department}>{department}</option>
+          ))}
+        </select>
       </label>
       <label className="text-sm font-semibold text-navy">
         Category
