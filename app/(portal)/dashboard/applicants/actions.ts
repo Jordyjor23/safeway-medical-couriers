@@ -54,6 +54,18 @@ export async function updateApplicationStatus(applicationId: string, status: App
       email: current.applicant.email,
       name: current.applicant.preferredName || current.applicant.legalFirstName,
     });
+    await prisma.applicationCommunication.create({
+      data: {
+        applicationId: current.id,
+        channel: "EMAIL",
+        subject: "Complete your Safeway Couriers onboarding documents",
+        body: onboarding.emailSent
+          ? `Secure onboarding link sent to ${current.applicant.email}. Expires ${onboarding.expiresAt.toISOString()}.`
+          : `Secure onboarding link was created for ${current.applicant.email}, but the email provider did not confirm delivery.`,
+        direction: "OUTBOUND",
+        createdBy: ctx.user.id,
+      },
+    });
     await writeAuditLog({
       actorId: ctx.user.id,
       actorEmail: ctx.user.email,
@@ -202,6 +214,18 @@ export async function sendApplicantOnboardingLink(applicationId: string) {
     applicationId,
     email: application.applicant.email,
     name: application.applicant.preferredName || application.applicant.legalFirstName,
+  });
+  await prisma.applicationCommunication.create({
+    data: {
+      applicationId,
+      channel: "EMAIL",
+      subject: "Complete your Safeway Couriers onboarding documents",
+      body: result.emailSent
+        ? `Secure onboarding link sent to ${application.applicant.email}. Expires ${result.expiresAt.toISOString()}.`
+        : `Secure onboarding link was created for ${application.applicant.email}, but the email provider did not confirm delivery.`,
+      direction: "OUTBOUND",
+      createdBy: ctx.user.id,
+    },
   });
   await writeAuditLog({
     actorId: ctx.user.id,

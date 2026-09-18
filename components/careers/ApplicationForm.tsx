@@ -53,6 +53,7 @@ export function ApplicationForm({
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [employment, setEmployment] = useState<EmploymentRow[]>([emptyEmployment()]);
+  const contractor = job.workerClassification === "INDEPENDENT_CONTRACTOR";
 
   useEffect(() => {
     const raw = localStorage.getItem(storageKey);
@@ -109,11 +110,13 @@ export function ApplicationForm({
           city: String(form.get("city") ?? ""),
           state: String(form.get("state") ?? ""),
           zip: String(form.get("zip") ?? ""),
-          preferredEmploymentType: String(form.get("preferredEmploymentType") ?? "") || undefined,
+          preferredEmploymentType: contractor
+            ? undefined
+            : String(form.get("preferredEmploymentType") ?? "") || undefined,
           availableStartDate: String(form.get("availableStartDate") ?? "") || undefined,
           generalAvailability: String(form.get("generalAvailability") ?? "") || undefined,
           preferredShift: String(form.get("preferredShift") ?? "") || undefined,
-          fullTimePreference: form.get("fullTimePreference") === "full-time",
+          fullTimePreference: contractor ? undefined : form.get("fullTimePreference") === "full-time",
           serviceAreas: String(form.get("serviceAreas") ?? "") || undefined,
           weekdays: bool("weekdays"),
           weekends: bool("weekends"),
@@ -195,24 +198,33 @@ export function ApplicationForm({
         <h2 className="text-xl font-semibold text-mist">Position information</h2>
         <p className="mt-2 text-sm text-mist-soft">Applying for: {job.title}</p>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <label className="text-sm font-semibold text-mist">
-            Preferred employment type
-            <select name="preferredEmploymentType" className={fieldClass} defaultValue="FULL_TIME">
-              <option value="FULL_TIME">Full-time</option>
-              <option value="PART_TIME">Part-time</option>
-              <option value="TEMPORARY">Temporary</option>
-              <option value="SEASONAL">Seasonal</option>
-            </select>
-          </label>
-          <Field label="Available start date" name="availableStartDate" type="date" />
-          <Field label="Preferred shift" name="preferredShift" />
-          <label className="text-sm font-semibold text-mist">
-            Full-time / part-time preference
-            <select name="fullTimePreference" className={fieldClass} defaultValue="full-time">
-              <option value="full-time">Full-time</option>
-              <option value="part-time">Part-time</option>
-            </select>
-          </label>
+          {!contractor ? (
+            <>
+              <label className="text-sm font-semibold text-mist">
+                Preferred employment type
+                <select name="preferredEmploymentType" className={fieldClass} defaultValue="FULL_TIME">
+                  <option value="FULL_TIME">Full-time</option>
+                  <option value="PART_TIME">Part-time</option>
+                  <option value="TEMPORARY">Temporary</option>
+                  <option value="SEASONAL">Seasonal</option>
+                </select>
+              </label>
+              <Field label="Available start date" name="availableStartDate" type="date" />
+              <Field label="Preferred shift" name="preferredShift" />
+              <label className="text-sm font-semibold text-mist">
+                Full-time / part-time preference
+                <select name="fullTimePreference" className={fieldClass} defaultValue="full-time">
+                  <option value="full-time">Full-time</option>
+                  <option value="part-time">Part-time</option>
+                </select>
+              </label>
+            </>
+          ) : (
+            <>
+              <Field label="Available to begin accepting assignments" name="availableStartDate" type="date" />
+              <Field label="Preferred assignment times" name="preferredShift" />
+            </>
+          )}
           <label className="text-sm font-semibold text-mist sm:col-span-2">
             Geographic areas you can service
             <textarea name="serviceAreas" rows={3} className={fieldClass} />
@@ -236,9 +248,19 @@ export function ApplicationForm({
       </section>
 
       <section className="rounded-2xl border border-white/10 bg-panel p-6">
-        <h2 className="text-xl font-semibold text-mist">Work authorization</h2>
-        <YesNo name="authorizedToWorkUs" label="Are you legally authorized to work in the United States?" required />
-        <YesNo name="requiresSponsorship" label="Will you now or in the future require employment sponsorship?" />
+        <h2 className="text-xl font-semibold text-mist">{contractor ? "Contractor eligibility" : "Work authorization"}</h2>
+        <YesNo
+          name="authorizedToWorkUs"
+          label={
+            contractor
+              ? "Are you legally able to perform independent contractor services in the United States?"
+              : "Are you legally authorized to work in the United States?"
+          }
+          required
+        />
+        {!contractor ? (
+          <YesNo name="requiresSponsorship" label="Will you now or in the future require employment sponsorship?" />
+        ) : null}
       </section>
 
       <section className="rounded-2xl border border-white/10 bg-panel p-6">

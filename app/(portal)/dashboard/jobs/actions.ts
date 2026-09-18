@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { writeAuditLog } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { createPublicJobId } from "@/lib/ids";
+import { isEvergreenJobPublicId } from "@/lib/evergreen-jobs";
 import { requirePermission } from "@/lib/rbac";
 import type { EmploymentType, JobStatus, PayType, WorkArrangement, WorkerClassification } from "@prisma/client";
 
@@ -102,6 +103,14 @@ export async function updateJob(jobId: string, formData: FormData) {
 
 export async function setJobStatus(jobId: string, status: JobStatus) {
   const ctx = await requirePermission("jobs.publish");
+  const existing = await prisma.jobOpening.findUnique({
+    where: { id: jobId },
+    select: { publicId: true },
+  });
+  if (!existing) throw new Error("Job opening not found.");
+  if (isEvergreenJobPublicId(existing.publicId) && status !== "PUBLISHED") {
+    throw new Error("Medical Courier and Independent Courier Partner are evergreen application pools and must remain published.");
+  }
   await prisma.jobOpening.update({
     where: { id: jobId },
     data: {

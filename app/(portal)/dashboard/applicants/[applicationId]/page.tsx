@@ -207,6 +207,28 @@ export default async function ApplicantProfilePage({
       ) : null}
 
       <section className="rounded-2xl border border-line bg-paper p-5">
+        <h2 className="text-lg font-semibold text-navy">Candidate communications</h2>
+        <p className="mt-1 text-sm text-muted">
+          Outbound onboarding emails are recorded here so HR can confirm whether the email provider accepted the send.
+        </p>
+        {application.communications.length ? (
+          <ul className="mt-3 space-y-2 text-sm">
+            {application.communications.map((item) => (
+              <li key={item.id} className="rounded-xl border border-line bg-ice p-3">
+                <p className="font-semibold text-navy">{item.subject ?? item.channel}</p>
+                <p className="mt-1 text-muted">{item.body}</p>
+                <p className="mt-1 text-xs text-muted">
+                  {formatBusinessDateTime(item.createdAt)} · {item.direction}
+                </p>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-3 text-sm text-muted">No communications recorded yet.</p>
+        )}
+      </section>
+
+      <section className="rounded-2xl border border-line bg-paper p-5">
         <h2 className="text-lg font-semibold text-navy">Audit history</h2>
         <ul className="mt-3 space-y-1 text-sm text-muted">
           {application.statusHistory.map((item) => (
