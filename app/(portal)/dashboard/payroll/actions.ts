@@ -71,14 +71,12 @@ export async function upsertPayrollEntry(periodId: string, formData: FormData) {
 export async function updateEmployeeCompensation(employeeId: string, formData: FormData) {
   const ctx = await requirePermission("payroll.manage");
   const basePayRaw = String(formData.get("basePayRate") ?? "");
-  const ptoRaw = String(formData.get("ptoBalanceHours") ?? "0");
   await prisma.employee.update({
     where: { id: employeeId },
     data: {
       compensationType: formData.get("compensationType") ? String(formData.get("compensationType")) as "HOURLY" | "SALARY" | "ROUTE_BASED" | "COMMISSION" : null,
       basePayRate: basePayRaw ? amount(formData.get("basePayRate")) : null,
       overtimeEligible: formData.get("overtimeEligible") === "on",
-      ptoBalanceHours: amount(ptoRaw),
     },
   });
   await writeAuditLog({ actorId: ctx.user.id, actorEmail: ctx.user.email, action: "employee.compensation.updated", targetType: "employee", targetId: employeeId });
