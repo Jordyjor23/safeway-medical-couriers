@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { writeAuditLog } from "@/lib/audit";
 import { resolveCandidateOnboardingToken } from "@/lib/candidate-onboarding";
 import { prisma } from "@/lib/db";
+import { notifyRoles } from "@/lib/notifications";
 import {
   applicantOnboardingDocumentTypes,
   SENSITIVE_ONBOARDING_DOCUMENT_TYPES,
@@ -115,6 +116,14 @@ export async function POST(
       documentType,
       trackingNumber: resolved.application.trackingNumber,
     },
+  });
+
+  await notifyRoles({
+    roles: ["OWNER", "ADMIN", "HR_RECRUITER", "COMPLIANCE_ADMIN"],
+    title: "Candidate document ready for review",
+    body: `${resolved.application.applicant.legalFirstName} ${resolved.application.applicant.legalLastName} uploaded ${name} for ${resolved.application.jobOpening.title}.`,
+    href: "/dashboard/documents/review",
+    dedupeKeyPrefix: `candidate-document:${document.id}`,
   });
 
   return NextResponse.json({ ok: true, documentId: document.id }, { status: 201 });
