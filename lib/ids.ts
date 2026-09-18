@@ -25,6 +25,11 @@ export function createContractNumber(now = new Date()) {
   return `CTR-${year}-${randomBytes(3).toString("hex").toUpperCase()}`;
 }
 
+export function createRouteTemplateCode(now = new Date()) {
+  const year = now.getUTCFullYear();
+  return `RTE-${year}-${randomBytes(3).toString("hex").toUpperCase()}`;
+}
+
 export function createActivationToken() {
   return randomBytes(32).toString("hex");
 }
