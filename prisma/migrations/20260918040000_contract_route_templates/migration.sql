@@ -26,6 +26,7 @@ CREATE TABLE "RouteTemplate" (
   "handlingInstructions" TEXT,
   "requiredTrainingKeys" TEXT,
   "requiredCertificationNames" TEXT,
+  "requiredDocumentTypes" TEXT,
   "vehicleRequirement" TEXT,
   "estimatedRouteHours" DECIMAL(6,2),
   "routePay" DECIMAL(10,2),
