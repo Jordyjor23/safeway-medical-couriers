@@ -79,14 +79,17 @@ export async function updateDeliveryStatus(formData: FormData) {
   revalidatePath("/dispatch/dashboard");
   revalidatePath("/driver/dashboard");
   revalidatePath("/customer/dashboard");
+  revalidatePath(`/dashboard/deliveries/${deliveryId}`);
+  revalidatePath(`/dispatch/deliveries/${deliveryId}`);
 }
 
 export async function createIncident(formData: FormData) {
   const ctx = await requirePermission("incident.view");
+  const deliveryId = String(formData.get("deliveryId") ?? "") || null;
   await prisma.incidentReport.create({
     data: {
       reporterUserId: ctx.user.id,
-      deliveryId: String(formData.get("deliveryId") ?? "") || null,
+      deliveryId,
       type: String(formData.get("type") ?? "SAFETY") as never,
       title: String(formData.get("title") ?? "").trim(),
       body: String(formData.get("body") ?? "").trim(),
@@ -102,4 +105,8 @@ export async function createIncident(formData: FormData) {
   revalidatePath("/driver/dashboard");
   revalidatePath("/employee/dashboard");
   revalidatePath("/operations/dashboard");
+  if (deliveryId) {
+    revalidatePath(`/dashboard/deliveries/${deliveryId}`);
+    revalidatePath(`/dispatch/deliveries/${deliveryId}`);
+  }
 }
