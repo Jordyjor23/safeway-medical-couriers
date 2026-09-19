@@ -10,6 +10,7 @@ import { writeAuditLog } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { sendTransactionalEmail } from "@/lib/email";
 import { nextScopedId } from "@/lib/ids";
+import { INTERVIEW_SCORECARD_VERSION, interviewQuestionsFor } from "@/lib/interview-scorecard";
 import { ONBOARDING_STEPS } from "@/lib/onboarding";
 import { provisionEmployeePortalUser } from "@/lib/portal-account";
 import { requirePermission } from "@/lib/rbac";
@@ -273,6 +274,99 @@ ${interviewer ? `<p><strong>Interviewer:</strong> ${interviewer}</p>` : ""}
     : { ok: true as const, warning: "Interview saved, but the email provider did not confirm delivery." };
 }
 
+
+
+export async function saveInterviewScorecard(applicationId: string, formData: FormData) {
+  const ctx = await requirePermission("applicants.edit");
+  const application = await prisma.application.findUnique({
+    where: { id: applicationId },
+    include: {
+      jobOpening: true,
+      interviews: { orderBy: { createdAt: "desc" }, take: 1 },
+    },
+  });
+  if (!application) return { error: "Application not found." };
+
+  const questions = interviewQuestionsFor(application.jobOpening.workerClassification);
+  const responses = questions.map((question) => {
+    const answer = String(formData.get(`answer_${question.key}`) ?? "").trim();
+    const scoreRaw = Number(formData.get(`score_${question.key}`) ?? 0);
+    const score = Number.isInteger(scoreRaw) && scoreRaw >= 1 && scoreRaw <= 5 ? scoreRaw : null;
+    const checked = formData.get(`asked_${question.key}`) === "on";
+    return {
+      key: question.key,
+      category: question.category,
+      prompt: question.prompt,
+      answer,
+      score,
+      checked,
+    };
+  });
+
+  const scored = responses.filter((response) => response.score !== null);
+  const scoreTotal = scored.reduce((sum, response) => sum + (response.score ?? 0), 0);
+  const scorePossible = scored.length * 5;
+  const overallNotes = String(formData.get("overallNotes") ?? "").trim() || null;
+  const submitIntent = String(formData.get("submitIntent") ?? "save");
+  const completed = submitIntent === "complete";
+
+  const existing = application.interviews[0];
+  const interview = existing
+    ? await prisma.interview.update({
+        where: { id: existing.id },
+        data: {
+          scorecard: {
+            version: INTERVIEW_SCORECARD_VERSION,
+            responses,
+          },
+          scoreTotal,
+          scorePossible,
+          notes: overallNotes,
+          status: completed ? "COMPLETED" : existing.status,
+          completedAt: completed ? new Date() : existing.completedAt,
+        },
+      })
+    : await prisma.interview.create({
+        data: {
+          applicationId,
+          status: completed ? "COMPLETED" : "REQUESTED",
+          scorecard: {
+            version: INTERVIEW_SCORECARD_VERSION,
+            responses,
+          },
+          scoreTotal,
+          scorePossible,
+          notes: overallNotes,
+          completedAt: completed ? new Date() : null,
+        },
+      });
+
+  if (completed) {
+    await prisma.application.update({
+      where: { id: applicationId },
+      data: { interviewStatus: "COMPLETED" },
+    });
+  }
+
+  await writeAuditLog({
+    actorId: ctx.user.id,
+    actorEmail: ctx.user.email,
+    action: completed ? "applicant.interview.scorecard.completed" : "applicant.interview.scorecard.saved",
+    targetType: "application",
+    targetId: applicationId,
+    metadata: {
+      interviewId: interview.id,
+      scoreTotal,
+      scorePossible,
+      questionsScored: scored.length,
+      completed,
+    },
+  });
+
+  revalidatePath(`/dashboard/applicants/${applicationId}`);
+  revalidatePath(`/dashboard/applicants/${applicationId}/interview`);
+  return { ok: true as const, completed, scoreTotal, scorePossible };
+}
 
 export async function sendApplicantOnboardingLink(applicationId: string) {
   const ctx = await requirePermission("applicants.edit");

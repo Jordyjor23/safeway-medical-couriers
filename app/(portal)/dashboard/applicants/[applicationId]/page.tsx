@@ -408,7 +408,20 @@ export default async function ApplicantProfilePage({
 
       {canEdit ? (
         <section className="rounded-2xl border border-line bg-paper p-5">
-          <h2 className="text-lg font-semibold text-navy">Interview</h2>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold text-navy">Interview</h2>
+              <p className="mt-1 text-sm text-muted">
+                Schedule the interview, then open the scorecard to work through the questions and record answers.
+              </p>
+            </div>
+            <Link
+              href={`/dashboard/applicants/${applicationId}/interview`}
+              className="rounded-full border border-navy px-4 py-2 text-sm font-semibold text-navy"
+            >
+              Open interview scorecard
+            </Link>
+          </div>
           <form
             action={async (formData) => {
               "use server";
