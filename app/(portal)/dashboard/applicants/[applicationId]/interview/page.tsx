@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { saveInterviewScorecard } from "@/app/(portal)/dashboard/applicants/actions";
 import { prisma } from "@/lib/db";
 import { interviewMaxScoreFor, interviewQuestionsFor } from "@/lib/interview-scorecard";
@@ -29,11 +29,14 @@ function readResponses(scorecard: unknown) {
 
 export default async function ApplicantInterviewPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ applicationId: string }>;
+  searchParams: Promise<{ error?: string; saved?: string }>;
 }) {
   await requirePermission("applicants.edit");
   const { applicationId } = await params;
+  const query = await searchParams;
   const application = await prisma.application.findUnique({
     where: { id: applicationId },
     include: {
@@ -69,6 +72,16 @@ export default async function ApplicantInterviewPage({
         </h1>
         <p className="mt-1 text-muted">{application.jobOpening.title}</p>
       </div>
+
+      {query.error ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800" role="alert">
+          {query.error}
+        </div>
+      ) : query.saved ? (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800" role="status">
+          {query.saved === "completed" ? "Interview completed and saved." : "Interview progress saved."}
+        </div>
+      ) : null}
 
       <section className="rounded-2xl border border-line bg-paper p-5">
         <div className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
@@ -174,7 +187,15 @@ export default async function ApplicantInterviewPage({
       <form
         action={async (formData) => {
           "use server";
-          await saveInterviewScorecard(applicationId, formData);
+          const result = await saveInterviewScorecard(applicationId, formData);
+          if (result?.error) {
+            redirect(
+              `/dashboard/applicants/${applicationId}/interview?error=${encodeURIComponent(result.error)}`,
+            );
+          }
+          redirect(
+            `/dashboard/applicants/${applicationId}/interview?saved=${result?.completed ? "completed" : "progress"}`,
+          );
         }}
         className="space-y-6"
       >
