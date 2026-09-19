@@ -486,6 +486,10 @@ model Interview {
   location      String?
   interviewer   String?
   notes         String?
+  scorecard     Json?
+  scoreTotal    Int?
+  scorePossible Int?
+  completedAt   DateTime?
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
 }
