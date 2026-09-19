@@ -13,13 +13,20 @@ type ExistingDocument = {
   rejectionReason?: string | null;
 };
 
+type Requirement = {
+  type: string;
+  label: string;
+};
+
 export function CandidateOnboardingUploader({
   token,
   allowedTypes,
+  requirements,
   documents,
 }: {
   token: string;
   allowedTypes: string[];
+  requirements: Requirement[];
   documents: ExistingDocument[];
 }) {
   const router = useRouter();
@@ -32,6 +39,13 @@ export function CandidateOnboardingUploader({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const submittedTypes = new Set(
+    documents
+      .filter((document) => !["ARCHIVED", "REJECTED"].includes(document.lifecycleStatus))
+      .map((document) => document.documentType)
+      .filter((type): type is string => Boolean(type)),
+  );
+  const completedCount = requirements.filter((requirement) => submittedTypes.has(requirement.type)).length;
 
   async function upload() {
     if (!file || !documentType) {
@@ -74,6 +88,33 @@ export function CandidateOnboardingUploader({
 
   return (
     <div className="space-y-6">
+      <section className="rounded-2xl border border-medical/30 bg-panel p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-semibold text-mist">Required document checklist</h2>
+            <p className="mt-2 text-sm text-mist-soft">
+              {completedCount} of {requirements.length} required documents received.
+            </p>
+          </div>
+          <span className="rounded-full border border-white/10 px-3 py-1 text-sm font-semibold text-mist">
+            {completedCount}/{requirements.length}
+          </span>
+        </div>
+        <ul className="mt-5 space-y-2">
+          {requirements.map((requirement) => {
+            const received = submittedTypes.has(requirement.type);
+            return (
+              <li key={requirement.type} className="flex items-center justify-between gap-3 rounded-xl border border-white/10 p-3 text-sm">
+                <span className="text-mist">{requirement.label}</span>
+                <span className={received ? "font-semibold text-emerald-300" : "text-mist-soft"}>
+                  {received ? "Received" : "Missing"}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
+
       <section className="rounded-2xl border border-white/10 bg-panel p-6">
         <h2 className="text-xl font-semibold text-mist">Upload onboarding document</h2>
         <p className="mt-2 text-sm text-mist-soft">
