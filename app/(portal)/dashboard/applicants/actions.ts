@@ -33,9 +33,19 @@ export async function updateApplicationStatus(applicationId: string, status: App
   });
   if (!current) return { error: "Application not found." };
 
+  const interviewStatus =
+    status === "INTERVIEW_REQUESTED"
+      ? "REQUESTED"
+      : status === "INTERVIEW_SCHEDULED"
+        ? "SCHEDULED"
+        : undefined;
+
   await prisma.application.update({
     where: { id: applicationId },
-    data: { status },
+    data: {
+      status,
+      ...(interviewStatus ? { interviewStatus } : {}),
+    },
   });
   await prisma.applicantStatusHistory.create({
     data: {
@@ -156,6 +166,7 @@ export async function updateApplicationStatus(applicationId: string, status: App
 
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/applicants");
+  revalidatePath("/dashboard/interviews");
   revalidatePath(`/dashboard/applicants/${applicationId}`);
   return { ok: true };
 }
@@ -181,7 +192,11 @@ export async function updateInterview(applicationId: string, formData: FormData)
   const ctx = await requirePermission("applicants.edit");
   const application = await prisma.application.findUnique({
     where: { id: applicationId },
-    include: { applicant: true, jobOpening: true },
+    include: {
+      applicant: true,
+      jobOpening: true,
+      interviews: { orderBy: { createdAt: "desc" }, take: 1 },
+    },
   });
   if (!application) return { error: "Application not found." };
 
@@ -194,16 +209,30 @@ export async function updateInterview(applicationId: string, formData: FormData)
   const notes = String(formData.get("notes") ?? "").trim() || null;
   const status = String(formData.get("status") ?? "SCHEDULED") as InterviewStatus;
 
-  await prisma.interview.create({
-    data: {
-      applicationId,
-      status,
-      scheduledAt,
-      location,
-      interviewer,
-      notes,
-    },
-  });
+  const existingInterview = application.interviews[0];
+  if (existingInterview && existingInterview.status !== "COMPLETED") {
+    await prisma.interview.update({
+      where: { id: existingInterview.id },
+      data: {
+        status,
+        scheduledAt,
+        location,
+        interviewer,
+        notes: notes ?? existingInterview.notes,
+      },
+    });
+  } else {
+    await prisma.interview.create({
+      data: {
+        applicationId,
+        status,
+        scheduledAt,
+        location,
+        interviewer,
+        notes,
+      },
+    });
+  }
   await prisma.application.update({
     where: { id: applicationId },
     data: {
@@ -268,7 +297,9 @@ ${interviewer ? `<p><strong>Interviewer:</strong> ${interviewer}</p>` : ""}
   });
 
   revalidatePath("/dashboard/applicants");
+  revalidatePath("/dashboard/interviews");
   revalidatePath(`/dashboard/applicants/${applicationId}`);
+  revalidatePath(`/dashboard/applicants/${applicationId}/interview`);
   return emailSent
     ? { ok: true as const }
     : { ok: true as const, warning: "Interview saved, but the email provider did not confirm delivery." };
@@ -305,10 +336,21 @@ export async function saveInterviewScorecard(applicationId: string, formData: Fo
 
   const scored = responses.filter((response) => response.score !== null);
   const scoreTotal = scored.reduce((sum, response) => sum + (response.score ?? 0), 0);
-  const scorePossible = scored.length * 5;
+  const scorePossible = questions.length * 5;
   const overallNotes = String(formData.get("overallNotes") ?? "").trim() || null;
   const submitIntent = String(formData.get("submitIntent") ?? "save");
   const completed = submitIntent === "complete";
+
+  if (completed) {
+    const incomplete = responses.filter(
+      (response) => !response.checked || !response.answer || response.score === null,
+    );
+    if (incomplete.length) {
+      return {
+        error: `Complete, document, and score all ${questions.length} interview questions before marking the interview complete.`,
+      };
+    }
+  }
 
   const existing = application.interviews[0];
   const interview = existing
@@ -363,6 +405,7 @@ export async function saveInterviewScorecard(applicationId: string, formData: Fo
     },
   });
 
+  revalidatePath("/dashboard/interviews");
   revalidatePath(`/dashboard/applicants/${applicationId}`);
   revalidatePath(`/dashboard/applicants/${applicationId}/interview`);
   return { ok: true as const, completed, scoreTotal, scorePossible };
