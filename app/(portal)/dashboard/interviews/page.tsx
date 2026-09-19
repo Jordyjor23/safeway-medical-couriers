@@ -11,8 +11,8 @@ export default async function InterviewsPage() {
 
   const applications = await prisma.application.findMany({
     where: {
+      status: { in: ["INTERVIEW_REQUESTED", "INTERVIEW_SCHEDULED", "UNDER_REVIEW"] },
       interviewStatus: { not: "NOT_REQUESTED" },
-      status: { not: "DRAFT" },
     },
     include: {
       applicant: true,
