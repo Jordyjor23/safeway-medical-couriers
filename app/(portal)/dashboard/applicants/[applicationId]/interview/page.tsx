@@ -143,7 +143,7 @@ export default async function ApplicantInterviewPage({
               <p className="font-semibold text-navy">{application.jobOpening.workerClassification.replaceAll("_", " ")}</p>
             </div>
           </div>
-          <div className="mt-5 flex flex-wrap gap-3">
+          <div className="mt-5 grid gap-3 sm:flex sm:flex-wrap">
             <form
               action={async () => {
                 "use server";
@@ -151,7 +151,7 @@ export default async function ApplicantInterviewPage({
                 await updateApplicationStatus(applicationId, "CONDITIONAL_OFFER");
               }}
             >
-              <button className="rounded-full bg-navy px-4 py-2 text-sm font-semibold text-white">
+              <button className="w-full rounded-full bg-navy px-4 py-2.5 text-sm font-semibold text-white sm:w-auto">
                 Move to Conditional Offer
               </button>
             </form>
@@ -162,7 +162,7 @@ export default async function ApplicantInterviewPage({
                 await updateApplicationStatus(applicationId, "UNDER_REVIEW");
               }}
             >
-              <button className="rounded-full border border-navy px-4 py-2 text-sm font-semibold text-navy">
+              <button className="w-full rounded-full border border-navy px-4 py-2.5 text-sm font-semibold text-navy sm:w-auto">
                 Hold for Review
               </button>
             </form>
@@ -173,7 +173,7 @@ export default async function ApplicantInterviewPage({
                 await updateApplicationStatus(applicationId, "NOT_SELECTED");
               }}
             >
-              <button className="rounded-full border border-line px-4 py-2 text-sm font-semibold text-muted">
+              <button className="w-full rounded-full border border-line px-4 py-2.5 text-sm font-semibold text-muted sm:w-auto">
                 Not Selected
               </button>
             </form>
@@ -266,12 +266,12 @@ export default async function ApplicantInterviewPage({
             className="mt-3 w-full rounded-lg border border-line px-3 py-2 text-sm"
             placeholder="Document job-related strengths, concerns, follow-up items, or verification needed."
           />
-          <div className="mt-4 flex flex-wrap gap-3">
+          <div className="mt-4 grid gap-3 sm:flex sm:flex-wrap">
             <button
               type="submit"
               name="submitIntent"
               value="save"
-              className="rounded-full border border-navy px-4 py-2 text-sm font-semibold text-navy"
+              className="w-full rounded-full border border-navy px-4 py-2.5 text-sm font-semibold text-navy sm:w-auto"
             >
               Save interview progress
             </button>
@@ -279,7 +279,7 @@ export default async function ApplicantInterviewPage({
               type="submit"
               name="submitIntent"
               value="complete"
-              className="rounded-full bg-navy px-4 py-2 text-sm font-semibold text-white"
+              className="w-full rounded-full bg-navy px-4 py-2.5 text-sm font-semibold text-white sm:w-auto"
             >
               Complete interview
             </button>
