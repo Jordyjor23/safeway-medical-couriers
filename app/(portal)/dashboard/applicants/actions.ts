@@ -10,7 +10,7 @@ import { writeAuditLog } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { sendTransactionalEmail } from "@/lib/email";
 import { nextScopedId } from "@/lib/ids";
-import { INTERVIEW_QUESTIONS, INTERVIEW_SCORECARD_VERSION } from "@/lib/interview-scorecard";
+import { INTERVIEW_SCORECARD_VERSION, interviewQuestionsFor } from "@/lib/interview-scorecard";
 import { ONBOARDING_STEPS } from "@/lib/onboarding";
 import { provisionEmployeePortalUser } from "@/lib/portal-account";
 import { requirePermission } from "@/lib/rbac";
@@ -280,11 +280,15 @@ export async function saveInterviewScorecard(applicationId: string, formData: Fo
   const ctx = await requirePermission("applicants.edit");
   const application = await prisma.application.findUnique({
     where: { id: applicationId },
-    include: { interviews: { orderBy: { createdAt: "desc" }, take: 1 } },
+    include: {
+      jobOpening: true,
+      interviews: { orderBy: { createdAt: "desc" }, take: 1 },
+    },
   });
   if (!application) return { error: "Application not found." };
 
-  const responses = INTERVIEW_QUESTIONS.map((question) => {
+  const questions = interviewQuestionsFor(application.jobOpening.workerClassification);
+  const responses = questions.map((question) => {
     const answer = String(formData.get(`answer_${question.key}`) ?? "").trim();
     const scoreRaw = Number(formData.get(`score_${question.key}`) ?? 0);
     const score = Number.isInteger(scoreRaw) && scoreRaw >= 1 && scoreRaw <= 5 ? scoreRaw : null;
