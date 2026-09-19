@@ -6,8 +6,13 @@ import { requirePermission } from "@/lib/rbac";
 
 export const metadata: Metadata = { title: "Interviews" };
 
-export default async function InterviewsPage() {
+export default async function InterviewsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ updated?: string }>;
+}) {
   await requirePermission("applicants.view");
+  const query = await searchParams;
 
   const applications = await prisma.application.findMany({
     where: {
@@ -39,6 +44,16 @@ export default async function InterviewsPage() {
           View all applicants
         </Link>
       </div>
+
+      {query.updated ? (
+        <div className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800" role="status">
+          {query.updated === "conditional-offer"
+            ? "Applicant moved to Conditional Offer and removed from the active interview queue."
+            : query.updated === "not-selected"
+              ? "Applicant marked Not Selected and removed from the active interview queue."
+              : "Applicant moved to Hold for Review. The queue has been refreshed."}
+        </div>
+      ) : null}
 
       <div className="mt-6 space-y-3 md:hidden">
         {applications.length === 0 ? (
