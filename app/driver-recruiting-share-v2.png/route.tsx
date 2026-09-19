@@ -1,88 +1,15 @@
-import { ImageResponse } from "next/og";
-
 export const runtime = "edge";
 
+const PNG_BASE64 = "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1UZ/JyDNfa3XoodrHkC/sjBz79PBOs5Bms++BmwAOscYMmGQqcSWE1lDV0WLq6WNcgnBSudaeau4tVolCR8ZV59T7td0T7HTS9zKlijUeXpZQALsM4Blt94a7L5qFrBWi4cLb9aLxxtupxrBOtOdW0Cvwis1yWwPC7py8fjJ/A7GazHBKxcLAY/A9YCWNIKlplPOzWMCGwGa3loTiBqp8m0MVq92C2Xc41gpdMll6ZIjo1yLx7LKaxMsftkpyOmSD4ZrB/JdMnpFMkvDM0BrCWwloa7pExMphirg5s9rxms5cHPZjmFXr/YlsvhIRQ8hAKwrh0sncuwDFZxPpcNYC1OL1M++Sx+LIwVesv5ZQALsADrUp78vBmswox5m8BamsAvJyk/e+E92y8HsAALsK4eLN0K1nyK421gLU2RnF6OzqoWtPCezZcDWIAFWFcPVkZEA1jZUx9ubnai+w1gLTyEIr6cIfE+80dLKjVeDmABFmBdP1j2EVzfNoFlj5Huxj2nq+GpOQvP5dLC5eyGR4uV60Lzi91wOYAFWID1CcCiARZgARZgARZgARZgARZgARZgARYNsAALsAALsAALsAALsAALsAALsGiABViABViABViABViABViABViARQMswAIswAIswAIswAIswAIswAIswAIswAIswAIswAIswAIswAIswAIswAIswAIswAIswAIswKIBFmABFmABFmABFmABFmABFmARQMswAIswAIswAIswAIswAIswAIsGmABFmABFmABFmABFmABFmABFmDRAAuwAAuwAAuwAAuwAAuwAAuwAIsGWIAFWIAFWIAFWIAFWIAFWIAFWDTAAizAAizAAizAAizAAizAAizAogEWYAEWYAEWYAEWYAEWYAEWYAEWYAEWYAEWYAEWYAEWYAEWYAEWYAEWYAEWYAEWYAEWYAEWYAEWYAEWYAEWYAEWYAEWYAEWYNEAC7AAC7AAC7AAC7AAC7AAC7AAiwZYgAVYgAVYgAVYgAVYgAVYgAVYNMACLMC6TrD0yzbAAizAui6w9Is3wAIswLoasJSmgAVYgHUdYKFVi1iABViAdQFgQVUbWYAFWID18WDhVKNYgAVYgAVYgAVYgAVYrWChVKtYgAVYgPXRYGFUs1iABViABViABViABVhtYCFUu1iABViABViABViABViABViABVifCyx82i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fDljHkOazTwIrT6oAFWID1XnVYtRyWjLmrKlhZDkvG/pYbMqgOLDOtWqjDisGyoeBD58GSbne/K4aE30NgOOSxxCa1e7Bsqmg3BIPBpZ0rZ8juEpbA0iJYMpU1TGD1EZ9IpBRgARZgvUOle+kuoYzrFsGK7hLGR/R8DUlxKYFVrXRPwHJ3CYebhb4US/Ie1o8JLBsBdq7fJRYs+RFVNDjPCnVYWQ7rsV9+LoOlj0Ww0pdLOSzAAizAOtdYwkId1jczVl0t9rCiRFV0RHjhg8YUrNpYQhOVNfSSHoaSVBcRzu8SuvtuTyJThOi/7HwP60lkDABDhUOodN/5Svf4LuHjuDwHK6q8j4Qa1j2Lk0mnO4Plu4SABViAdbbZGkJVeTQ0p7NYrCbdp0r3O3dESLoP5z+4TV1eP1qercEkdViumbF0KQVrqsOKwRpWfp/lsBxMxbGEUR3WH9MZZ2BNdVgpWFOlVb32Sh4BC7AA65rmw5JZ6n1l3qudjLWifmShzUIlQ3PCpAu7kMTy1Vl2aM54yJSsKs/WMFW6+2UpJd1DpbvKc3yXMEq6TxRVKt0BC7AA60rA0llxwztP4CfpzUHGEgIWYAFWtZkkg/X+YElWfgVYgAVYgHWhUyTb0GwHWIAFWIB1JWAJc7oDFmABFg+hACzAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAizAAqw3bP8PqeKY54CZjDgAAAAASUVORK5CYII=";
+
 export async function GET() {
-  return new ImageResponse(
-    (
-      <div
-        style={{
-          width: "1200px",
-          height: "630px",
-          display: "flex",
-          flexDirection: "row",
-          background: "linear-gradient(120deg, #f7fbff 0%, #eef7ff 58%, #d9eeff 100%)",
-          color: "#071b2f",
-          fontFamily: "Arial, Helvetica, sans-serif",
-          padding: "54px 58px",
-        }}
-      >
-        <div style={{ width: "760px", height: "522px", display: "flex", flexDirection: "column" }}>
-          <div style={{ display: "flex", flexDirection: "column" }}>
-            <div style={{ display: "flex", fontSize: 54, lineHeight: 1, fontWeight: 800, letterSpacing: "-3px" }}>Safeway</div>
-            <div style={{ display: "flex", fontSize: 24, letterSpacing: "7px", color: "#1489e6", fontWeight: 800 }}>COURIERS</div>
-          </div>
-
-          <div style={{ display: "flex", flexDirection: "column", marginTop: 46 }}>
-            <div style={{ display: "flex", fontSize: 27, color: "#168de8", fontWeight: 800, letterSpacing: "2px" }}>NOW ACCEPTING</div>
-            <div style={{ display: "flex", fontSize: 64, fontWeight: 900, lineHeight: 1, letterSpacing: "-2px", marginTop: 8 }}>
-              DRIVER APPLICATIONS
-            </div>
-            <div style={{ display: "flex", fontSize: 28, fontWeight: 700, marginTop: 24 }}>
-              Medical Couriers & Independent Contract Drivers
-            </div>
-            <div style={{ display: "flex", fontSize: 23, lineHeight: 1.45, marginTop: 16, color: "#466279", width: "650px" }}>
-              Building our driver network now for upcoming routes and contracts.
-            </div>
-          </div>
-
-          <div style={{ display: "flex", flexDirection: "row", alignItems: "center", marginTop: "auto", gap: 20 }}>
-            <div style={{ display: "flex", alignItems: "center", fontSize: 23, fontWeight: 800 }}>Columbus, Ohio</div>
-            <div style={{ display: "flex", fontSize: 21, color: "#567086" }}>SafewayCouriers.com</div>
-          </div>
-        </div>
-
-        <div
-          style={{
-            width: "320px",
-            height: "500px",
-            marginLeft: "auto",
-            display: "flex",
-            flexDirection: "column",
-            padding: "34px",
-            borderRadius: "36px",
-            background: "linear-gradient(160deg, #0a223a, #103f69)",
-            color: "white",
-          }}
-        >
-          <div style={{ display: "flex", fontSize: 20, letterSpacing: "3px", color: "#8ed0ff", fontWeight: 700 }}>DRIVER NETWORK</div>
-          <div style={{ display: "flex", fontSize: 45, fontWeight: 800, lineHeight: 1.08, marginTop: 22 }}>
-            Ready when the route opens.
-          </div>
-          <div style={{ display: "flex", height: "2px", background: "rgba(255,255,255,.18)", marginTop: 28 }} />
-          <div style={{ display: "flex", flexDirection: "column", fontSize: 22, lineHeight: 1.55, marginTop: 26, color: "#d6e8f7" }}>
-            <div style={{ display: "flex" }}>Medical couriers</div>
-            <div style={{ display: "flex" }}>Independent contractors</div>
-            <div style={{ display: "flex" }}>Local & regional routes</div>
-          </div>
-          <div
-            style={{
-              marginTop: "auto",
-              display: "flex",
-              justifyContent: "center",
-              padding: "16px 20px",
-              borderRadius: "18px",
-              background: "#39a8ff",
-              color: "#061525",
-              fontSize: 24,
-              fontWeight: 900,
-            }}
-          >
-            APPLY NOW →
-          </div>
-        </div>
-      </div>
-    ),
-    { width: 1200, height: 630 }
-  );
+  const bytes = Uint8Array.from(atob(PNG_BASE64), (c) => c.charCodeAt(0));
+  return new Response(bytes, {
+    status: 200,
+    headers: {
+      "Content-Type": "image/png",
+      "Content-Length": String(bytes.byteLength),
+      "Cache-Control": "public, max-age=31536000, immutable",
+    },
+  });
 }
