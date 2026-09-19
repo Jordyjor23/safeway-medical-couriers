@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { About } from "@/components/About";
 import { Compliance } from "@/components/Compliance";
 import { Contact } from "@/components/Contact";
@@ -11,6 +12,28 @@ import { ServiceArea } from "@/components/ServiceArea";
 import { Services } from "@/components/Services";
 import { TrustBar } from "@/components/TrustBar";
 import { WhyChooseUs } from "@/components/WhyChooseUs";
+
+export const metadata: Metadata = {
+  title: "Safeway Couriers | Medical Courier Services in Columbus, Ohio",
+  description:
+    "Safeway Couriers provides reliable, professional and time-sensitive medical courier services for healthcare organizations throughout Columbus and Central Ohio.",
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    title: "Now Accepting Driver Applications | Safeway Couriers",
+    description:
+      "Apply to join Safeway Couriers' driver network for upcoming medical courier and independent contractor routes in Columbus and Central Ohio.",
+    url: "/",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Now Accepting Driver Applications | Safeway Couriers",
+    description:
+      "Apply to join Safeway Couriers' driver network for upcoming medical courier and independent contractor routes in Columbus and Central Ohio.",
+  },
+};
 
 export default function HomePage() {
   return (
