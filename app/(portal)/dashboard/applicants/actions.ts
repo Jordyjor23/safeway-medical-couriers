@@ -53,7 +53,7 @@ export async function updateApplicationStatus(applicationId: string, status: App
     metadata: { from: current.status, to: status },
   });
 
-  if (status === "ONBOARDING" && current.status !== "ONBOARDING") {
+  if (status === "CONDITIONAL_OFFER" && current.status !== "CONDITIONAL_OFFER") {
     const onboarding = await issueCandidateOnboardingLink({
       applicationId: current.id,
       email: current.applicant.email,
@@ -63,7 +63,7 @@ export async function updateApplicationStatus(applicationId: string, status: App
       data: {
         applicationId: current.id,
         channel: "EMAIL",
-        subject: "Complete your Safeway Couriers onboarding documents",
+        subject: "Conditional offer: upload your Safeway Couriers documents",
         body: onboarding.emailSent
           ? `Secure onboarding link sent to ${current.applicant.email}. Expires ${onboarding.expiresAt.toISOString()}.`
           : `Secure onboarding link was created for ${current.applicant.email}, but the email provider did not confirm delivery.`,
@@ -74,7 +74,7 @@ export async function updateApplicationStatus(applicationId: string, status: App
     await writeAuditLog({
       actorId: ctx.user.id,
       actorEmail: ctx.user.email,
-      action: "applicant.onboarding_link.issued",
+      action: "applicant.conditional_offer_documents.issued",
       targetType: "application",
       targetId: current.id,
       metadata: { emailSent: onboarding.emailSent, expiresAt: onboarding.expiresAt.toISOString() },
@@ -294,7 +294,7 @@ export async function sendApplicantOnboardingLink(applicationId: string) {
     data: {
       applicationId,
       channel: "EMAIL",
-      subject: "Complete your Safeway Couriers onboarding documents",
+      subject: "Conditional offer: upload your Safeway Couriers documents",
       body: result.emailSent
         ? `Secure onboarding link sent to ${application.applicant.email}. Expires ${result.expiresAt.toISOString()}.`
         : `Secure onboarding link was created for ${application.applicant.email}, but the email provider did not confirm delivery.`,

@@ -3,6 +3,7 @@ import { appOrigin } from "@/lib/app-url";
 import { prisma } from "@/lib/db";
 import { sendTransactionalEmail } from "@/lib/email";
 import { createActivationToken } from "@/lib/ids";
+import { applicantOnboardingDocumentRequirements } from "@/lib/onboarding-documents";
 
 const PREFIX = "candidate-onboarding:";
 export const CANDIDATE_ONBOARDING_TTL_MS = 14 * 24 * 60 * 60 * 1000;
@@ -47,17 +48,34 @@ export async function issueCandidateOnboardingLink(args: {
     },
   });
 
+  const application = await prisma.application.findUnique({
+    where: { id: args.applicationId },
+    include: { jobOpening: true },
+  });
+  const requirements = application
+    ? applicantOnboardingDocumentRequirements({
+        workerClassification: application.jobOpening.workerClassification,
+        requiresDriving: application.jobOpening.requiresDriversLicense,
+      })
+    : [];
+
   const url = new URL("/careers/onboarding/" + token, appOrigin()).toString();
+  const checklistHtml = requirements.length
+    ? "<p><strong>Documents requested:</strong></p><ul>" +
+      requirements.map((item) => "<li>" + escapeHtml(item.label) + "</li>").join("") +
+      "</ul>"
+    : "";
   try {
     const result = await sendTransactionalEmail({
       to: args.email,
-      subject: "Complete your Safeway Couriers onboarding documents",
+      subject: "Conditional offer: upload your Safeway Couriers documents",
       html:
         "<p>Hello " + escapeHtml(args.name) + ",</p>" +
-        "<p>Safeway Couriers is ready for the next step in your onboarding.</p>" +
-        '<p><a href="' + url + '">Open your secure onboarding document page</a></p>' +
+        "<p>Safeway Couriers is ready for the next step. Please upload the required documents for review.</p>" +
+        checklistHtml +
+        '<p><a href="' + url + '">Open your secure document checklist and upload page</a></p>' +
         "<p>This private link expires in 14 days. Do not forward it to anyone.</p>" +
-        "<p>Only upload documents requested for your onboarding.</p>",
+        "<p>Uploaded documents are reviewed before they are considered verified.</p>",
     });
     return { emailSent: Boolean(result?.id), expiresAt };
   } catch {
