@@ -40,7 +40,68 @@ export default async function InterviewsPage() {
         </Link>
       </div>
 
-      <div className="mt-6 overflow-x-auto rounded-2xl border border-line bg-paper">
+      <div className="mt-6 space-y-3 md:hidden">
+        {applications.length === 0 ? (
+          <div className="rounded-2xl border border-line bg-paper px-4 py-8 text-sm text-muted">
+            No applicants are currently in the interview workflow.
+          </div>
+        ) : (
+          applications.map((application) => {
+            const interview = application.interviews[0] ?? null;
+            const score =
+              interview?.scorePossible && interview.scorePossible > 0
+                ? `${interview.scoreTotal ?? 0}/${interview.scorePossible}`
+                : "—";
+
+            return (
+              <article key={application.id} className="rounded-2xl border border-line bg-paper p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <Link
+                      href={`/dashboard/applicants/${application.id}`}
+                      className="block truncate font-semibold text-navy hover:text-medical"
+                    >
+                      {application.applicant.legalFirstName} {application.applicant.legalLastName}
+                    </Link>
+                    <p className="mt-1 text-sm text-muted">{application.jobOpening.title}</p>
+                  </div>
+                  <span className="shrink-0 rounded-full bg-ice px-2.5 py-1 text-xs font-semibold text-navy">
+                    {application.interviewStatus.replaceAll("_", " ")}
+                  </span>
+                </div>
+
+                <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <dt className="text-xs uppercase tracking-wide text-muted">Worker type</dt>
+                    <dd className="mt-1 font-medium text-navy">
+                      {application.jobOpening.workerClassification.replaceAll("_", " ")}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs uppercase tracking-wide text-muted">Score</dt>
+                    <dd className="mt-1 font-medium text-navy">{score}</dd>
+                  </div>
+                  <div className="col-span-2">
+                    <dt className="text-xs uppercase tracking-wide text-muted">Scheduled</dt>
+                    <dd className="mt-1 font-medium text-navy">
+                      {interview?.scheduledAt ? formatBusinessDateTime(interview.scheduledAt) : "Not scheduled"}
+                    </dd>
+                  </div>
+                </dl>
+
+                <Link
+                  href={`/dashboard/applicants/${application.id}/interview`}
+                  className="mt-4 inline-flex w-full items-center justify-center rounded-full bg-navy px-4 py-2.5 text-sm font-semibold text-white hover:bg-medical"
+                >
+                  Open interview
+                </Link>
+              </article>
+            );
+          })
+        )}
+      </div>
+
+      <div className="mt-6 hidden overflow-x-auto rounded-2xl border border-line bg-paper md:block">
         <table className="min-w-full text-left text-sm">
           <thead className="border-b border-line bg-ice text-xs uppercase tracking-wide text-muted">
             <tr>
