@@ -26,12 +26,21 @@ export const metadata: Metadata = {
       "Apply to join Safeway Couriers' driver network for upcoming medical courier and independent contractor routes in Columbus and Central Ohio.",
     url: "/",
     type: "website",
+    images: [
+      {
+        url: "/driver-recruiting-share-v2.png",
+        width: 1200,
+        height: 630,
+        alt: "Safeway Couriers — Now Accepting Driver Applications",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "Now Accepting Driver Applications | Safeway Couriers",
     description:
       "Apply to join Safeway Couriers' driver network for upcoming medical courier and independent contractor routes in Columbus and Central Ohio.",
+    images: ["/driver-recruiting-share-v2.png"],
   },
 };
 
