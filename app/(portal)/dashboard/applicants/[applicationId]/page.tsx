@@ -10,6 +10,7 @@ import {
 import { prisma } from "@/lib/db";
 import { labelDocumentType } from "@/lib/documents/catalog";
 import { documentFileHref } from "@/lib/documents/display";
+import { applicantOnboardingDocumentRequirements } from "@/lib/onboarding-documents";
 import { formatBusinessDateTime } from "@/lib/workforce-time";
 import { hasPermission, requirePermission } from "@/lib/rbac";
 import type { ApplicationStatus } from "@prisma/client";
@@ -85,6 +86,20 @@ export default async function ApplicantProfilePage({
     application.overnight ? "Overnight" : null,
     application.onCallStat ? "On-call / STAT" : null,
   ].filter(Boolean);
+
+  const documentRequirements = applicantOnboardingDocumentRequirements({
+    workerClassification: application.jobOpening.workerClassification,
+    requiresDriving: application.jobOpening.requiresDriversLicense,
+  });
+  const activeDocumentTypes = new Set(
+    application.documents
+      .filter(({ document }) => !["ARCHIVED", "REJECTED"].includes(document.lifecycleStatus))
+      .map(({ document }) => document.documentType)
+      .filter((type): type is string => Boolean(type)),
+  );
+  const receivedRequiredCount = documentRequirements.filter((requirement) =>
+    activeDocumentTypes.has(requirement.type),
+  ).length;
 
   const trainingClaims = [
     { label: "HIPAA training", claimed: application.hipaaTraining, documentType: "HIPAA_TRAINING" },
@@ -342,10 +357,30 @@ export default async function ApplicantProfilePage({
       </section>
 
       <section className="rounded-2xl border border-line bg-paper p-5">
-        <h2 className="text-lg font-semibold text-navy">Candidate documents</h2>
-        <p className="mt-1 text-sm text-muted">
-          Files submitted through the secure onboarding link remain unverified until reviewed.
-        </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold text-navy">Candidate documents</h2>
+            <p className="mt-1 text-sm text-muted">
+              Files submitted through the secure upload link remain unverified until reviewed.
+            </p>
+          </div>
+          <span className="rounded-full bg-ice px-3 py-1 text-xs font-semibold text-navy">
+            {receivedRequiredCount} of {documentRequirements.length} required received
+          </span>
+        </div>
+        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+          {documentRequirements.map((requirement) => {
+            const received = activeDocumentTypes.has(requirement.type);
+            return (
+              <div key={requirement.type} className="flex items-center justify-between rounded-xl border border-line px-3 py-2 text-sm">
+                <span className="font-medium text-navy">{requirement.label}</span>
+                <span className={received ? "font-semibold text-emerald-700" : "font-semibold text-amber-700"}>
+                  {received ? "Received" : "Missing"}
+                </span>
+              </div>
+            );
+          })}
+        </div>
         {application.documents.length ? (
           <ul className="mt-4 divide-y divide-line rounded-xl border border-line">
             {application.documents.map(({ document }) => (
