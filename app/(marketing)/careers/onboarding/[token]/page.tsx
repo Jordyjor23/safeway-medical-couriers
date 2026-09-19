@@ -3,7 +3,10 @@ import { CandidateOnboardingUploader } from "@/components/careers/CandidateOnboa
 import { Container } from "@/components/Container";
 import { PageHeader } from "@/components/PageHeader";
 import { resolveCandidateOnboardingToken } from "@/lib/candidate-onboarding";
-import { applicantOnboardingDocumentTypes } from "@/lib/onboarding-documents";
+import {
+  applicantOnboardingDocumentRequirements,
+  applicantOnboardingDocumentTypes,
+} from "@/lib/onboarding-documents";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Candidate onboarding" };
@@ -38,6 +41,10 @@ export default async function CandidateOnboardingPage({
     workerClassification: application.jobOpening.workerClassification,
     requiresDriving: application.jobOpening.requiresDriversLicense,
   });
+  const requirements = applicantOnboardingDocumentRequirements({
+    workerClassification: application.jobOpening.workerClassification,
+    requiresDriving: application.jobOpening.requiresDriversLicense,
+  });
 
   return (
     <>
@@ -62,6 +69,7 @@ export default async function CandidateOnboardingPage({
         <CandidateOnboardingUploader
           token={token}
           allowedTypes={allowedTypes}
+          requirements={requirements}
           documents={application.documents.map(({ document }) => ({
             id: document.id,
             name: document.name,
