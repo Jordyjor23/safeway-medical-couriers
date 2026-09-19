@@ -19,8 +19,8 @@ export default async function DashboardPage() {
   const owner = isOwnerRole(ctx.roles);
   const interviewCount = await prisma.application.count({
     where: {
+      status: { in: ["INTERVIEW_REQUESTED", "INTERVIEW_SCHEDULED", "UNDER_REVIEW"] },
       interviewStatus: { not: "NOT_REQUESTED" },
-      status: { not: "DRAFT" },
     },
   });
 
