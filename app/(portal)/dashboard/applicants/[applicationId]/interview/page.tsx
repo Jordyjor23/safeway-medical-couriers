@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { saveInterviewScorecard } from "@/app/(portal)/dashboard/applicants/actions";
 import { prisma } from "@/lib/db";
-import { INTERVIEW_MAX_SCORE, INTERVIEW_QUESTIONS } from "@/lib/interview-scorecard";
+import { interviewMaxScoreFor, interviewQuestionsFor } from "@/lib/interview-scorecard";
 import { formatBusinessDateTime } from "@/lib/workforce-time";
 import { requirePermission } from "@/lib/rbac";
 
@@ -45,6 +45,8 @@ export default async function ApplicantInterviewPage({
   if (!application) notFound();
 
   const interview = application.interviews[0] ?? null;
+  const questions = interviewQuestionsFor(application.jobOpening.workerClassification);
+  const maxScore = interviewMaxScoreFor(application.jobOpening.workerClassification);
   const savedResponses = readResponses(interview?.scorecard);
   const scoreTotal = interview?.scoreTotal ?? 0;
   const scorePossible = interview?.scorePossible ?? 0;
@@ -87,7 +89,7 @@ export default async function ApplicantInterviewPage({
           <div>
             <p className="text-muted">Current score</p>
             <p className="font-semibold text-navy">
-              {scorePossible ? `${scoreTotal}/${scorePossible} (${percent}%)` : `Not scored / ${INTERVIEW_MAX_SCORE} max`}
+              {scorePossible ? `${scoreTotal}/${scorePossible} (${percent}%)` : `Not scored / ${maxScore} max`}
             </p>
           </div>
         </div>
@@ -96,12 +98,91 @@ export default async function ApplicantInterviewPage({
         </p>
       </section>
 
-      <form action={saveInterviewScorecard.bind(null, applicationId)} className="space-y-6">
-        {Array.from(new Set(INTERVIEW_QUESTIONS.map((question) => question.category))).map((category) => (
+
+      {interview?.status === "COMPLETED" ? (
+        <section className="rounded-2xl border border-medical/30 bg-paper p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold text-navy">Post-interview review</h2>
+              <p className="mt-1 text-sm text-muted">
+                Review the interview evidence and any remaining requirements before deciding the next workflow step.
+              </p>
+            </div>
+            <span className="rounded-full bg-ice px-3 py-1 text-sm font-semibold text-navy">
+              {scorePossible ? `${scoreTotal}/${scorePossible} (${percent}%)` : "Not scored"}
+            </span>
+          </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            <div className="rounded-xl border border-line p-3 text-sm">
+              <p className="text-muted">Questions completed</p>
+              <p className="font-semibold text-navy">
+                {questions.filter((question) => savedResponses.get(question.key)?.checked).length} / {questions.length}
+              </p>
+            </div>
+            <div className="rounded-xl border border-line p-3 text-sm">
+              <p className="text-muted">Questions scored</p>
+              <p className="font-semibold text-navy">
+                {questions.filter((question) => savedResponses.get(question.key)?.score).length} / {questions.length}
+              </p>
+            </div>
+            <div className="rounded-xl border border-line p-3 text-sm">
+              <p className="text-muted">Candidate type</p>
+              <p className="font-semibold text-navy">{application.jobOpening.workerClassification.replaceAll("_", " ")}</p>
+            </div>
+          </div>
+          <div className="mt-5 flex flex-wrap gap-3">
+            <form
+              action={async () => {
+                "use server";
+                const { updateApplicationStatus } = await import("@/app/(portal)/dashboard/applicants/actions");
+                await updateApplicationStatus(applicationId, "CONDITIONAL_OFFER");
+              }}
+            >
+              <button className="rounded-full bg-navy px-4 py-2 text-sm font-semibold text-white">
+                Move to Conditional Offer
+              </button>
+            </form>
+            <form
+              action={async () => {
+                "use server";
+                const { updateApplicationStatus } = await import("@/app/(portal)/dashboard/applicants/actions");
+                await updateApplicationStatus(applicationId, "UNDER_REVIEW");
+              }}
+            >
+              <button className="rounded-full border border-navy px-4 py-2 text-sm font-semibold text-navy">
+                Hold for Review
+              </button>
+            </form>
+            <form
+              action={async () => {
+                "use server";
+                const { updateApplicationStatus } = await import("@/app/(portal)/dashboard/applicants/actions");
+                await updateApplicationStatus(applicationId, "NOT_SELECTED");
+              }}
+            >
+              <button className="rounded-full border border-line px-4 py-2 text-sm font-semibold text-muted">
+                Not Selected
+              </button>
+            </form>
+          </div>
+          <p className="mt-3 text-xs text-muted">
+            The score is decision support only. Use the candidate&apos;s job-related responses, required documents, and role requirements when deciding the next step.
+          </p>
+        </section>
+      ) : null}
+
+      <form
+        action={async (formData) => {
+          "use server";
+          await saveInterviewScorecard(applicationId, formData);
+        }}
+        className="space-y-6"
+      >
+        {Array.from(new Set(questions.map((question) => question.category))).map((category) => (
           <section key={category} className="rounded-2xl border border-line bg-paper p-5">
             <h2 className="text-lg font-semibold text-navy">{category}</h2>
             <div className="mt-4 space-y-5">
-              {INTERVIEW_QUESTIONS.filter((question) => question.category === category).map((question, index) => {
+              {questions.filter((question) => question.category === category).map((question, index) => {
                 const saved = savedResponses.get(question.key);
                 return (
                   <div key={question.key} className="rounded-xl border border-line p-4">
