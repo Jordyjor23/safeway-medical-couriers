@@ -268,7 +268,7 @@ export default async function ApplicantProfilePage({
           <div>
             <h3 className="text-sm font-semibold uppercase tracking-wide text-navy">Driving & vehicle requirements</h3>
             <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
-              <div><dt className="text-muted">Valid driver's license</dt><dd className="font-medium text-navy">{yesNo(application.hasValidDriversLicense)}</dd></div>
+              <div><dt className="text-muted">Valid driver&apos;s license</dt><dd className="font-medium text-navy">{yesNo(application.hasValidDriversLicense)}</dd></div>
               <div><dt className="text-muted">License state</dt><dd className="font-medium text-navy">{textOrNotAnswered(application.licenseIssuingState)}</dd></div>
               <div><dt className="text-muted">License class</dt><dd className="font-medium text-navy">{textOrNotAnswered(application.licenseClass)}</dd></div>
               <div><dt className="text-muted">Can meet driving requirements</dt><dd className="font-medium text-navy">{yesNo(application.canMeetDrivingRequirements)}</dd></div>
