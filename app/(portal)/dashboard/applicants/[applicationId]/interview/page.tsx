@@ -148,7 +148,13 @@ export default async function ApplicantInterviewPage({
               action={async () => {
                 "use server";
                 const { updateApplicationStatus } = await import("@/app/(portal)/dashboard/applicants/actions");
-                await updateApplicationStatus(applicationId, "CONDITIONAL_OFFER");
+                const result = await updateApplicationStatus(applicationId, "CONDITIONAL_OFFER");
+                if (result?.error) {
+                  redirect(
+                    `/dashboard/applicants/${applicationId}/interview?error=${encodeURIComponent(result.error)}`,
+                  );
+                }
+                redirect("/dashboard/interviews?updated=conditional-offer");
               }}
             >
               <button className="w-full rounded-full bg-navy px-4 py-2.5 text-sm font-semibold text-white sm:w-auto">
@@ -159,7 +165,13 @@ export default async function ApplicantInterviewPage({
               action={async () => {
                 "use server";
                 const { updateApplicationStatus } = await import("@/app/(portal)/dashboard/applicants/actions");
-                await updateApplicationStatus(applicationId, "UNDER_REVIEW");
+                const result = await updateApplicationStatus(applicationId, "UNDER_REVIEW");
+                if (result?.error) {
+                  redirect(
+                    `/dashboard/applicants/${applicationId}/interview?error=${encodeURIComponent(result.error)}`,
+                  );
+                }
+                redirect("/dashboard/interviews?updated=hold");
               }}
             >
               <button className="w-full rounded-full border border-navy px-4 py-2.5 text-sm font-semibold text-navy sm:w-auto">
@@ -170,7 +182,13 @@ export default async function ApplicantInterviewPage({
               action={async () => {
                 "use server";
                 const { updateApplicationStatus } = await import("@/app/(portal)/dashboard/applicants/actions");
-                await updateApplicationStatus(applicationId, "NOT_SELECTED");
+                const result = await updateApplicationStatus(applicationId, "NOT_SELECTED");
+                if (result?.error) {
+                  redirect(
+                    `/dashboard/applicants/${applicationId}/interview?error=${encodeURIComponent(result.error)}`,
+                  );
+                }
+                redirect("/dashboard/interviews?updated=not-selected");
               }}
             >
               <button className="w-full rounded-full border border-line px-4 py-2.5 text-sm font-semibold text-muted sm:w-auto">
