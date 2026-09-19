@@ -6,6 +6,7 @@ import { formatBusinessDateTime } from "@/lib/workforce-time";
 import { getDocumentAlertStats } from "@/lib/documents/alert-stats";
 import { isOwnerRole } from "@/lib/permissions";
 import { requireAuth } from "@/lib/rbac";
+import { prisma } from "@/lib/db";
 
 export const metadata: Metadata = {
   title: "Dashboard",
@@ -16,6 +17,12 @@ export default async function DashboardPage() {
   const stats = await getDashboardOverview();
   const documentAlerts = await getDocumentAlertStats();
   const owner = isOwnerRole(ctx.roles);
+  const interviewCount = await prisma.application.count({
+    where: {
+      status: { in: ["INTERVIEW_REQUESTED", "INTERVIEW_SCHEDULED", "UNDER_REVIEW"] },
+      interviewStatus: { not: "NOT_REQUESTED" },
+    },
+  });
 
   return (
     <div>
@@ -42,6 +49,7 @@ export default async function DashboardPage() {
         <StatCard label="Active employees" value={stats.activeEmployees} href="/dashboard/employees" context={`${stats.employeeRecords} total · ${stats.pendingOnboardingEmployees} onboarding`} />
         <StatCard label="Active couriers" value={stats.activeCouriers} href="/dashboard/employees" />
         <StatCard label="Pending applicants" value={stats.pendingApplicants} href="/dashboard/applicants" context={`${stats.applicationRecords} total applications`} />
+        <StatCard label="Interviews" value={interviewCount} href="/dashboard/interviews" context="Open interview workflow" />
         <StatCard label="Applications this month" value={stats.applicationsThisMonth} href="/dashboard/applicants" />
         <StatCard label="Open positions" value={stats.openPositions} href="/dashboard/jobs" context={`${stats.jobRecords} total postings`} />
         <StatCard label="Active customers" value={stats.activeCustomers} href="/dashboard/customers" context={`${stats.customerRecords} total customers`} />

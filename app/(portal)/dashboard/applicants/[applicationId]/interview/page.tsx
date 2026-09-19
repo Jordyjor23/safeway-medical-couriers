@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { saveInterviewScorecard } from "@/app/(portal)/dashboard/applicants/actions";
 import { prisma } from "@/lib/db";
 import { interviewMaxScoreFor, interviewQuestionsFor } from "@/lib/interview-scorecard";
@@ -29,11 +29,14 @@ function readResponses(scorecard: unknown) {
 
 export default async function ApplicantInterviewPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ applicationId: string }>;
+  searchParams: Promise<{ error?: string; saved?: string }>;
 }) {
   await requirePermission("applicants.edit");
   const { applicationId } = await params;
+  const query = await searchParams;
   const application = await prisma.application.findUnique({
     where: { id: applicationId },
     include: {
@@ -69,6 +72,16 @@ export default async function ApplicantInterviewPage({
         </h1>
         <p className="mt-1 text-muted">{application.jobOpening.title}</p>
       </div>
+
+      {query.error ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800" role="alert">
+          {query.error}
+        </div>
+      ) : query.saved ? (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800" role="status">
+          {query.saved === "completed" ? "Interview completed and saved." : "Interview progress saved."}
+        </div>
+      ) : null}
 
       <section className="rounded-2xl border border-line bg-paper p-5">
         <div className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
@@ -130,15 +143,21 @@ export default async function ApplicantInterviewPage({
               <p className="font-semibold text-navy">{application.jobOpening.workerClassification.replaceAll("_", " ")}</p>
             </div>
           </div>
-          <div className="mt-5 flex flex-wrap gap-3">
+          <div className="mt-5 grid gap-3 sm:flex sm:flex-wrap">
             <form
               action={async () => {
                 "use server";
                 const { updateApplicationStatus } = await import("@/app/(portal)/dashboard/applicants/actions");
-                await updateApplicationStatus(applicationId, "CONDITIONAL_OFFER");
+                const result = await updateApplicationStatus(applicationId, "CONDITIONAL_OFFER");
+                if (result?.error) {
+                  redirect(
+                    `/dashboard/applicants/${applicationId}/interview?error=${encodeURIComponent(result.error)}`,
+                  );
+                }
+                redirect("/dashboard/interviews?updated=conditional-offer");
               }}
             >
-              <button className="rounded-full bg-navy px-4 py-2 text-sm font-semibold text-white">
+              <button className="w-full rounded-full bg-navy px-4 py-2.5 text-sm font-semibold text-white sm:w-auto">
                 Move to Conditional Offer
               </button>
             </form>
@@ -146,10 +165,16 @@ export default async function ApplicantInterviewPage({
               action={async () => {
                 "use server";
                 const { updateApplicationStatus } = await import("@/app/(portal)/dashboard/applicants/actions");
-                await updateApplicationStatus(applicationId, "UNDER_REVIEW");
+                const result = await updateApplicationStatus(applicationId, "UNDER_REVIEW");
+                if (result?.error) {
+                  redirect(
+                    `/dashboard/applicants/${applicationId}/interview?error=${encodeURIComponent(result.error)}`,
+                  );
+                }
+                redirect("/dashboard/interviews?updated=hold");
               }}
             >
-              <button className="rounded-full border border-navy px-4 py-2 text-sm font-semibold text-navy">
+              <button className="w-full rounded-full border border-navy px-4 py-2.5 text-sm font-semibold text-navy sm:w-auto">
                 Hold for Review
               </button>
             </form>
@@ -157,10 +182,16 @@ export default async function ApplicantInterviewPage({
               action={async () => {
                 "use server";
                 const { updateApplicationStatus } = await import("@/app/(portal)/dashboard/applicants/actions");
-                await updateApplicationStatus(applicationId, "NOT_SELECTED");
+                const result = await updateApplicationStatus(applicationId, "NOT_SELECTED");
+                if (result?.error) {
+                  redirect(
+                    `/dashboard/applicants/${applicationId}/interview?error=${encodeURIComponent(result.error)}`,
+                  );
+                }
+                redirect("/dashboard/interviews?updated=not-selected");
               }}
             >
-              <button className="rounded-full border border-line px-4 py-2 text-sm font-semibold text-muted">
+              <button className="w-full rounded-full border border-line px-4 py-2.5 text-sm font-semibold text-muted sm:w-auto">
                 Not Selected
               </button>
             </form>
@@ -174,7 +205,15 @@ export default async function ApplicantInterviewPage({
       <form
         action={async (formData) => {
           "use server";
-          await saveInterviewScorecard(applicationId, formData);
+          const result = await saveInterviewScorecard(applicationId, formData);
+          if (result?.error) {
+            redirect(
+              `/dashboard/applicants/${applicationId}/interview?error=${encodeURIComponent(result.error)}`,
+            );
+          }
+          redirect(
+            `/dashboard/applicants/${applicationId}/interview?saved=${result?.completed ? "completed" : "progress"}`,
+          );
         }}
         className="space-y-6"
       >
@@ -245,12 +284,12 @@ export default async function ApplicantInterviewPage({
             className="mt-3 w-full rounded-lg border border-line px-3 py-2 text-sm"
             placeholder="Document job-related strengths, concerns, follow-up items, or verification needed."
           />
-          <div className="mt-4 flex flex-wrap gap-3">
+          <div className="mt-4 grid gap-3 sm:flex sm:flex-wrap">
             <button
               type="submit"
               name="submitIntent"
               value="save"
-              className="rounded-full border border-navy px-4 py-2 text-sm font-semibold text-navy"
+              className="w-full rounded-full border border-navy px-4 py-2.5 text-sm font-semibold text-navy sm:w-auto"
             >
               Save interview progress
             </button>
@@ -258,7 +297,7 @@ export default async function ApplicantInterviewPage({
               type="submit"
               name="submitIntent"
               value="complete"
-              className="rounded-full bg-navy px-4 py-2 text-sm font-semibold text-white"
+              className="w-full rounded-full bg-navy px-4 py-2.5 text-sm font-semibold text-white sm:w-auto"
             >
               Complete interview
             </button>

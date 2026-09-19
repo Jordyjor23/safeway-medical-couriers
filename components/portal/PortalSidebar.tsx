@@ -34,6 +34,7 @@ const items: NavItem[] = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
   { href: "/dashboard/hr", label: "HR & Onboarding", permission: "employees.view", icon: UserRoundCheck },
   { href: "/dashboard/applicants", label: "Applicants", permission: "applicants.view", icon: UserRound },
+  { href: "/dashboard/interviews", label: "Interviews", permission: "applicants.view", icon: ClipboardCheck },
   { href: "/dashboard/jobs", label: "Job postings", permission: "jobs.view", icon: Briefcase },
   { href: "/dashboard/employees", label: "Employees", permission: "employees.view", icon: Users },
   { href: "/dashboard/workforce", label: "Workforce", permission: "scheduling.view", icon: CalendarDays },

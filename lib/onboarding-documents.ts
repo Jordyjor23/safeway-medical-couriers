@@ -40,15 +40,15 @@ export function applicantOnboardingDocumentRequirements(args: {
   workerClassification: "EMPLOYEE" | "INDEPENDENT_CONTRACTOR";
   requiresDriving: boolean;
 }) {
-  const classification =
+  const base: OnboardingDocumentRequirement[] =
     args.workerClassification === "INDEPENDENT_CONTRACTOR"
-      ? "INDEPENDENT_CONTRACTOR"
-      : "W2_EMPLOYEE";
+      ? [
+          { type: "W9", label: "W-9", sensitive: true },
+          ...sharedTraining,
+        ]
+      : [...sharedTraining];
 
-  return employeeOnboardingDocumentRequirements({
-    classification,
-    isDriver: args.requiresDriving,
-  });
+  return args.requiresDriving ? [...base, ...driverDocuments] : base;
 }
 
 export function applicantOnboardingDocumentTypes(args: {
@@ -56,8 +56,7 @@ export function applicantOnboardingDocumentTypes(args: {
   requiresDriving: boolean;
 }) {
   const required = applicantOnboardingDocumentRequirements(args).map((item) => item.type);
-  const optional = ["OTHER_CERTIFICATION", "STATE_ID"];
-  return [...new Set([...required, ...optional])];
+  return [...new Set([...required, "OTHER_CERTIFICATION"])];
 }
 
 export const SENSITIVE_ONBOARDING_DOCUMENT_TYPES = new Set([

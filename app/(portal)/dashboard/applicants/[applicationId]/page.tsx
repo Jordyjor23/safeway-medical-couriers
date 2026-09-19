@@ -47,11 +47,14 @@ function enumLabel(value: string | null | undefined) {
 
 export default async function ApplicantProfilePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ applicationId: string }>;
+  searchParams: Promise<{ saved?: string; error?: string }>;
 }) {
   const ctx = await requirePermission("applicants.view");
   const { applicationId } = await params;
+  const query = await searchParams;
   const application = await prisma.application.findUnique({
     where: { id: applicationId },
     include: {
@@ -127,6 +130,22 @@ export default async function ApplicantProfilePage({
         <p className="mt-1 text-muted">{application.jobOpening.title}</p>
       </div>
 
+      {query.error ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800" role="alert">
+          {query.error}
+        </div>
+      ) : query.saved ? (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800" role="status">
+          {query.saved === "status"
+            ? "Applicant status updated."
+            : query.saved === "interview"
+              ? "Interview schedule updated and the applicant notification was processed."
+              : query.saved === "upload-link"
+                ? "Secure candidate upload link processed."
+                : "Changes saved."}
+        </div>
+      ) : null}
+
       {canEdit ? (
         <div className="flex flex-wrap items-end gap-3">
           <form
@@ -134,7 +153,7 @@ export default async function ApplicantProfilePage({
               "use server";
               const result = await updateApplicationStatus(applicationId, String(formData.get("status")) as ApplicationStatus);
               if (result?.error) throw new Error(result.error);
-              redirect(`/dashboard/applicants/${applicationId}`);
+              redirect(`/dashboard/applicants/${applicationId}?saved=status`);
             }}
             className="flex flex-wrap items-end gap-3"
           >
@@ -154,7 +173,13 @@ export default async function ApplicantProfilePage({
             <form
               action={async () => {
                 "use server";
-                await sendApplicantOnboardingLink(applicationId);
+                const result = await sendApplicantOnboardingLink(applicationId);
+                if (result?.error) {
+                  redirect(
+                    `/dashboard/applicants/${applicationId}?error=${encodeURIComponent(result.error)}`,
+                  );
+                }
+                redirect(`/dashboard/applicants/${applicationId}?saved=upload-link`);
               }}
             >
               <button className="rounded-full border border-navy px-4 py-2 text-sm font-semibold text-navy">
@@ -425,7 +450,13 @@ export default async function ApplicantProfilePage({
           <form
             action={async (formData) => {
               "use server";
-              await updateInterview(applicationId, formData);
+              const result = await updateInterview(applicationId, formData);
+              if (result?.error) {
+                redirect(
+                  `/dashboard/applicants/${applicationId}?error=${encodeURIComponent(result.error)}`,
+                );
+              }
+              redirect(`/dashboard/applicants/${applicationId}?saved=interview`);
             }}
             className="mt-3 grid gap-3 sm:grid-cols-2"
           >
