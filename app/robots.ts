@@ -20,7 +20,7 @@ export default function robots(): MetadataRoute.Robots {
         "/admin",
         "/operations",
         "/dispatch",
-        "/driver",
+        "/driver/",
         "/employee",
         "/customer",
         "/api/",
