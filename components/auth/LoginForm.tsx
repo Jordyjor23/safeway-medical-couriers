@@ -16,6 +16,7 @@ function LoginFormFields() {
   const activated = searchParams.get("activated") === "1";
   const recovered = searchParams.get("recovered") === "1";
   const reset = searchParams.get("reset") === "1";
+  const resetIdentifier = searchParams.get("identifier")?.trim() ?? "";
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -36,7 +37,11 @@ function LoginFormFields() {
         setPending(false);
 
         if (result.error) {
-          setError("Sign-in failed. Check your email or username and password, then try again.");
+          setError(
+            reset && resetIdentifier
+              ? "Sign-in failed. Your account email is correct, so re-enter the new password you just created."
+              : "Sign-in failed. Check your email or username and password, then try again.",
+          );
           return;
         }
 
@@ -61,7 +66,7 @@ function LoginFormFields() {
       ) : null}
       {reset ? (
         <p className="rounded-lg border border-medical/30 bg-ice px-3 py-2 text-sm text-navy">
-          Password updated. Sign in with your new password.
+          Password updated. Your account email is filled in below. Enter the new password you just created.
         </p>
       ) : null}
       <label className="block text-sm font-semibold text-navy">
@@ -71,7 +76,9 @@ function LoginFormFields() {
           type="text"
           autoComplete="username"
           required
-          className={fieldClass}
+          defaultValue={resetIdentifier}
+          readOnly={reset && Boolean(resetIdentifier)}
+          className={`${fieldClass} ${reset && resetIdentifier ? "bg-ice" : ""}`}
         />
       </label>
       <label className="block text-sm font-semibold text-navy">
