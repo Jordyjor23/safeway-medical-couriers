@@ -6,7 +6,7 @@ import { UserAccountActions } from "@/components/portal/UserAccountActions";
 import { prisma } from "@/lib/db";
 import { formatBusinessDateTime } from "@/lib/workforce-time";
 import { hasPermission, requirePermission } from "@/lib/rbac";
-import { ROLE_LABELS, SYSTEM_ROLE_KEYS, roleLabel } from "@/lib/permissions";
+import { roleLabel } from "@/lib/permissions";
 
 export const metadata: Metadata = { title: "User" };
 
@@ -19,14 +19,17 @@ export default async function UserDetailPage({
 }) {
   const ctx = await requirePermission("users.manage");
   const { userId } = await params;
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    include: {
-      roles: { include: { role: true } },
-      employee: true,
-      customerUser: { include: { customer: true } },
-    },
-  });
+  const [user, availableRoles] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        roles: { include: { role: true } },
+        employee: true,
+        customerUser: { include: { customer: true } },
+      },
+    }),
+    prisma.role.findMany({ orderBy: [{ system: "desc" }, { name: "asc" }] }),
+  ]);
   if (!user) notFound();
   const assigned = new Set(user.roles.map((assignment) => assignment.role.key));
   const save = updateUserProfile.bind(null, user.id);
@@ -82,19 +85,32 @@ export default async function UserDetailPage({
         </p>
         {canRoles ? (
           <div className="mt-3 flex flex-wrap gap-2">
-            {SYSTEM_ROLE_KEYS.map((key) => {
-              const hasRole = assigned.has(key);
+            {availableRoles.map((role) => {
+              const hasRole = assigned.has(role.key);
+              const needsEmployee = role.key === "EMPLOYEE" || role.key === "DRIVER";
+              const needsCustomer = role.key === "CUSTOMER";
+              const disabled =
+                (!hasRole && needsEmployee && !user.employee) ||
+                (!hasRole && needsCustomer && !user.customerUser);
+              const reason =
+                !hasRole && needsEmployee && !user.employee
+                  ? "This role requires an employee record."
+                  : !hasRole && needsCustomer && !user.customerUser
+                    ? "This role requires a linked customer organization."
+                    : undefined;
               return (
-                <form action={setUserRole} key={key}>
+                <form action={setUserRole} key={role.id}>
                   <input type="hidden" name="userId" value={user.id} />
-                  <input type="hidden" name="roleKey" value={key} />
+                  <input type="hidden" name="roleKey" value={role.key} />
                   <input type="hidden" name="action" value={hasRole ? "revoke" : "grant"} />
                   <button
-                    className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
+                    disabled={disabled}
+                    title={reason}
+                    className={`rounded-full px-3 py-1.5 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40 ${
                       hasRole ? "bg-navy text-white" : "border border-line text-navy"
                     }`}
                   >
-                    {hasRole ? `Remove ${ROLE_LABELS[key]}` : `Add ${ROLE_LABELS[key]}`}
+                    {hasRole ? `Remove ${role.name}` : `Add ${role.name}`}
                   </button>
                 </form>
               );
