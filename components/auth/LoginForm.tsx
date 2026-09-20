@@ -39,7 +39,7 @@ function LoginFormFields() {
         if (result.error) {
           setError(
             reset && resetIdentifier
-              ? "Sign-in failed. Your account email is correct, so re-enter the new password you just created."
+              ? "Sign-in failed. Check the filled-in email (or enter your username) and re-enter the new password you just created."
               : "Sign-in failed. Check your email or username and password, then try again.",
           );
           return;
@@ -66,7 +66,7 @@ function LoginFormFields() {
       ) : null}
       {reset ? (
         <p className="rounded-lg border border-medical/30 bg-ice px-3 py-2 text-sm text-navy">
-          Password updated. Your account email is filled in below. Enter the new password you just created.
+          Password updated. Your account email is filled in below. You can also replace it with your username.
         </p>
       ) : null}
       <label className="block text-sm font-semibold text-navy">
@@ -77,8 +77,7 @@ function LoginFormFields() {
           autoComplete="username"
           required
           defaultValue={resetIdentifier}
-          readOnly={reset && Boolean(resetIdentifier)}
-          className={`${fieldClass} ${reset && resetIdentifier ? "bg-ice" : ""}`}
+          className={fieldClass}
         />
       </label>
       <label className="block text-sm font-semibold text-navy">

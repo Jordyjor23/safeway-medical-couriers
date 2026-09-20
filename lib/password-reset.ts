@@ -81,7 +81,8 @@ export async function issuePasswordReset(userId: string, email: string) {
       subject: "Reset your Safeway Couriers portal password",
       html: `<p>We received a request to reset your Safeway Couriers portal password.</p>
 <p><a href="${url}">Reset password</a></p>
-<p>This link expires in 24 hours. If you did not request this, you can ignore this email.</p>`,
+<p>This link expires in 24 hours. Opening the link does not use it; it is consumed only after your password is successfully changed.</p>
+<p>If you request another reset email, only the newest reset link will work. If you did not request this, you can ignore this email.</p>`,
     });
     if (!result?.id || result.id === "dev-email") {
       await prisma.verification.deleteMany({ where: { identifier, value: userId } });
