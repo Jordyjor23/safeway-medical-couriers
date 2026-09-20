@@ -176,6 +176,15 @@ export async function setUserRole(formData: FormData) {
   const role = await prisma.role.findUnique({ where: { key: roleKey } });
   if (!role) return;
 
+  if (action === "grant" && (roleKey === "EMPLOYEE" || roleKey === "DRIVER")) {
+    const employee = await prisma.employee.findUnique({ where: { userId }, select: { id: true } });
+    if (!employee) return;
+  }
+  if (action === "grant" && roleKey === "CUSTOMER") {
+    const customerUser = await prisma.customerUser.findUnique({ where: { userId }, select: { id: true } });
+    if (!customerUser) return;
+  }
+
   const owners = await ownerCount();
   const targetOwner = await targetIsOwner(userId);
   if (roleKey === "OWNER") {
@@ -196,6 +205,13 @@ export async function setUserRole(formData: FormData) {
     });
   } else {
     await prisma.userRole.deleteMany({ where: { userId, roleId: role.id } });
+  }
+
+  if (roleKey === "DRIVER") {
+    await prisma.employee.updateMany({
+      where: { userId },
+      data: { isDriver: action === "grant" },
+    });
   }
 
   await writeAuditLog({
