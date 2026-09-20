@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { SetupForm } from "@/components/auth/SetupForm";
 import { prisma } from "@/lib/db";
+import { ownerSetupIsAvailable } from "@/lib/owner-bootstrap";
+import { readServerEnv } from "@/lib/secrets";
 
 export const dynamic = "force-dynamic";
 
@@ -14,21 +17,26 @@ export default async function SetupPage() {
     where: { role: { key: "OWNER" } },
   });
 
+  if (
+    !ownerSetupIsAvailable({
+      ownerCount,
+      setupSecretConfigured: Boolean(readServerEnv("OWNER_SETUP_SECRET")),
+    })
+  ) {
+    notFound();
+  }
+
   return (
     <div className="w-full max-w-md rounded-2xl bg-paper p-8 shadow-xl">
       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-medical">
-        {ownerCount > 0 ? "Owner recovery" : "First-time setup"}
+        First-time setup
       </p>
-      <h1 className="mt-2 text-2xl font-semibold text-navy">
-        {ownerCount > 0 ? "Set the owner password" : "Create the owner account"}
-      </h1>
+      <h1 className="mt-2 text-2xl font-semibold text-navy">Create the owner account</h1>
       <p className="mt-2 text-sm text-muted">
-        Localhost and production are different databases. Use this page on{" "}
-        <strong>portal.safewaycouriers.com</strong> with the Vercel setup secret. If you already
-        inserted an owner email in the production database, enter that email and choose a new
-        password here. This does not copy passwords from localhost.
+        Use this page only on an empty install. After the first Owner exists, bootstrap is disabled.
+        Password recovery uses the normal email reset flow.
       </p>
-      <SetupForm recover={ownerCount > 0} />
+      <SetupForm />
     </div>
   );
 }
