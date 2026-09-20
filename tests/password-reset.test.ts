@@ -98,4 +98,33 @@ describe("password reset tokens", () => {
     });
     await expect(resolvePasswordResetToken("old")).resolves.toBeNull();
   });
+  it("removes the newly issued token when email delivery throws", async () => {
+    sendTransactionalEmail.mockRejectedValue(new Error("provider rejected"));
+    prisma.verification.deleteMany.mockResolvedValue({ count: 1 });
+    prisma.verification.create.mockResolvedValue({ id: "ver_failed" });
+
+    await expect(issuePasswordReset("user_1", "owner@safewaycouriers.com")).resolves.toEqual({
+      emailSent: false,
+    });
+
+    expect(prisma.verification.deleteMany).toHaveBeenCalledTimes(2);
+    expect(prisma.verification.deleteMany.mock.calls[1][0]).toEqual({
+      where: {
+        identifier: prisma.verification.create.mock.calls[0][0].data.identifier,
+        value: "user_1",
+      },
+    });
+  });
+
+  it("removes the newly issued token when delivery returns no real message id", async () => {
+    sendTransactionalEmail.mockResolvedValue({ id: "dev-email" });
+    prisma.verification.deleteMany.mockResolvedValue({ count: 1 });
+    prisma.verification.create.mockResolvedValue({ id: "ver_dev" });
+
+    await expect(issuePasswordReset("user_1", "owner@safewaycouriers.com")).resolves.toEqual({
+      emailSent: false,
+    });
+
+    expect(prisma.verification.deleteMany).toHaveBeenCalledTimes(2);
+  });
 });
