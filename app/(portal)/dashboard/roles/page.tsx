@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { createCustomRole } from "@/app/(portal)/dashboard/roles/actions";
 import { RolePermissionsForm } from "@/components/portal/RolePermissionsForm";
 import { prisma } from "@/lib/db";
-import { PERMISSIONS, roleLabel } from "@/lib/permissions";
+import { OWNER_ONLY_PERMISSIONS, PERMISSIONS, roleLabel } from "@/lib/permissions";
 import { requirePermission } from "@/lib/rbac";
 
 export const metadata: Metadata = { title: "Roles & permissions" };
@@ -45,7 +45,10 @@ export default async function RolesPage() {
             ) : (
               <RolePermissionsForm
                 roleId={role.id}
-                permissions={PERMISSIONS}
+                permissions={PERMISSIONS.filter(
+                  (permission) =>
+                    !(OWNER_ONLY_PERMISSIONS as readonly string[]).includes(permission),
+                )}
                 assigned={[...assigned]}
               />
             )}
