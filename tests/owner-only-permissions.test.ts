@@ -12,6 +12,15 @@ describe("owner-only permission hardening", () => {
     expect(actions).toContain("Owner-only permissions cannot be granted");
   });
 
+  it("does not offer owner-only permissions in the non-owner role editor", () => {
+    const page = readFileSync(
+      path.join(process.cwd(), "app/(portal)/dashboard/roles/page.tsx"),
+      "utf8",
+    );
+    expect(page).toContain("OWNER_ONLY_PERMISSIONS");
+    expect(page).toContain("PERMISSIONS.filter");
+  });
+
   it("fails closed if stale database links contain owner-only permissions", () => {
     const rbac = readFileSync(path.join(process.cwd(), "lib/rbac.ts"), "utf8");
     expect(rbac).toContain("OWNER_ONLY_PERMISSIONS");
