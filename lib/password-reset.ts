@@ -73,6 +73,7 @@ export async function issuePasswordReset(userId: string, email: string) {
     },
   });
 
+  const identifier = passwordResetIdentifier(token);
   const url = buildPasswordResetUrl(token);
   try {
     const result = await sendTransactionalEmail({
@@ -82,9 +83,13 @@ export async function issuePasswordReset(userId: string, email: string) {
 <p><a href="${url}">Reset password</a></p>
 <p>This link expires in 24 hours. If you did not request this, you can ignore this email.</p>`,
     });
-    if (!result?.id || result.id === "dev-email") return { emailSent: false as const };
+    if (!result?.id || result.id === "dev-email") {
+      await prisma.verification.deleteMany({ where: { identifier, value: userId } });
+      return { emailSent: false as const };
+    }
     return { emailSent: true as const };
   } catch {
+    await prisma.verification.deleteMany({ where: { identifier, value: userId } });
     return { emailSent: false as const };
   }
 }
