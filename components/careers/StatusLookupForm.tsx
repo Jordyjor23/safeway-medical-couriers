@@ -6,9 +6,7 @@ const fieldClass = "mkt-field";
 
 type Result = {
   trackingNumber: string;
-  applicantName: string;
   position: string;
-  submittedAt: string | null;
   statusLabel: string;
 };
 
@@ -35,9 +33,7 @@ export function StatusLookupForm() {
           }
           setResult({
             trackingNumber: body.application.trackingNumber,
-            applicantName: body.application.applicantName,
             position: body.application.position,
-            submittedAt: body.application.submittedAt,
             statusLabel: body.application.statusLabel,
           });
         }}
@@ -61,8 +57,7 @@ export function StatusLookupForm() {
       ) : null}
       {result ? (
         <div className="mt-6 rounded-2xl border border-white/10 bg-panel p-6">
-          <p className="font-semibold text-mist">{result.applicantName}</p>
-          <p className="text-sm text-mist-soft">{result.position}</p>
+          <p className="font-semibold text-mist">{result.position}</p>
           <p className="mt-3 text-sm">Reference: {result.trackingNumber}</p>
           <p className="text-sm">Status: {result.statusLabel}</p>
         </div>
