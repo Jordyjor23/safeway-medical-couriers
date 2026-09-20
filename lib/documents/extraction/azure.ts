@@ -1,3 +1,4 @@
+import { blocksExternalDocumentExtraction, disabledExtractionResult, isExternalExtractionAllowed } from "@/lib/documents/extraction/egress";
 import { MANUAL_EXTRACTION_MESSAGE, isExtractionUnsupportedFormat } from "@/lib/documents/extraction/unsupported";
 import { mapProviderDocumentType } from "@/lib/documents/extraction/map-type";
 import { prepareExtractedField } from "@/lib/documents/extraction/fields";
@@ -30,16 +31,11 @@ export class AzureDocumentExtractionService implements DocumentExtractionProvide
   readonly id = "azure";
 
   async extract(input: DocumentExtractionInput): Promise<DocumentExtractionResult> {
-    if (!azureConfigured()) {
-      return {
-        status: "OCR_DISABLED",
-        provider: "noop",
-        extractedText: "",
-        detectedDocumentType: null,
-        typeConfidence: 0,
-        fields: [],
-        extractedAt: new Date(),
-      };
+    if (!azureConfigured() || !isExternalExtractionAllowed()) {
+      return disabledExtractionResult();
+    }
+    if (blocksExternalDocumentExtraction(input)) {
+      return disabledExtractionResult();
     }
     const mime = (input.mimeType ?? "").toLowerCase();
     if (isExtractionUnsupportedFormat(input.mimeType, input.filename) || !AZURE_SUPPORTED.has(mime)) {
