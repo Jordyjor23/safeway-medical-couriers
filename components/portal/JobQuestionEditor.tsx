@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
   addJobQuestion,
   deleteJobQuestion,
@@ -24,6 +25,7 @@ export function JobQuestionEditor({
   jobId: string;
   questions: Question[];
 }) {
+  const router = useRouter();
   const [message, setMessage] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -32,7 +34,7 @@ export function JobQuestionEditor({
     startTransition(async () => {
       const result = await action();
       if (result?.error) setMessage(result.error);
-      else window.location.reload();
+      else router.refresh();
     });
   }
 
