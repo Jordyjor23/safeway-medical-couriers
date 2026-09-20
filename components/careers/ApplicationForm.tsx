@@ -336,7 +336,7 @@ export function ApplicationForm({
         }
         localStorage.removeItem(storageKey);
         await deleteResumeDraft(storageKey).catch(() => undefined);
-        router.push(`/careers/apply/confirmation/${result.application.trackingNumber}?email=${encodeURIComponent(payload.email)}`);
+        router.push(`/careers/apply/confirmation/${result.application.trackingNumber}`);
       }}
     >
       <section className="rounded-2xl border border-white/10 bg-panel p-6">
