@@ -1,0 +1,37 @@
+name: Read-only smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      marketing_url:
+        description: Marketing base URL
+        required: false
+        default: https://www.safewaycouriers.com
+        type: string
+      portal_url:
+        description: Portal base URL
+        required: false
+        default: https://portal.safewaycouriers.com
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: readonly-smoke-${{ github.event.inputs.portal_url || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SMOKE_MARKETING_URL: ${{ github.event.inputs.marketing_url }}
+      SMOKE_PORTAL_URL: ${{ github.event.inputs.portal_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Run read-only smoke
+        run: node scripts/smoke-readonly.mjs
