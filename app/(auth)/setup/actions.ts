@@ -7,6 +7,8 @@ import { writeAuditLog } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { ensureSystemRoles } from "@/lib/ensure-rbac";
 import { isStrongPassword } from "@/lib/password";
+import { ownerSetupIsAvailable } from "@/lib/owner-bootstrap";
+import { readServerEnv, secretsEqual } from "@/lib/secrets";
 import { setCredentialPassword } from "@/lib/portal-account";
 
 async function assignOwnerRole(userId: string) {
@@ -22,8 +24,15 @@ async function assignOwnerRole(userId: string) {
 
 export async function setupOwner(formData: FormData) {
   const setupSecret = String(formData.get("setupSecret") ?? "");
-  const expected = process.env.OWNER_SETUP_SECRET;
-  if (!expected || setupSecret !== expected) {
+  const expected = readServerEnv("OWNER_SETUP_SECRET");
+  const ownerCount = await prisma.userRole.count({
+    where: { role: { key: "OWNER" } },
+  });
+
+  if (!ownerSetupIsAvailable({ ownerCount, setupSecretConfigured: Boolean(expected) })) {
+    return { error: "Setup is not authorized." };
+  }
+  if (!secretsEqual(expected, setupSecret)) {
     return { error: "Setup is not authorized." };
   }
 
@@ -37,30 +46,6 @@ export async function setupOwner(formData: FormData) {
   }
 
   await ensureSystemRoles(prisma);
-
-  const ownerAssignment = await prisma.userRole.findFirst({
-    where: { role: { key: "OWNER" } },
-    include: { user: true },
-  });
-
-  if (ownerAssignment) {
-    if (ownerAssignment.user.email !== email) {
-      return { error: "Enter the existing owner email to set a new password." };
-    }
-    await prisma.user.update({
-      where: { id: ownerAssignment.userId },
-      data: { name, firstName: name.split(" ")[0] ?? name, lastName: name.split(" ").slice(1).join(" ") || null },
-    });
-    await setCredentialPassword(ownerAssignment.userId, password);
-    await writeAuditLog({
-      actorId: ownerAssignment.userId,
-      actorEmail: email,
-      action: "owner.password.recovered",
-      targetType: "user",
-      targetId: ownerAssignment.userId,
-    });
-    redirect("/login?recovered=1");
-  }
 
   const existingUser = await prisma.user.findUnique({ where: { email } });
   if (existingUser) {
@@ -82,7 +67,7 @@ export async function setupOwner(formData: FormData) {
       targetType: "user",
       targetId: existingUser.id,
     });
-    redirect("/login?recovered=1");
+    redirect("/dashboard/security?setup=1");
   }
 
   const requestHeaders = new Headers(await headers());
