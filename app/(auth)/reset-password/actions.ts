@@ -1,8 +1,10 @@
 "use server";
 
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { accountAllowsPasswordReset } from "@/lib/account-status";
 import { recordAuthEvent } from "@/lib/activation";
+import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { isStrongPassword, passwordIssues } from "@/lib/password";
 import {
@@ -48,6 +50,35 @@ export async function completePasswordReset(formData: FormData) {
     action: "user.password.reset",
     targetId: user.id,
   });
-  const params = new URLSearchParams({ reset: "1", identifier: user.email });
+  let signInResult: Awaited<ReturnType<typeof auth.api.signInEmail>> | null = null;
+  try {
+    signInResult = await auth.api.signInEmail({
+      headers: await headers(),
+      body: {
+        email: user.email,
+        password,
+      },
+    });
+  } catch {
+    // Fall back to the login screen with the canonical account email filled in.
+  }
+
+  if (
+    signInResult &&
+    "twoFactorRedirect" in signInResult &&
+    signInResult.twoFactorRedirect
+  ) {
+    redirect("/two-factor");
+  }
+
+  if (signInResult) {
+    redirect("/portal");
+  }
+
+  const params = new URLSearchParams({
+    reset: "1",
+    identifier: user.email,
+    auto: "failed",
+  });
   redirect(`/login?${params.toString()}`);
 }

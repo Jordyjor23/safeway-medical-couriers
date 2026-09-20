@@ -3,10 +3,12 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 describe("post-reset login handoff", () => {
-  it("carries the account email into the login redirect after a successful reset", () => {
+  it("automatically signs in with the canonical account email after a successful reset", () => {
     const actions = readFileSync(path.join(process.cwd(), "app/(auth)/reset-password/actions.ts"), "utf8");
-    expect(actions).toContain('new URLSearchParams({ reset: "1", identifier: user.email })');
-    expect(actions).toContain('params.toString()');
+    expect(actions).toContain("auth.api.signInEmail");
+    expect(actions).toContain("email: user.email");
+    expect(actions).toContain('redirect("/portal")');
+    expect(actions).toContain('auto: "failed"');
   });
 
   it("prefills but keeps the reset account identifier editable on the login form", () => {
@@ -15,6 +17,7 @@ describe("post-reset login handoff", () => {
     expect(login).toContain("defaultValue={resetIdentifier}");
     expect(login).not.toContain("readOnly={reset && Boolean(resetIdentifier)}");
     expect(login).toContain("You can also replace it with your username");
+    expect(login).toContain("Automatic sign-in could not be completed");
   });
   it("explains one-time reset link behavior without consuming on page load", () => {
     const page = readFileSync(

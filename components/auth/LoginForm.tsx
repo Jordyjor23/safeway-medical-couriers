@@ -17,6 +17,7 @@ function LoginFormFields() {
   const recovered = searchParams.get("recovered") === "1";
   const reset = searchParams.get("reset") === "1";
   const resetIdentifier = searchParams.get("identifier")?.trim() ?? "";
+  const autoSignInFailed = searchParams.get("auto") === "failed";
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -66,7 +67,9 @@ function LoginFormFields() {
       ) : null}
       {reset ? (
         <p className="rounded-lg border border-medical/30 bg-ice px-3 py-2 text-sm text-navy">
-          Password updated. Your account email is filled in below. You can also replace it with your username.
+          {autoSignInFailed
+            ? "Password updated successfully. Automatic sign-in could not be completed, so your account email is filled in below. Enter the new password you just created."
+            : "Password updated. Your account email is filled in below. You can also replace it with your username."}
         </p>
       ) : null}
       <label className="block text-sm font-semibold text-navy">
