@@ -355,7 +355,10 @@ export async function GET(request: Request) {
   const trackingNumber = searchParams.get("tracking")?.trim();
   const email = searchParams.get("email")?.trim().toLowerCase();
   if (!trackingNumber || !email) {
-    return NextResponse.json({ error: "Tracking number and email are required." }, { status: 400 });
+    return NextResponse.json(
+      { error: "Tracking number and email are required." },
+      { status: 400, headers: { "Cache-Control": "no-store" } },
+    );
   }
 
   const application = await prisma.application.findFirst({
@@ -364,17 +367,28 @@ export async function GET(request: Request) {
       applicant: { email },
       status: { not: "DRAFT" },
     },
-    include: { applicant: true, jobOpening: true },
+    select: {
+      trackingNumber: true,
+      status: true,
+      jobOpening: { select: { title: true } },
+    },
   });
 
   if (!application) {
-    return NextResponse.json({ error: "No application matched that reference and email." }, { status: 404 });
+    return NextResponse.json(
+      { error: "No application matched that reference and email." },
+      { status: 404, headers: { "Cache-Control": "no-store" } },
+    );
   }
 
-  return NextResponse.json({
-    application: {
-      ...publicApplicationView(application),
-      statusLabel: publicStatusLabel(application.status),
+  return NextResponse.json(
+    {
+      application: {
+        trackingNumber: application.trackingNumber,
+        position: application.jobOpening.title,
+        statusLabel: publicStatusLabel(application.status),
+      },
     },
-  });
+    { headers: { "Cache-Control": "no-store" } },
+  );
 }
