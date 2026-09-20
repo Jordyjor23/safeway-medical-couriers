@@ -15,12 +15,48 @@ async function check(url, options = {}) {
   return response;
 }
 
-for (const path of ["/", "/careers", "/careers/accessibility", "/careers/privacy", "/privacy", "/terms", "/contact"]) {
+for (const path of ["/", "/careers", "/drivers", "/careers/status", "/careers/accessibility", "/careers/privacy", "/privacy", "/terms", "/contact"]) {
   await check(marketingBase + path);
 }
 
 await check(portalBase + "/login");
 await check(portalBase + "/forgot-password");
+
+for (const path of ["/opengraph-image", "/driver-recruiting-share-v2.png", "/driver-recruiting-share-v3.png"]) {
+  const response = await check(marketingBase + path);
+  const type = response.headers.get("content-type") || "";
+  if (response.ok && path.endsWith(".png") && !type.includes("image/png")) {
+    failures.push(`${marketingBase}${path} returned ${type || "no content type"} instead of image/png`);
+  }
+}
+
+for (const path of [
+  "/dashboard",
+  "/dashboard/roles",
+  "/dashboard/users",
+  "/dashboard/applicants",
+  "/dashboard/interviews",
+  "/dashboard/jobs",
+  "/dashboard/employees",
+  "/dashboard/workforce",
+  "/dashboard/payroll",
+  "/dashboard/documents",
+  "/dashboard/compliance",
+  "/dashboard/customers",
+  "/dashboard/contracts",
+  "/dashboard/notifications",
+  "/dashboard/settings",
+  "/dashboard/security",
+]) {
+  const response = await check(portalBase + path, {
+    redirect: "manual",
+    expected: (status) => [301, 302, 303, 307, 308].includes(status),
+  });
+  const location = response.headers.get("location") || "";
+  if (!location.includes("/login")) {
+    failures.push(`${portalBase}${path} did not redirect unauthenticated traffic to /login`);
+  }
+}
 
 const root = await check(portalBase + "/", {
   redirect: "manual",

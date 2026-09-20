@@ -360,6 +360,8 @@ export function DocumentScanner({
 
         {stage === "preview" && previewUrl ? (
           <div className="mt-4 space-y-3">
+            {/* Blob URLs are generated locally during scanning; next/image cannot optimize them. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={previewUrl} alt="Corrected page preview" className="max-h-80 w-full rounded-xl object-contain bg-ice" />
             <div className="flex flex-wrap gap-2" role="group" aria-label="Color mode">
               {(["color", "grayscale", "bw"] as const).map((item) => (
@@ -384,7 +386,13 @@ export function DocumentScanner({
             <ul className="grid grid-cols-3 gap-2">
               {pages.map((page, index) => (
                 <li key={page.id} className="rounded-xl border border-line p-2">
-                  {page.previewUrl ? <img src={page.previewUrl} alt={`Page ${index + 1}`} className="h-24 w-full object-contain" /> : null}
+                  {page.previewUrl ? (
+                    <>
+                      {/* Blob URLs are local scan previews and intentionally bypass next/image. */}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={page.previewUrl} alt={`Page ${index + 1}`} className="h-24 w-full object-contain" />
+                    </>
+                  ) : null}
                   <p className="mt-1 text-xs text-muted">Page {index + 1}</p>
                   <div className="mt-1 flex flex-wrap gap-1">
                     <button type="button" className="text-xs font-semibold text-navy" onClick={() => setPages(reorderScanPages(pages, index, Math.max(0, index - 1)))}>
@@ -498,6 +506,8 @@ function CropEditor({
   return (
     <div className="mt-4 space-y-3">
       <div ref={boxRef} className="relative overflow-hidden rounded-xl bg-black">
+        {/* Blob/data URLs are required for interactive crop math and are not remote assets. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={imageSrc} alt="Captured page" className="block w-full" />
         <svg className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden="true">
           <polygon

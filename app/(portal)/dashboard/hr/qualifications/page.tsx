@@ -88,7 +88,6 @@ export default async function RouteQualificationMatrixPage() {
               result: evaluateEmployeeRouteQualification(employee, route),
             }));
             const genericEligible = genericEvaluated.filter((item) => item.result.eligible);
-            const contractEligible = contractEvaluated.filter((item) => item.result.eligible);
 
             return (
               <section key={employee.id} className="rounded-2xl border border-line bg-paper p-5">
