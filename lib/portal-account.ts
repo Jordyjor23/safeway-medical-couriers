@@ -68,7 +68,7 @@ export async function setCredentialPassword(
   }
 }
 
-export async function attachCredentialAccount(userId: string, _issuer?: string) {
+export async function attachCredentialAccount(userId: string) {
   await prisma.account.create({
     data: {
       issuer: CREDENTIAL_ISSUER,
@@ -147,7 +147,7 @@ export async function provisionEmployeePortalUser(args: {
       disabled: false,
     },
   });
-  await attachCredentialAccount(user.id, issuer);
+  await attachCredentialAccount(user.id);
 
   const role = await prisma.role.findUnique({ where: { key: roleKey } });
   if (role) {
