@@ -7,6 +7,7 @@ import {
 } from "@/lib/documents/catalog";
 import { SENSITIVE_ONBOARDING_DOCUMENT_TYPES } from "@/lib/onboarding-documents";
 import { findVisibleDuplicates } from "@/lib/documents/operations";
+import { blocksExternalDocumentExtraction } from "@/lib/documents/extraction/egress";
 import { startDocumentExtraction } from "@/lib/documents/extraction/run";
 import { persistManagedDocument } from "@/lib/documents/persist";
 import { documentMaxBytes } from "@/lib/documents/types";
@@ -55,7 +56,11 @@ export async function processDocumentUpload(ctx: DocumentActor, formData: FormDa
       }
     }
     const documentTypeRaw = String(formData.get("documentType") ?? "").trim();
+    const documentType = documentTypeRaw && isDocumentType(documentTypeRaw) ? documentTypeRaw : null;
     const category = String(formData.get("category") ?? "CORPORATE") as DocumentCategory;
+    const isSensitive =
+      String(formData.get("isSensitive") ?? "") === "1" ||
+      SENSITIVE_ONBOARDING_DOCUMENT_TYPES.has(documentTypeRaw);
     const employeeId = optionalId(formData.get("employeeId"));
     const customerId = optionalId(formData.get("customerId"));
     const contractId = optionalId(formData.get("contractId"));
@@ -87,13 +92,11 @@ export async function processDocumentUpload(ctx: DocumentActor, formData: FormDa
       stored,
       name: String(formData.get("name") ?? stored.originalFileName),
       category,
-      documentType: documentTypeRaw && isDocumentType(documentTypeRaw) ? documentTypeRaw : null,
+      documentType,
       effectiveDate: optionalDate(formData.get("effectiveDate")),
       expirationDate: optionalDate(formData.get("expirationDate")),
       notes: String(formData.get("notes") ?? "") || null,
-      isSensitive:
-        String(formData.get("isSensitive") ?? "") === "1" ||
-        SENSITIVE_ONBOARDING_DOCUMENT_TYPES.has(documentTypeRaw),
+      isSensitive,
       employeeId,
       customerId,
       contractId,
@@ -101,7 +104,10 @@ export async function processDocumentUpload(ctx: DocumentActor, formData: FormDa
       supersedesId: optionalId(formData.get("supersedesId")),
     });
     if ("error" in result && result.error) return { error: result.error };
-    if (result.document?.id) {
+    if (
+      result.document?.id &&
+      !blocksExternalDocumentExtraction({ isSensitive, documentType, category })
+    ) {
       try {
         await startDocumentExtraction({ documentId: result.document.id, actor: ctx });
       } catch {
