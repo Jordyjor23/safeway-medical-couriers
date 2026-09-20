@@ -10,6 +10,7 @@ import {
   canAccessPortal,
   homePathForRoles,
   isOwnerRole,
+  isSystemRole,
   OWNER_ONLY_PERMISSIONS,
   type PermissionKey,
   type PortalKind,
@@ -107,7 +108,9 @@ export async function requirePermission(permission: PermissionKey | string) {
 
 export async function requirePortal(kind: PortalKind) {
   const ctx = await requireActiveAuth();
-  if (!canAccessPortal(ctx.roles, kind)) {
+  const hasCustomRole = ctx.roles.some((role) => !isSystemRole(role));
+  const customStaffAccess = kind === "staff" && hasCustomRole && ctx.permissions.size > 0;
+  if (!canAccessPortal(ctx.roles, kind) && !customStaffAccess) {
     redirect(homePathForRoles(ctx.roles));
   }
   return ctx;
