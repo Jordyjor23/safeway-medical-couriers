@@ -10,6 +10,7 @@ import {
   canAccessPortal,
   homePathForRoles,
   isOwnerRole,
+  OWNER_ONLY_PERMISSIONS,
   type PermissionKey,
   type PortalKind,
 } from "@/lib/permissions";
@@ -61,6 +62,7 @@ export async function getAuthContext(): Promise<AuthContext | null> {
   } else {
     for (const assignment of dbUser.roles) {
       for (const link of assignment.role.permissions) {
+        if ((OWNER_ONLY_PERMISSIONS as readonly string[]).includes(link.permission.key)) continue;
         permissions.add(link.permission.key);
       }
     }
