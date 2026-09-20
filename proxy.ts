@@ -68,10 +68,9 @@ export function proxy(request: NextRequest) {
     return applySecurityHeaders(request, NextResponse.redirect(login));
   }
 
-  if (pathname === "/login" && sessionCookie) {
-    return applySecurityHeaders(request, NextResponse.redirect(new URL("/portal", request.url)));
-  }
-
+  // Always allow the login page to render, even when a session cookie exists.
+  // A stale/expired cookie can otherwise bounce the browser from /login to /portal
+  // before Better Auth has a chance to validate or replace it.
   if (pathname === "/setup" && sessionCookie) {
     return applySecurityHeaders(request, NextResponse.redirect(new URL("/portal", request.url)));
   }
