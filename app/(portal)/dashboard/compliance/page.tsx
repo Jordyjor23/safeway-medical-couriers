@@ -30,6 +30,26 @@ export default async function ComplianceDashboardPage() {
         This is document and training tracking status, not a legal determination that a person is
         compliant.
       </p>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Link
+          href="/dashboard/compliance/library"
+          className="rounded-full border border-line px-4 py-2 text-sm font-semibold text-navy hover:border-medical"
+        >
+          Compliance library
+        </Link>
+        <Link
+          href="/dashboard/compliance/matrix"
+          className="rounded-full border border-line px-4 py-2 text-sm font-semibold text-navy hover:border-medical"
+        >
+          Compliance matrix
+        </Link>
+        <Link
+          href="/dashboard/documents/alerts"
+          className="rounded-full border border-line px-4 py-2 text-sm font-semibold text-navy hover:border-medical"
+        >
+          Document alerts
+        </Link>
+      </div>
       <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {requirements.map((requirement) => {
           const related = records.filter((record) => record.requirementId === requirement.id);
