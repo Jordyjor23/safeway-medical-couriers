@@ -5,8 +5,18 @@ export class EmailDeliveryError extends Error {
   }
 }
 
+export const DEFAULT_EMAIL_FROM = "Safeway Couriers <noreply@mail.safewaycouriers.com>";
+
+function configuredSenderUsesUnverifiedRootDomain(value: string) {
+  return /@safewaycouriers\.com>?$/i.test(value.trim()) && !/@mail\.safewaycouriers\.com>?$/i.test(value.trim());
+}
+
 export function emailFromAddress() {
-  return (process.env.EMAIL_FROM ?? "").trim();
+  const configured = (process.env.EMAIL_FROM ?? "").trim();
+  if (!configured || configuredSenderUsesUnverifiedRootDomain(configured)) {
+    return DEFAULT_EMAIL_FROM;
+  }
+  return configured;
 }
 
 function providerErrorName(payload: unknown) {
