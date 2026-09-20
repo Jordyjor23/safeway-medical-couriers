@@ -31,4 +31,28 @@ describe("user role management wiring", () => {
     expect(actions).toContain('roleKey === "CUSTOMER"');
     expect(actions).toContain("prisma.customerUser.findUnique");
   });
+  it("prevents terminated accounts from being reactivated through generic status actions", () => {
+    const actions = readFileSync(
+      path.join(process.cwd(), "app/(portal)/dashboard/users/actions.ts"),
+      "utf8",
+    );
+    const accountActions = readFileSync(
+      path.join(process.cwd(), "components/portal/UserAccountActions.tsx"),
+      "utf8",
+    );
+    expect(actions).toContain('target.accountStatus === "TERMINATED"');
+    expect(actions).toContain("Terminated accounts cannot be reactivated");
+    expect(accountActions).toContain('status === "TERMINATED"');
+    expect(accountActions).toContain("Terminated access cannot be reactivated");
+  });
+
+  it("returns explicit protection messages for self-service and final-owner account changes", () => {
+    const actions = readFileSync(
+      path.join(process.cwd(), "app/(portal)/dashboard/users/actions.ts"),
+      "utf8",
+    );
+    expect(actions).toContain("You cannot change your own account status here.");
+    expect(actions).toContain("The final Owner account cannot be locked or disabled.");
+    expect(actions).toContain("The final Owner account cannot be terminated.");
+  });
 });
