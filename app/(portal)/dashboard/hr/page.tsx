@@ -10,7 +10,13 @@ export default async function HrOnboardingPage() {
   const canViewApplicants = hasPermission(ctx, "applicants.view");
   const canViewDocuments = hasPermission(ctx, "documents.view");
 
-  const [pendingEmployees, activeEmployees, candidateCounts, pendingDocumentReview] = await Promise.all([
+  const [
+    pendingEmployees,
+    activeEmployees,
+    candidateCounts,
+    pendingDocumentReview,
+    readyForAssignment,
+  ] = await Promise.all([
     prisma.employee.count({ where: { status: "PENDING_ONBOARDING" } }),
     prisma.employee.count({ where: { status: "ACTIVE" } }),
     canViewApplicants
@@ -18,7 +24,16 @@ export default async function HrOnboardingPage() {
           by: ["status"],
           where: {
             status: {
-              in: ["CONDITIONAL_OFFER", "BACKGROUND_SCREENING", "ONBOARDING"],
+              in: [
+                "SUBMITTED",
+                "UNDER_REVIEW",
+                "INTERVIEW_REQUESTED",
+                "INTERVIEW_SCHEDULED",
+                "CONDITIONAL_OFFER",
+                "BACKGROUND_SCREENING",
+                "ONBOARDING",
+                "HIRED",
+              ],
             },
           },
           _count: { _all: true },
@@ -37,10 +52,20 @@ export default async function HrOnboardingPage() {
           },
         })
       : Promise.resolve(0),
+    prisma.onboardingStep.count({
+      where: {
+        key: "READY_FOR_ASSIGNMENT",
+        status: { in: ["COMPLETED", "NOT_APPLICABLE"] },
+        checklist: { employee: { status: "PENDING_ONBOARDING" } },
+      },
+    }),
   ]);
 
   const countFor = (status: string) =>
     candidateCounts.find((row) => row.status === status)?._count._all ?? 0;
+
+  const applicantReviewCount = countFor("SUBMITTED") + countFor("UNDER_REVIEW");
+  const interviewCount = countFor("INTERVIEW_REQUESTED") + countFor("INTERVIEW_SCHEDULED");
 
   const cards = [
     {
@@ -123,27 +148,109 @@ export default async function HrOnboardingPage() {
       </div>
 
       <section className="mt-8 rounded-2xl border border-line bg-paper p-5">
-        <h2 className="font-semibold text-navy">HR workflow</h2>
-        <p className="mt-1 text-xs text-muted">
-          Use these steps as navigation. Each worker’s individual onboarding checklist and status are edited on their employee profile.
-        </p>
-        <div className="mt-4 grid gap-3 lg:grid-cols-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="font-semibold text-navy">HR workflow</h2>
+            <p className="mt-1 max-w-3xl text-xs text-muted">
+              Follow the full candidate-to-workforce path. Counts update from the live applicant,
+              document-review, onboarding, and employee records.
+            </p>
+          </div>
+          <span className="rounded-full bg-ice px-3 py-1 text-xs font-semibold text-navy">
+            9 stages
+          </span>
+        </div>
+
+        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {[
-            ["1", "Applicant", "Review application and interview", canViewApplicants ? "/dashboard/applicants" : "/dashboard/employees"],
-            ["2", "Conditional offer", "Start pre-hire requirements", canViewApplicants ? "/dashboard/applicants?status=CONDITIONAL_OFFER" : "/dashboard/employees"],
-            ["3", "Onboarding", "Secure uploads + W-2/1099 paperwork", canViewApplicants ? "/dashboard/applicants?status=ONBOARDING" : "/dashboard/employees?status=PENDING_ONBOARDING"],
-            ["4", "HR review", "Verify documents and finish checklist", canViewDocuments ? "/dashboard/documents/review" : "/dashboard/employees?status=PENDING_ONBOARDING"],
-            ["5", "Active", "Employee/courier enters workforce", "/dashboard/employees?status=ACTIVE"],
-          ].map(([number, title, body, href]) => (
+            {
+              number: "1",
+              title: "Applicant review",
+              body: "New submissions and applications under review.",
+              value: applicantReviewCount,
+              href: canViewApplicants ? "/dashboard/applicants" : "/dashboard/employees",
+            },
+            {
+              number: "2",
+              title: "Interview",
+              body: "Interview requested or scheduled.",
+              value: interviewCount,
+              href: canViewApplicants ? "/dashboard/interviews" : "/dashboard/employees",
+            },
+            {
+              number: "3",
+              title: "Conditional offer",
+              body: "Start pre-hire requirements and candidate acceptance.",
+              value: countFor("CONDITIONAL_OFFER"),
+              href: canViewApplicants
+                ? "/dashboard/applicants?status=CONDITIONAL_OFFER"
+                : "/dashboard/employees",
+            },
+            {
+              number: "4",
+              title: "Background screening",
+              body: "Track screening, MVR, and pre-employment checks.",
+              value: countFor("BACKGROUND_SCREENING"),
+              href: canViewApplicants
+                ? "/dashboard/applicants?status=BACKGROUND_SCREENING"
+                : "/dashboard/employees",
+            },
+            {
+              number: "5",
+              title: "Candidate onboarding",
+              body: "Secure uploads, certifications, and candidate paperwork.",
+              value: countFor("ONBOARDING"),
+              href: canViewApplicants
+                ? "/dashboard/applicants?status=ONBOARDING"
+                : "/dashboard/employees?status=PENDING_ONBOARDING",
+            },
+            {
+              number: "6",
+              title: "Employee record created",
+              body: "Worker record created and pending workforce activation.",
+              value: pendingEmployees,
+              href: "/dashboard/employees?status=PENDING_ONBOARDING",
+            },
+            {
+              number: "7",
+              title: "HR & document review",
+              body: "Verify documents and complete the onboarding checklist.",
+              value: pendingDocumentReview,
+              href: canViewDocuments
+                ? "/dashboard/documents/review"
+                : "/dashboard/employees?status=PENDING_ONBOARDING",
+            },
+            {
+              number: "8",
+              title: "Ready for assignment",
+              body: "Onboarding gate completed and worker can be activated.",
+              value: readyForAssignment,
+              href: "/dashboard/employees?status=PENDING_ONBOARDING",
+            },
+            {
+              number: "9",
+              title: "Active",
+              body: "Employee or courier is active in the workforce.",
+              value: activeEmployees,
+              href: "/dashboard/employees?status=ACTIVE",
+            },
+          ].map((step) => (
             <Link
-              key={number}
-              href={href}
-              className="rounded-xl border border-line bg-ice p-4 transition hover:border-medical hover:bg-white"
+              key={step.number}
+              href={step.href}
+              className="group rounded-xl border border-line bg-ice p-4 transition hover:border-medical hover:bg-white"
             >
-              <p className="text-xs font-bold text-medical">{number}</p>
-              <p className="mt-1 font-semibold text-navy">{title}</p>
-              <p className="mt-1 text-xs text-muted">{body}</p>
-              <p className="mt-3 text-xs font-semibold text-medical">Open →</p>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-bold text-medical">Stage {step.number}</p>
+                  <p className="mt-1 font-semibold text-navy">{step.title}</p>
+                </div>
+                <span className="rounded-full bg-white px-2.5 py-1 text-sm font-semibold text-navy shadow-sm">
+                  {step.value}
+                </span>
+              </div>
+              <p className="mt-2 text-xs leading-5 text-muted">{step.body}</p>
+              <p className="mt-3 text-xs font-semibold text-medical group-hover:underline">Open →</p>
             </Link>
           ))}
         </div>
