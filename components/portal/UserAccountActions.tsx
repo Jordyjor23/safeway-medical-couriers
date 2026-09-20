@@ -20,6 +20,16 @@ export function UserAccountActions({
 }) {
   const [message, setMessage] = useState<string | null>(null);
   if (isSelf) return <p className="text-sm text-muted">This is your account.</p>;
+  if (status === "TERMINATED") {
+    return (
+      <div className="space-y-2">
+        <p className="text-sm font-medium text-red-800">This account is terminated.</p>
+        <p className="text-sm text-muted">
+          Terminated access cannot be reactivated from User Management.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-3">
@@ -69,21 +79,48 @@ export function UserAccountActions({
             Resend activation email
           </button>
         </form>
-        <form action={setAccountStatus}>
+        <form
+          action={async (formData) => {
+            const result = await setAccountStatus(formData);
+            if (result && "error" in result && result.error) {
+              setMessage(result.error);
+            } else if (result && "status" in result) {
+              setMessage(result.status === "ACTIVE" ? "Account unlocked." : "Account locked.");
+            }
+          }}
+        >
           <input type="hidden" name="userId" value={userId} />
           <input type="hidden" name="status" value={status === "LOCKED" ? "ACTIVE" : "LOCKED"} />
           <button className="rounded-full border border-line px-3 py-1.5 text-xs font-semibold text-navy hover:border-medical">
             {status === "LOCKED" ? "Unlock" : "Lock"}
           </button>
         </form>
-        <form action={setAccountStatus}>
+        <form
+          action={async (formData) => {
+            const result = await setAccountStatus(formData);
+            if (result && "error" in result && result.error) {
+              setMessage(result.error);
+            } else if (result && "status" in result) {
+              setMessage(result.status === "ACTIVE" ? "Account reactivated." : "Account disabled.");
+            }
+          }}
+        >
           <input type="hidden" name="userId" value={userId} />
           <input type="hidden" name="status" value={status === "SUSPENDED" || status === "INACTIVE" ? "ACTIVE" : "SUSPENDED"} />
           <button className="rounded-full border border-line px-3 py-1.5 text-xs font-semibold text-navy hover:border-medical">
             {status === "ACTIVE" || status === "PENDING_ACTIVATION" ? "Disable" : "Reactivate"}
           </button>
         </form>
-        <form action={terminateUserAccess}>
+        <form
+          action={async (formData) => {
+            const result = await terminateUserAccess(formData);
+            if (result && "error" in result && result.error) {
+              setMessage(result.error);
+            } else {
+              setMessage("Account access terminated.");
+            }
+          }}
+        >
           <input type="hidden" name="userId" value={userId} />
           <button className="rounded-full bg-red-800 px-3 py-1.5 text-xs font-semibold text-white">
             Terminate access
