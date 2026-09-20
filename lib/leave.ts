@@ -21,7 +21,7 @@ export async function ensureLeaveBanks(employeeId: string) {
   for (const type of LEAVE_BANK_TYPES) {
     if (existingTypes.has(type)) continue;
     const initial = type === "PTO" ? Number(employee.ptoBalanceHours) : 0;
-    const bank = await prisma.leaveBank.create({
+    await prisma.leaveBank.create({
       data: { employeeId, type, balanceHours: initial },
     });
     await prisma.leaveLedgerEntry.create({
