@@ -99,7 +99,7 @@ describe("credential accounts", () => {
 
   it("attaches new staff accounts with the canonical issuer", async () => {
     prisma.account.create.mockResolvedValue({ id: "acc_staff" });
-    await attachCredentialAccount("user_2", "https://portal.safewaycouriers.com");
+    await attachCredentialAccount("user_2");
     expect(prisma.account.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         issuer: CREDENTIAL_ISSUER,
