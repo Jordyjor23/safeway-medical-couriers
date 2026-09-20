@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Container } from "@/components/Container";
-import { site } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Driver Applications",
