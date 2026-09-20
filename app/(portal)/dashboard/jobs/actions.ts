@@ -158,3 +158,96 @@ export async function deleteJob(jobId: string) {
   revalidatePath("/dashboard/jobs");
   redirect("/dashboard/jobs");
 }
+
+
+export async function addJobQuestion(jobId: string, formData: FormData) {
+  const ctx = await requirePermission("jobs.edit");
+  const prompt = String(formData.get("prompt") ?? "").trim();
+  if (!prompt) return { error: "Enter a question." } as const;
+
+  const last = await prisma.jobQuestion.findFirst({
+    where: { jobOpeningId: jobId },
+    orderBy: { sortOrder: "desc" },
+    select: { sortOrder: true },
+  });
+
+  const question = await prisma.jobQuestion.create({
+    data: {
+      jobOpeningId: jobId,
+      prompt,
+      required: formData.get("required") === "on",
+      sortOrder: (last?.sortOrder ?? -1) + 1,
+    },
+  });
+
+  await writeAuditLog({
+    actorId: ctx.user.id,
+    actorEmail: ctx.user.email,
+    action: "job.question.created",
+    targetType: "job",
+    targetId: jobId,
+    metadata: { questionId: question.id },
+  });
+  revalidatePath(`/dashboard/jobs/${jobId}`);
+  revalidatePath("/careers");
+  return { ok: true } as const;
+}
+
+export async function updateJobQuestion(jobId: string, questionId: string, formData: FormData) {
+  const ctx = await requirePermission("jobs.edit");
+  const prompt = String(formData.get("prompt") ?? "").trim();
+  if (!prompt) return { error: "Question text cannot be blank." } as const;
+
+  const existing = await prisma.jobQuestion.findFirst({
+    where: { id: questionId, jobOpeningId: jobId },
+    select: { id: true },
+  });
+  if (!existing) return { error: "Question not found." } as const;
+
+  await prisma.jobQuestion.update({
+    where: { id: questionId },
+    data: {
+      prompt,
+      required: formData.get("required") === "on",
+    },
+  });
+
+  await writeAuditLog({
+    actorId: ctx.user.id,
+    actorEmail: ctx.user.email,
+    action: "job.question.updated",
+    targetType: "job",
+    targetId: jobId,
+    metadata: { questionId },
+  });
+  revalidatePath(`/dashboard/jobs/${jobId}`);
+  revalidatePath("/careers");
+  return { ok: true } as const;
+}
+
+export async function deleteJobQuestion(jobId: string, questionId: string) {
+  const ctx = await requirePermission("jobs.edit");
+  const question = await prisma.jobQuestion.findFirst({
+    where: { id: questionId, jobOpeningId: jobId },
+    include: { _count: { select: { answers: true } } },
+  });
+  if (!question) return { error: "Question not found." } as const;
+  if (question._count.answers > 0) {
+    return {
+      error: "This question already has applicant answers and cannot be deleted because that would erase application history.",
+    } as const;
+  }
+
+  await prisma.jobQuestion.delete({ where: { id: questionId } });
+  await writeAuditLog({
+    actorId: ctx.user.id,
+    actorEmail: ctx.user.email,
+    action: "job.question.deleted",
+    targetType: "job",
+    targetId: jobId,
+    metadata: { questionId },
+  });
+  revalidatePath(`/dashboard/jobs/${jobId}`);
+  revalidatePath("/careers");
+  return { ok: true } as const;
+}
