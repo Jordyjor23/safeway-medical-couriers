@@ -48,5 +48,6 @@ export async function completePasswordReset(formData: FormData) {
     action: "user.password.reset",
     targetId: user.id,
   });
-  redirect("/login?reset=1");
+  const params = new URLSearchParams({ reset: "1", identifier: user.email });
+  redirect(`/login?${params.toString()}`);
 }
