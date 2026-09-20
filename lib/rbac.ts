@@ -111,7 +111,11 @@ export async function requirePortal(kind: PortalKind) {
   const hasCustomRole = ctx.roles.some((role) => !isSystemRole(role));
   const customStaffAccess = kind === "staff" && hasCustomRole && ctx.permissions.size > 0;
   if (!canAccessPortal(ctx.roles, kind) && !customStaffAccess) {
-    redirect(homePathForRoles(ctx.roles));
+    const homePath = homePathForRoles(ctx.roles);
+    if (kind === "staff" && homePath === "/dashboard") {
+      redirect("/access-denied");
+    }
+    redirect(homePath);
   }
   return ctx;
 }

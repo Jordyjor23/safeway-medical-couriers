@@ -230,10 +230,25 @@ export async function setAccountStatus(formData: FormData) {
   const ctx = await requirePermission("user.disable");
   const userId = String(formData.get("userId") ?? "");
   const status = String(formData.get("status") ?? "") as AccountStatus;
-  if (!userId || userId === ctx.user.id) return;
-  if (await targetIsOwner(userId) && (await ownerCount()) <= 1) return;
+  const allowedStatuses: AccountStatus[] = ["ACTIVE", "LOCKED", "SUSPENDED", "INACTIVE"];
 
-  const disabled = status !== "ACTIVE" && status !== "PENDING_ACTIVATION";
+  if (!userId) return { error: "User account was not specified." } as const;
+  if (userId === ctx.user.id) return { error: "You cannot change your own account status here." } as const;
+  if (!allowedStatuses.includes(status)) return { error: "That account status is not allowed." } as const;
+
+  const target = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { accountStatus: true },
+  });
+  if (!target) return { error: "User account could not be found." } as const;
+  if (target.accountStatus === "TERMINATED") {
+    return { error: "Terminated accounts cannot be reactivated from User Management." } as const;
+  }
+  if (await targetIsOwner(userId) && (await ownerCount()) <= 1) {
+    return { error: "The final Owner account cannot be locked or disabled." } as const;
+  }
+
+  const disabled = status !== "ACTIVE";
   await prisma.user.update({
     where: { id: userId },
     data: {
@@ -251,13 +266,26 @@ export async function setAccountStatus(formData: FormData) {
   });
   revalidatePath("/dashboard/users");
   revalidatePath(`/dashboard/users/${userId}`);
+  return { ok: true as const, status };
 }
 
 export async function terminateUserAccess(formData: FormData) {
   const ctx = await requirePermission("user.disable");
   const userId = String(formData.get("userId") ?? "");
-  if (!userId || userId === ctx.user.id) return;
-  if (await targetIsOwner(userId) && (await ownerCount()) <= 1) return;
+  if (!userId) return { error: "User account was not specified." } as const;
+  if (userId === ctx.user.id) return { error: "You cannot terminate your own account." } as const;
+
+  const target = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { accountStatus: true },
+  });
+  if (!target) return { error: "User account could not be found." } as const;
+  if (target.accountStatus === "TERMINATED") {
+    return { error: "This account is already terminated." } as const;
+  }
+  if (await targetIsOwner(userId) && (await ownerCount()) <= 1) {
+    return { error: "The final Owner account cannot be terminated." } as const;
+  }
 
   await prisma.user.update({
     where: { id: userId },
@@ -287,6 +315,7 @@ export async function terminateUserAccess(formData: FormData) {
   revalidatePath("/dashboard/users");
   revalidatePath("/dashboard/employees");
   revalidatePath(`/dashboard/users/${userId}`);
+  return { ok: true as const };
 }
 
 export async function resendActivation(formData: FormData) {
