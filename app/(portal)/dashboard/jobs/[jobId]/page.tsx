@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { deleteJob, setJobStatus } from "@/app/(portal)/dashboard/jobs/actions";
 import { ConfirmSubmitButton } from "@/components/portal/ConfirmSubmitButton";
 import { JobForm } from "@/components/portal/JobForm";
+import { JobQuestionEditor } from "@/components/portal/JobQuestionEditor";
 import { prisma } from "@/lib/db";
 import { hasPermission, requirePermission } from "@/lib/rbac";
 
@@ -17,7 +18,16 @@ export default async function EditJobPage({
   const ctx = await requirePermission("jobs.view");
   const { jobId } = await params;
   const [job, categories] = await Promise.all([
-    prisma.jobOpening.findUnique({ where: { id: jobId }, include: { _count: { select: { applications: true } } } }),
+    prisma.jobOpening.findUnique({
+      where: { id: jobId },
+      include: {
+        _count: { select: { applications: true } },
+        questions: {
+          orderBy: { sortOrder: "asc" },
+          include: { _count: { select: { answers: true } } },
+        },
+      },
+    }),
     prisma.careerCategory.findMany({ orderBy: { sortOrder: "asc" } }),
   ]);
   if (!job) notFound();
@@ -41,7 +51,20 @@ export default async function EditJobPage({
           </div>
         ) : null}
       </div>
-      {hasPermission(ctx, "jobs.edit") ? <JobForm job={job} categories={categories} /> : null}
+      {hasPermission(ctx, "jobs.edit") ? (
+        <>
+          <JobForm job={job} categories={categories} />
+          <JobQuestionEditor
+            jobId={job.id}
+            questions={job.questions.map((question) => ({
+              id: question.id,
+              prompt: question.prompt,
+              required: question.required,
+              answerCount: question._count.answers,
+            }))}
+          />
+        </>
+      ) : null}
       {hasPermission(ctx, "jobs.delete") && job.status === "DRAFT" && job._count.applications === 0 ? (
         <form action={deleteJob.bind(null, job.id)} className="mt-6">
           <ConfirmSubmitButton
