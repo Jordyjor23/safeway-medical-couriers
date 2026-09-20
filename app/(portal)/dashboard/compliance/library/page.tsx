@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { DocumentStatusBadge } from "@/components/portal/DocumentStatusBadge";
-import { documentsListWhere, DOCUMENT_LIST_INCLUDE } from "@/lib/documents/query";
+import { documentsListWhere } from "@/lib/documents/access";
+import { DOCUMENT_LIST_INCLUDE } from "@/lib/documents/query";
 import { associatedWithLabel, expirationLabel } from "@/lib/documents/display";
 import { labelDocumentCategory, labelDocumentType } from "@/lib/documents/catalog";
 import { prisma } from "@/lib/db";
