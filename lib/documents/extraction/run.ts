@@ -1,5 +1,6 @@
 import { writeAuditLog } from "@/lib/audit";
 import { canAccessManagedDocument, hasPermission, type DocumentActor } from "@/lib/documents/access";
+import { blocksExternalDocumentExtraction } from "@/lib/documents/extraction/egress";
 import { isExtractionEnabled, resolveExtractionProvider } from "@/lib/documents/extraction/provider";
 import { EXTRACTION_RETRY_MS, EXTRACTION_STALE_PROCESSING_MS } from "@/lib/documents/extraction/types";
 import { MANUAL_EXTRACTION_MESSAGE, isExtractionUnsupportedFormat } from "@/lib/documents/extraction/unsupported";
@@ -48,6 +49,21 @@ export async function startDocumentExtraction(args: {
 
   const document = await prisma.managedDocument.findUnique({ where: { id: args.documentId } });
   if (!document) return { error: "Not found." as const };
+
+  if (blocksExternalDocumentExtraction(document)) {
+    if (document.extractionStatus !== "OCR_DISABLED") {
+      await prisma.managedDocument.update({
+        where: { id: document.id },
+        data: {
+          extractionStatus: "OCR_DISABLED",
+          extractionProvider: "noop",
+          extractionError: null,
+          lifecycleStatus: document.verificationStatus === "VERIFIED" ? "VERIFIED" : "UPLOADED",
+        },
+      });
+    }
+    return { status: "OCR_DISABLED" as const };
+  }
 
   const now = Date.now();
   if (document.extractionStatus === "PROCESSING" && document.extractionStartedAt) {
@@ -118,6 +134,9 @@ export async function startDocumentExtraction(args: {
       mimeType: document.mimeType,
       filename: document.originalFileName,
       bytes: bytes ?? undefined,
+      isSensitive: document.isSensitive,
+      documentType: document.documentType,
+      category: document.category,
     });
 
     if (result.status === "OCR_DISABLED") {
