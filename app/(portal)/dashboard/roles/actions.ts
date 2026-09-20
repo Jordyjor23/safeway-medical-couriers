@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { writeAuditLog } from "@/lib/audit";
 import { prisma } from "@/lib/db";
-import { PERMISSIONS } from "@/lib/permissions";
+import { OWNER_ONLY_PERMISSIONS, PERMISSIONS } from "@/lib/permissions";
 import { requirePermission } from "@/lib/rbac";
 
 function slugify(value: string) {
@@ -50,6 +50,15 @@ export async function saveRolePermissions(formData: FormData) {
       .map((value) => String(value))
       .filter((key) => (PERMISSIONS as readonly string[]).includes(key)),
   );
+  const ownerOnlySelected = [...selected].filter((key) =>
+    (OWNER_ONLY_PERMISSIONS as readonly string[]).includes(key),
+  );
+  if (ownerOnlySelected.length) {
+    return {
+      error: `Owner-only permissions cannot be granted to ${role.name}: ${ownerOnlySelected.join(", ")}.`,
+    } as const;
+  }
+
   const permissions = await prisma.permission.findMany({
     where: { key: { in: [...selected] } },
   });
