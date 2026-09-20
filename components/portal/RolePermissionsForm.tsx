@@ -49,7 +49,7 @@ export function RolePermissionsForm({
           try {
             const result = await saveRolePermissions(formData);
             if (result && "error" in result) {
-              setMessage({ type: "error", text: result.error });
+              setMessage({ type: "error", text: result.error ?? "Permissions could not be saved." });
               return;
             }
             setDirty(false);
