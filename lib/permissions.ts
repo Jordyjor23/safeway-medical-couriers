@@ -365,16 +365,36 @@ export function portalKindForRoles(roles: string[]): PortalKind {
   return "staff";
 }
 
+export const CROSS_CUSTOMER_ROLES: readonly RoleKey[] = [
+  "OWNER",
+  "ADMIN",
+  "OPERATIONS_MANAGER",
+  "OPERATIONS_ADMIN",
+  "DISPATCHER",
+  "SALES_ACCOUNT_MANAGER",
+];
+
+export const CROSS_EMPLOYEE_ROLES: readonly RoleKey[] = [
+  "OWNER",
+  "ADMIN",
+  "HR_RECRUITER",
+  "OPERATIONS_MANAGER",
+  "OPERATIONS_ADMIN",
+  "COMPLIANCE_ADMIN",
+];
+
 export function canAccessCustomerTenant(
   roles: string[],
   userCustomerId: string | null | undefined,
   requestedCustomerId: string,
 ) {
-  if (isOwnerRole(roles)) return true;
+  if (roles.some((role) => (CROSS_CUSTOMER_ROLES as readonly string[]).includes(role))) {
+    return true;
+  }
   if (roles.includes("CUSTOMER")) {
     return Boolean(userCustomerId) && userCustomerId === requestedCustomerId;
   }
-  return true;
+  return false;
 }
 
 export function canAccessOwnEmployeeRecord(
@@ -382,18 +402,13 @@ export function canAccessOwnEmployeeRecord(
   userEmployeeId: string | null | undefined,
   requestedEmployeeId: string,
 ) {
-  const privileged =
-    isOwnerRole(roles) ||
-    roles.includes("ADMIN") ||
-    roles.includes("HR_RECRUITER") ||
-    roles.includes("OPERATIONS_MANAGER") ||
-    roles.includes("OPERATIONS_ADMIN") ||
-    roles.includes("COMPLIANCE_ADMIN");
-  if (privileged) return true;
+  if (roles.some((role) => (CROSS_EMPLOYEE_ROLES as readonly string[]).includes(role))) {
+    return true;
+  }
   if (roles.includes("DRIVER") || roles.includes("EMPLOYEE")) {
     return Boolean(userEmployeeId) && userEmployeeId === requestedEmployeeId;
   }
-  return true;
+  return false;
 }
 
 export function canAccessPortal(roles: string[], kind: PortalKind) {

@@ -48,7 +48,10 @@ export async function getAuthContext(): Promise<AuthContext | null> {
   });
 
   if (!dbUser) return null;
-  if (!accountAllowsLogin(dbUser)) return null;
+  if (!accountAllowsLogin(dbUser)) {
+    await prisma.session.deleteMany({ where: { userId: dbUser.id } });
+    return null;
+  }
 
   const roles = dbUser.roles.map((assignment) => assignment.role.key);
   const permissions = new Set<string>();

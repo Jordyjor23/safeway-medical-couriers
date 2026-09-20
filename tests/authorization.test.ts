@@ -44,6 +44,9 @@ describe("authorization scenarios", () => {
   it("blocks an employee from another employee's protected record", () => {
     expect(canAccessOwnEmployeeRecord(["EMPLOYEE"], "emp-a", "emp-b")).toBe(false);
     expect(canAccessOwnEmployeeRecord(["HR_RECRUITER"], "emp-a", "emp-b")).toBe(true);
+    expect(canAccessOwnEmployeeRecord(["CUSTOMER"], "emp-a", "emp-b")).toBe(false);
+    expect(canAccessOwnEmployeeRecord(["DISPATCHER"], "emp-a", "emp-b")).toBe(false);
+    expect(canAccessOwnEmployeeRecord(["UNKNOWN_ROLE"], "emp-a", "emp-b")).toBe(false);
   });
 
   it("isolates customer A from customer B records", () => {
@@ -51,6 +54,10 @@ describe("authorization scenarios", () => {
     expect(canAccessCustomerTenant(["CUSTOMER"], "org-a", "org-a")).toBe(true);
     expect(canAccessCustomerTenant(["CUSTOMER"], null, "org-b")).toBe(false);
     expect(canAccessCustomerTenant(["DISPATCHER"], null, "org-b")).toBe(true);
+    expect(canAccessCustomerTenant(["SALES_ACCOUNT_MANAGER"], "org-a", "org-b")).toBe(true);
+    expect(canAccessCustomerTenant(["DRIVER"], null, "org-b")).toBe(false);
+    expect(canAccessCustomerTenant(["EMPLOYEE"], "org-a", "org-b")).toBe(false);
+    expect(canAccessCustomerTenant(["UNKNOWN_ROLE"], null, "org-b")).toBe(false);
   });
 
   it("keeps dispatchers off owner settings, payroll, and finance", () => {
