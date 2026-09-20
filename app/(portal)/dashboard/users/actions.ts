@@ -98,7 +98,7 @@ export async function createStaffUser(formData: FormData) {
     },
   });
 
-  await attachCredentialAccount(user.id, issuer);
+  await attachCredentialAccount(user.id);
 
   const role = await prisma.role.findUnique({ where: { key: roleKey } });
   if (role) {
