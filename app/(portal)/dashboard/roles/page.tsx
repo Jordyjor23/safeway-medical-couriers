@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { createCustomRole, saveRolePermissions } from "@/app/(portal)/dashboard/roles/actions";
+import { createCustomRole } from "@/app/(portal)/dashboard/roles/actions";
+import { RolePermissionsForm } from "@/components/portal/RolePermissionsForm";
 import { prisma } from "@/lib/db";
 import { PERMISSIONS, roleLabel } from "@/lib/permissions";
 import { requirePermission } from "@/lib/rbac";
@@ -42,27 +43,11 @@ export default async function RolesPage() {
             {role.key === "OWNER" ? (
               <p className="mt-3 text-sm text-muted">Owner permissions cannot be reduced.</p>
             ) : (
-              <form action={saveRolePermissions} className="mt-4">
-                <input type="hidden" name="roleId" value={role.id} />
-                <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                  {PERMISSIONS.map((permission) => (
-                    <li key={permission}>
-                      <label className="flex items-center gap-2 text-sm">
-                        <input
-                          type="checkbox"
-                          name="permission"
-                          value={permission}
-                          defaultChecked={assigned.has(permission)}
-                        />
-                        {permission}
-                      </label>
-                    </li>
-                  ))}
-                </ul>
-                <button className="mt-4 rounded-full bg-navy px-4 py-2 text-sm font-semibold text-white">
-                  Save permissions
-                </button>
-              </form>
+              <RolePermissionsForm
+                roleId={role.id}
+                permissions={PERMISSIONS}
+                assigned={[...assigned]}
+              />
             )}
           </section>
         );
