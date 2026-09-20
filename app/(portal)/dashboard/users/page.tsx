@@ -55,6 +55,7 @@ export default async function UsersPage() {
               <th className="px-4 py-3">Last login</th>
               <th className="px-4 py-3">MFA</th>
               <th className="px-4 py-3">Created</th>
+              <th className="px-4 py-3 text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -78,6 +79,15 @@ export default async function UsersPage() {
                 <td className="px-4 py-3">{user.lastLoginAt ? formatBusinessDateTime(user.lastLoginAt) : "Never"}</td>
                 <td className="px-4 py-3">{user.twoFactorEnabled ? "On" : "Off"}</td>
                 <td className="px-4 py-3">{formatBusinessDate(user.createdAt)}</td>
+                <td className="px-4 py-3 text-right">
+                  <Link
+                    href={`/dashboard/users/${user.id}`}
+                    className="inline-flex rounded-full border border-line px-3 py-1.5 text-xs font-semibold text-navy hover:border-medical hover:text-medical"
+                    aria-label={`Manage ${user.name}`}
+                  >
+                    Manage
+                  </Link>
+                </td>
               </tr>
             ))}
           </tbody>

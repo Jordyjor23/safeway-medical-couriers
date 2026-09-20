@@ -41,8 +41,8 @@ export async function saveRolePermissions(formData: FormData) {
   const ctx = await requirePermission("permission.manage");
   const roleId = String(formData.get("roleId") ?? "");
   const role = await prisma.role.findUnique({ where: { id: roleId } });
-  if (!role) return;
-  if (role.key === "OWNER") return;
+  if (!role) return { error: "Role could not be found." } as const;
+  if (role.key === "OWNER") return { error: "Owner permissions cannot be reduced." } as const;
 
   const selected = new Set(
     formData
@@ -53,21 +53,27 @@ export async function saveRolePermissions(formData: FormData) {
   const permissions = await prisma.permission.findMany({
     where: { key: { in: [...selected] } },
   });
-  await prisma.rolePermission.deleteMany({ where: { roleId } });
-  if (permissions.length) {
-    await prisma.rolePermission.createMany({
-      data: permissions.map((permission) => ({
-        roleId,
-        permissionId: permission.id,
-      })),
-    });
-  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.rolePermission.deleteMany({ where: { roleId } });
+    if (permissions.length) {
+      await tx.rolePermission.createMany({
+        data: permissions.map((permission) => ({
+          roleId,
+          permissionId: permission.id,
+        })),
+      });
+    }
+  });
+
   await writeAuditLog({
     actorId: ctx.user.id,
     actorEmail: ctx.user.email,
     action: "role.permissions.updated",
     targetType: "role",
     targetId: role.key,
+    metadata: { permissionCount: permissions.length },
   });
   revalidatePath("/dashboard/roles");
+  return { ok: true, permissionCount: permissions.length } as const;
 }
