@@ -60,5 +60,16 @@ describe("carrier partner network", () => {
     }
     expect(actions).toContain("carrierContractPartner.upsert");
     expect(actions).toContain("carrierPartner.contract.assigned");
+    expect(actions).toContain('data: { status: "ENDED" }');
+    expect(actions).not.toContain("carrierContractPartner.delete");
+  });
+
+  it("prevents deleting a contract that has carrier assignment history", () => {
+    const contractActions = readFileSync(
+      path.join(process.cwd(), "app/(portal)/dashboard/contracts/actions.ts"),
+      "utf8",
+    );
+    expect(contractActions).toContain("carrierPartners: true");
+    expect(contractActions).toContain("carrier-assignment history");
   });
 });
