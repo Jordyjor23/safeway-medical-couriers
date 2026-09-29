@@ -56,13 +56,21 @@ export function createTemporaryPassword() {
   return required.join("");
 }
 
-export function formatScopedId(kind: "EMP" | "DRV" | "CLI" | "DLV", value: number) {
+export function formatScopedId(kind: "EMP" | "DRV" | "CLI" | "DLV" | "CAR", value: number) {
   const prefix =
-    kind === "EMP" ? "SC-EMP" : kind === "DRV" ? "SC-DRV" : kind === "CLI" ? "SC-CLI" : "SC-DLV";
+    kind === "EMP"
+      ? "SC-EMP"
+      : kind === "DRV"
+        ? "SC-DRV"
+        : kind === "CLI"
+          ? "SC-CLI"
+          : kind === "CAR"
+            ? "SC-CAR"
+            : "SC-DLV";
   return `${prefix}-${String(value).padStart(4, "0")}`;
 }
 
-export async function nextScopedId(kind: "EMP" | "DRV" | "CLI" | "DLV") {
+export async function nextScopedId(kind: "EMP" | "DRV" | "CLI" | "DLV" | "CAR") {
   const row = await prisma.idSequence.upsert({
     where: { key: kind },
     update: { value: { increment: 1 } },
