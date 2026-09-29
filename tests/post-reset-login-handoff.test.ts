@@ -26,6 +26,6 @@ describe("post-reset login handoff", () => {
     );
     expect(page).toContain("resolvePasswordResetToken(token)");
     expect(page).toContain("Opening a reset link does not use it");
-    expect(page).toContain("a newer reset email was requested");
+    expect(page).toContain("a newer password-reset email was requested");
   });
 });

@@ -58,7 +58,7 @@ export async function ensureSystemRoles(db: PrismaClient) {
     }
   }
 
-  for (const key of ["EMP", "DRV", "CLI", "DLV"]) {
+  for (const key of ["EMP", "DRV", "CLI", "DLV", "CAR"]) {
     await db.idSequence.upsert({
       where: { key },
       update: {},

@@ -118,7 +118,17 @@ export async function deleteContract(contractId: string) {
   const ctx = await requirePermission("contracts.delete");
   const contract = await prisma.contract.findUnique({
     where: { id: contractId },
-    include: { _count: { select: { documents: true, amendments: true, routeTemplates: true, deliveries: true } } },
+    include: {
+      _count: {
+        select: {
+          documents: true,
+          amendments: true,
+          routeTemplates: true,
+          deliveries: true,
+          carrierPartners: true,
+        },
+      },
+    },
   });
   if (!contract) redirect("/dashboard/contracts");
   if (
@@ -129,7 +139,7 @@ export async function deleteContract(contractId: string) {
     contract._count.deliveries > 0
   ) {
     throw new Error(
-      "Only empty draft contracts can be deleted. Contracts with documents, routes, amendments, or delivery history must be retained and moved to an appropriate inactive status.",
+      "Only empty draft contracts can be deleted. Contracts with documents, routes, amendments, deliveries, or carrier-assignment history must be retained and moved to an appropriate inactive status.",
     );
   }
   await prisma.contract.delete({ where: { id: contractId } });

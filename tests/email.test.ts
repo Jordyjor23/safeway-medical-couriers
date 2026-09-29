@@ -34,14 +34,14 @@ describe("transactional email", () => {
       subject: "Activate your Safeway Couriers portal account",
       html: "<p>Activate</p>",
     });
-    expect(emailFromAddress()).toBe("Safeway Couriers <noreply@safewaycouriers.com>");
+    expect(emailFromAddress()).toBe("Safeway Couriers <noreply@mail.safewaycouriers.com>");
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe("https://api.resend.com/emails");
     expect(init.method).toBe("POST");
     expect(init.headers.Authorization).toBe("Bearer re_test_key");
     expect(JSON.parse(init.body)).toMatchObject({
-      from: "Safeway Couriers <noreply@safewaycouriers.com>",
+      from: "Safeway Couriers <noreply@mail.safewaycouriers.com>",
       to: ["new.employee@example.com"],
       subject: "Activate your Safeway Couriers portal account",
     });

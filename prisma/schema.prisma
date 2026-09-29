@@ -1132,6 +1132,114 @@ model CustomerDocument {
 }
 
 // ---------------------------------------------------------------------------
+// Carrier / subcontractor network
+// ---------------------------------------------------------------------------
+
+enum CarrierPartnerStatus {
+  PROSPECT
+  ONBOARDING
+  QUALIFIED
+  ACTIVE
+  SUSPENDED
+  INACTIVE
+}
+
+enum CarrierPartnerType {
+  COURIER_FLEET
+  FREIGHT_CARRIER
+  OWNER_OPERATOR
+  LOGISTICS_PROVIDER
+  SUBCONTRACTOR
+}
+
+enum CarrierAgreementStatus {
+  NOT_STARTED
+  REQUESTED
+  UNDER_REVIEW
+  EXECUTED
+  EXPIRED
+  TERMINATED
+}
+
+enum CarrierContractStatus {
+  PROPOSED
+  APPROVED
+  ACTIVE
+  PAUSED
+  ENDED
+}
+
+model CarrierPartner {
+  id                          String                 @id @default(uuid())
+  partnerNumber               String                 @unique
+  legalName                   String
+  dba                         String?
+  partnerType                 CarrierPartnerType
+  status                      CarrierPartnerStatus   @default(PROSPECT)
+  contactName                 String?
+  contactEmail                String?
+  contactPhone                String?
+  website                     String?
+  mcNumber                    String?
+  dotNumber                   String?
+  headquartersCity            String?
+  headquartersState           String?
+  serviceRegions              String?
+  operatingStates             String?
+  equipment                   String?
+  capabilities                String?
+  medicalCapabilities         String?
+  availabilityNotes           String?
+  rateNotes                   String?
+  w9Received                  Boolean                @default(false)
+  coiReceived                 Boolean                @default(false)
+  cargoInsuranceVerified      Boolean                @default(false)
+  autoInsuranceVerified       Boolean                @default(false)
+  hipaaVerified               Boolean                @default(false)
+  bloodbornePathogensVerified Boolean                @default(false)
+  hazmatVerified              Boolean                @default(false)
+  backgroundProcessVerified   Boolean                @default(false)
+  rateSheetReceived           Boolean                @default(false)
+  insuranceExpiration         DateTime?
+  cargoInsuranceExpiration    DateTime?
+  agreementStatus             CarrierAgreementStatus @default(NOT_STARTED)
+  agreementExpiration         DateTime?
+  notes                       String?
+  createdById                 String?
+  createdAt                   DateTime                @default(now())
+  updatedAt                   DateTime                @updatedAt
+
+  contractAssignments CarrierContractPartner[]
+
+  @@index([status, partnerType])
+  @@index([headquartersState])
+  @@index([mcNumber])
+  @@index([dotNumber])
+  @@index([insuranceExpiration])
+  @@index([agreementExpiration])
+}
+
+model CarrierContractPartner {
+  id               String                @id @default(uuid())
+  contractId       String
+  contract         Contract              @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  carrierPartnerId String
+  carrierPartner   CarrierPartner        @relation(fields: [carrierPartnerId], references: [id], onDelete: Restrict)
+  status           CarrierContractStatus @default(PROPOSED)
+  role             String?
+  serviceScope     String?
+  rateTerms        String?
+  priority         Int?
+  notes            String?
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+
+  @@unique([contractId, carrierPartnerId])
+  @@index([carrierPartnerId, status])
+  @@index([contractId, status])
+}
+
+// ---------------------------------------------------------------------------
 // Contracts
 // ---------------------------------------------------------------------------
 
@@ -1184,6 +1292,7 @@ model Contract {
   operatingModels ContractOperatingModel[]
   routeTemplates RouteTemplate[]
   deliveries Delivery[]
+  carrierPartners CarrierContractPartner[]
 
   @@index([customerId, status])
   @@index([expirationDate])
