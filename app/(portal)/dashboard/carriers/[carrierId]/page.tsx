@@ -262,8 +262,8 @@ export default async function CarrierPartnerDetailPage({
                 {canEditContracts ? (
                   <form action={removeCarrierPartnerFromContract.bind(null, partner.id, assignment.id)}>
                     <ConfirmSubmitButton
-                      label="Remove"
-                      confirmText="Remove this carrier from the contract assignment?"
+                      label="End assignment"
+                      confirmText="End this carrier assignment? The history will be retained."
                       className="text-xs font-semibold text-red-700"
                     />
                   </form>
