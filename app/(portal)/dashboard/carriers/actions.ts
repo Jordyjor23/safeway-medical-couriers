@@ -171,12 +171,17 @@ export async function removeCarrierPartnerFromContract(
   });
   if (!assignment) return;
 
-  await prisma.carrierContractPartner.delete({ where: { id: assignmentId } });
+  // Preserve assignment history instead of hard-deleting the relationship.
+  // A future award may reactivate the same unique carrier/contract row via upsert.
+  await prisma.carrierContractPartner.update({
+    where: { id: assignmentId },
+    data: { status: "ENDED" },
+  });
 
   await writeAuditLog({
     actorId: ctx.user.id,
     actorEmail: ctx.user.email,
-    action: "carrierPartner.contract.removed",
+    action: "carrierPartner.contract.ended",
     targetType: "carrierPartner",
     targetId: partnerId,
     metadata: { contractId: assignment.contractId, assignmentId },
