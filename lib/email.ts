@@ -1,3 +1,5 @@
+import { appOrigin } from "@/lib/app-url";
+
 export class EmailDeliveryError extends Error {
   constructor() {
     super("Email delivery failed.");
@@ -19,6 +21,13 @@ export function emailFromAddress() {
   return configured;
 }
 
+export function normalizeTransactionalEmailHtml(html: string) {
+  const portalOrigin = appOrigin();
+  return html
+    .replace(/https:\/\/www\.safewaycouriers\.com\/dashboard(?=\/|["'<>\s]|$)/gi, `${portalOrigin}/dashboard`)
+    .replace(/https:\/\/safewaycouriers\.com\/dashboard(?=\/|["'<>\s]|$)/gi, `${portalOrigin}/dashboard`);
+}
+
 function providerErrorName(payload: unknown) {
   if (!payload || typeof payload !== "object") return "provider_error";
   const name = "name" in payload ? payload.name : null;
@@ -33,6 +42,7 @@ export async function sendTransactionalEmail(args: {
   const to = args.to.trim();
   const apiKey = (process.env.RESEND_API_KEY ?? "").trim();
   const from = emailFromAddress();
+  const html = normalizeTransactionalEmailHtml(args.html);
 
   console.info("[email] send attempted", { to, subject: args.subject });
 
@@ -62,7 +72,7 @@ export async function sendTransactionalEmail(args: {
         from,
         to: [to],
         subject: args.subject,
-        html: args.html,
+        html,
       }),
     });
 
