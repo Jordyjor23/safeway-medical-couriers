@@ -1,3 +1,4 @@
+import { appOrigin } from "@/lib/app-url";
 import { prisma } from "@/lib/db";
 import { sendTransactionalEmail } from "@/lib/email";
 import type { NotificationType } from "@prisma/client";
@@ -15,6 +16,17 @@ type NotifyArgs = {
     html?: string;
   } | null;
 };
+
+function absoluteNotificationHref(href?: string | null) {
+  if (!href) return null;
+  if (/^https?:\/\//i.test(href)) return href;
+  return `${appOrigin()}${href.startsWith("/") ? href : `/${href}`}`;
+}
+
+function notificationActionHtml(href?: string | null) {
+  const url = absoluteNotificationHref(href);
+  return url ? `<p><a href="${url}">Open in Safeway Couriers</a></p>` : "";
+}
 
 export async function notifyUser(args: NotifyArgs) {
   try {
@@ -39,9 +51,10 @@ export async function notifyUser(args: NotifyArgs) {
         subject: args.email.subject ?? args.title,
         html:
           args.email.html ??
-          `<p><strong>${args.title}</strong></p><p>${args.body}</p>`,
+          `<p><strong>${args.title}</strong></p><p>${args.body}</p>${notificationActionHtml(args.href)}`,
       });
-    } catch {
+    } catch (error) {
+      console.error("[notifications] Transactional notification email failed", error);
       // In-app notification must not fail because email delivery failed.
     }
   }
@@ -65,7 +78,7 @@ export async function notifyEmployee(args: Omit<NotifyArgs, "userId" | "email"> 
       ? {
           to: employee.email,
           subject: args.emailSubject ?? args.title,
-          html: `<p>Hello ${employee.legalFirstName},</p><p>${args.body}</p>`,
+          html: `<p>Hello ${employee.legalFirstName},</p><p>${args.body}</p>${notificationActionHtml(args.href)}`,
         }
       : null,
   });
