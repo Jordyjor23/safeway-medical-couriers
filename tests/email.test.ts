@@ -1,7 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { EmailDeliveryError, emailFromAddress, sendTransactionalEmail } from "@/lib/email";
+import {
+  EmailDeliveryError,
+  emailFromAddress,
+  normalizeTransactionalEmailHtml,
+  sendTransactionalEmail,
+} from "@/lib/email";
 
-const KEYS = ["RESEND_API_KEY", "EMAIL_FROM"] as const;
+const KEYS = ["RESEND_API_KEY", "EMAIL_FROM", "VERCEL_ENV", "BETTER_AUTH_URL"] as const;
 
 describe("transactional email", () => {
   const previous: Record<string, string | undefined> = {};
@@ -13,6 +18,8 @@ describe("transactional email", () => {
     vi.stubGlobal("fetch", fetchMock);
     process.env.RESEND_API_KEY = "re_test_key";
     process.env.EMAIL_FROM = "Safeway Couriers <noreply@safewaycouriers.com>";
+    process.env.VERCEL_ENV = "production";
+    process.env.BETTER_AUTH_URL = "https://www.safewaycouriers.com";
   });
 
   afterEach(() => {
@@ -46,6 +53,19 @@ describe("transactional email", () => {
       subject: "Activate your Safeway Couriers portal account",
     });
     expect(result).toEqual({ id: "email_123" });
+  });
+
+  it("normalizes marketing-domain dashboard links to the production portal", () => {
+    expect(
+      normalizeTransactionalEmailHtml(
+        '<a href="https://www.safewaycouriers.com/dashboard/applicants/123">Open</a>',
+      ),
+    ).toContain('href="https://portal.safewaycouriers.com/dashboard/applicants/123"');
+    expect(
+      normalizeTransactionalEmailHtml(
+        '<a href="https://safewaycouriers.com/dashboard/users">Open</a>',
+      ),
+    ).toContain('href="https://portal.safewaycouriers.com/dashboard/users"');
   });
 
   it("fails without exposing provider errors when Resend rejects the request", async () => {
