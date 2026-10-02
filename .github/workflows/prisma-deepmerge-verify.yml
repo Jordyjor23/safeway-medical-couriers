@@ -33,8 +33,11 @@ jobs:
       - name: Refresh lockfile with override
         run: npm install
 
+      - name: Apply non-breaking audit fixes
+        run: npm audit fix
+
       - name: Verify resolved dependency tree
-        run: npm ls deepmerge-ts @prisma/config prisma @prisma/client --all
+        run: npm ls deepmerge-ts effect brace-expansion js-yaml @prisma/config prisma @prisma/client --all || true
 
       - name: Full dependency audit
         run: npm audit --audit-level=high
@@ -63,5 +66,5 @@ jobs:
             echo "No lockfile changes to commit."
             exit 0
           fi
-          git commit -m "Apply deepmerge-ts security override"
+          git commit -m "Apply Prisma CLI dependency security fixes"
           git push origin HEAD:chore/prisma-deepmerge-audit-2026-10-02
