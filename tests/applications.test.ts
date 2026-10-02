@@ -23,6 +23,21 @@ describe("public application payload", () => {
   });
 });
 
+describe("application recruiting notifications", () => {
+  it("only targets active enabled owners or roles with recruiting notification permissions", () => {
+    const source = readFileSync(
+      path.join(process.cwd(), "app/api/careers/applications/route.ts"),
+      "utf8",
+    );
+    expect(source).toContain("disabled: false");
+    expect(source).toContain('accountStatus: "ACTIVE"');
+    expect(source).toContain('{ key: "OWNER" }');
+    expect(source).toContain('key: "applicants.view"');
+    expect(source).toContain('key: "notifications.manage"');
+    expect(source).not.toContain('key: { in: ["OWNER", "ADMIN", "HR_RECRUITER"] }');
+  });
+});
+
 describe("application form employment-law guards", () => {
   it("does not include prohibited questions", () => {
     const source = readFileSync(
