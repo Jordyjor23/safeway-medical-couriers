@@ -292,7 +292,15 @@ export async function POST(request: Request) {
       roles: {
         some: {
           role: {
-            key: { in: ["OWNER", "ADMIN", "HR_RECRUITER"] },
+            OR: [
+              { key: "OWNER" },
+              {
+                AND: [
+                  { permissions: { some: { permission: { key: "applicants.view" } } } },
+                  { permissions: { some: { permission: { key: "notifications.manage" } } } },
+                ],
+              },
+            ],
           },
         },
       },
