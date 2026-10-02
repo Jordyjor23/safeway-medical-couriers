@@ -28,8 +28,8 @@ jobs:
       - name: Upgrade patched Next.js dependencies
         run: npm install next@16.3.8 eslint-config-next@16.3.8 --save-exact
 
-      - name: Apply non-breaking audit fixes
-        run: npm audit fix
+      - name: Apply non-breaking production audit fixes
+        run: npm audit fix --omit=dev --omit=optional
 
       - name: Verify clean install
         run: npm ci
