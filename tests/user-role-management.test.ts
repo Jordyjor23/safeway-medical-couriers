@@ -31,6 +31,18 @@ describe("user role management wiring", () => {
     expect(actions).toContain('roleKey === "CUSTOMER"');
     expect(actions).toContain("prisma.customerUser.findUnique");
   });
+
+  it("unlocking restores the account flags used by notification eligibility", () => {
+    const actions = readFileSync(
+      path.join(process.cwd(), "app/(portal)/dashboard/users/actions.ts"),
+      "utf8",
+    );
+    expect(actions).toContain('const disabled = status !== "ACTIVE"');
+    expect(actions).toContain("accountStatus: status");
+    expect(actions).toContain("disabled,");
+    expect(actions).toContain("lockedUntil: null");
+  });
+
   it("prevents terminated accounts from being reactivated through generic status actions", () => {
     const actions = readFileSync(
       path.join(process.cwd(), "app/(portal)/dashboard/users/actions.ts"),
